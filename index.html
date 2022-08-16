@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@11.0.1/lib/browser/math.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+</head>
+<body>
+<h1>liveCalc</h1>
+<a href="https://mathjs.org/"><img src="https://img.shields.io/badge/powered%20by-mathjs-red"></a>
+<div class="">
+<div class="split right">
+<div class="bed-container">
+  <div class="bed-backdrop" style="margin: 1px;">
+    <div class="bed-highlights bed-content linked" id="highlights1" style="padding: 0px; border-width: 0px;"></div>
+  </div>
+  <textarea spellcheck="false" class="bed-input bed-content linked ta" name="frame1" id="frame1" style="width:100%;">
+1.2 / (3.3 + 1.7)
+B = 5.08 cm + 2 inch
+
+B * 3
+
+fx(x, y) = x + y
+
+fx(2,5)
+
+333 * fx(1.4,3)
+
+sin(90 deg)
+
+det([-1, 2; 3, 1])
+log(10000, 10)
+round(pi, 4)
+
+simplify('3 + 2 / 4')
+
+simplify('30 + 21 / 4')
+simplify('x * y * -x / (x ^ 2)')
+
+
+
+</textarea>
+</div>
+</div>
+<script type="text/javascript">
+function evalMath() {
+  var parser = math.parser();
+  var output = '';
+  var input = [];
+  var arrayOfLines = $('#frame1').val().split('\n');
+
+  $.each(arrayOfLines, function(index, item) {
+      try {
+        parser.evaluate(item)
+      }
+      catch (err) {
+        output += item + '    = ' + err + '\n';
+        return
+      }
+
+      input.push(item)
+
+      if(parser.evaluate(input) === undefined || item.trim() == '') {
+        output += item + '\n';
+      } else {
+        var ev_raw = parser.evaluate(input).slice(-1);
+        var ev_str = JSON.stringify(parser.evaluate(input).slice(-1));
+
+        if(ev_raw !== undefined && ev_str !== "[null]") {
+          output += item + '    = ' + ev_raw + '\n';
+        } else {
+          output += item + '\n';
+        }
+      }
+  });
+  $("#highlights1").html(output);
+}
+
+evalMath();
+
+
+$("#frame1").on("keyup change", function(e) {
+    evalMath();
+})
+	
+$('.linked').scroll(function() {
+  $('.bed-highlights').css('transform', `translateY(${-this.scrollTop}px)`);
+});
+
+</script>
+</body>
+</html>

@@ -4,10 +4,18 @@
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/mathjs@11.0.1/lib/browser/math.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="./script.js"></script>
 </head>
 <body>
+<div id="top">
 <h1>liveCalc</h1>
-<a href="https://mathjs.org/"><img src="https://img.shields.io/badge/powered%20by-mathjs-red"></a>
+<a href="https://mathjs.org/"><img src="https://img.shields.io/badge/powered%20by-mathjs-blue"></a>
+<a href="https://github.com/SimonWaldherr/liveCalc/"><img src="https://img.shields.io/badge/hosted%20on-github-green"></a>
+&mdash;
+<a href="" onclick="javascript:downloadMath(); return false;"><img src="https://img.shields.io/badge/download%20math-as%20.txt-gray"></a>
+<a href="" onclick="javascript:copyURLtoClipboard(); return false;"><img src="https://img.shields.io/badge/copy%20link-to%20clipboard-gray"></a>
+
+</div>
 <div class="">
 <div class="split right">
 <div class="bed-container">
@@ -25,65 +33,27 @@ B * B
 </div>
 </div>
 <script type="text/javascript">
-  
-function utf8_to_b64(str) {
-  return window.btoa(unescape(encodeURIComponent(str)));
-}
 
-function b64_to_utf8(str) {
-  return decodeURIComponent(escape(window.atob(str)));
-}
-function evalMath() {
-  var parser = math.parser();
-  var output = '';
-  var input = [];
-  var arrayOfLines = $('#frame1').val().split('\n');
-
-  $.each(arrayOfLines, function(index, item) {
-      try {
-        parser.evaluate(item)
-      }
-      catch (err) {
-        output += item + '    = ' + err + '\n';
-        return
-      }
-
-      input.push(item)
-
-      if(parser.evaluate(input) === undefined || item.trim() == '') {
-        output += item + '\n';
-      } else {
-        var ev_raw = parser.evaluate(input).slice(-1);
-        var ev_str = JSON.stringify(parser.evaluate(input).slice(-1));
-
-        if(ev_raw !== undefined && ev_str !== "[null]") {
-          output += item + '    = ' + ev_raw + '\n';
-        } else {
-          output += item + '\n';
-        }
-      }
-  });
-  $("#highlights1").html(output);
-}
-
-var hashvalue = window.location.hash.substring(1);
-
-if(hashvalue.length > 4) {
-  $('#frame1').val(b64_to_utf8(hashvalue));
-}
-
-evalMath();
-
-
-$("#frame1").on("keyup change", function(e) {
-    evalMath();
-    var encodedMath = utf8_to_b64($('#frame1').val());
-    window.location.hash = encodedMath;
-})
-	
-$('.linked').scroll(function() {
-  $('.bed-highlights').css('transform', `translateY(${-this.scrollTop}px)`);
-});
+document.addEventListener('DOMContentLoaded', function() {
+   var hashvalue = window.location.hash.substring(1);
+   
+   if (hashvalue.length > 4) {
+       $('#frame1').val(b64_to_utf8(hashvalue));
+   }
+   
+   evalMath();
+   
+   
+   $("#frame1").on("keyup change", function(e) {
+       evalMath();
+       var encodedMath = utf8_to_b64($('#frame1').val());
+       window.location.hash = encodedMath;
+   })
+   
+   $('.linked').scroll(function() {
+       $('.bed-highlights').css('transform', `translateY(${-this.scrollTop}px)`);
+   });
+}, false);
 
 </script>
 </body>

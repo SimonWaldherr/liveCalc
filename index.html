@@ -18,31 +18,21 @@
 1.2 / (3.3 + 1.7)
 B = 5.08 cm + 2 inch
 
-B * 3
-
-fx(x, y) = x + y
-
-fx(2,5)
-
-333 * fx(1.4,3)
-
-sin(90 deg)
-
-det([-1, 2; 3, 1])
-log(10000, 10)
-round(pi, 4)
-
-simplify('3 + 2 / 4')
-
-simplify('30 + 21 / 4')
-simplify('x * y * -x / (x ^ 2)')
-
+B * B
 
 
 </textarea>
 </div>
 </div>
 <script type="text/javascript">
+  
+function utf8_to_b64(str) {
+  return window.btoa(unescape(encodeURIComponent(str)));
+}
+
+function b64_to_utf8(str) {
+  return decodeURIComponent(escape(window.atob(str)));
+}
 function evalMath() {
   var parser = math.parser();
   var output = '';
@@ -76,11 +66,19 @@ function evalMath() {
   $("#highlights1").html(output);
 }
 
+var hashvalue = window.location.hash.substring(1);
+
+if(hashvalue.length > 4) {
+  $('#frame1').val(b64_to_utf8(hashvalue));
+}
+
 evalMath();
 
 
 $("#frame1").on("keyup change", function(e) {
     evalMath();
+    var encodedMath = utf8_to_b64($('#frame1').val());
+    window.location.hash = encodedMath;
 })
 	
 $('.linked').scroll(function() {

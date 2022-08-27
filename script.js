@@ -10,7 +10,13 @@ function evalMath() {
     var parser = math.parser();
     var output = '';
     var input = [];
-    var arrayOfLines = $('#frame1').val().split('\n');
+    var formulas = $('#frame1').val();
+    
+    if(formulas.includes(",")&&!formulas.includes(".")) {
+        formulas = formulas.replace(/,/gi, ".");
+    }
+    
+    var arrayOfLines = formulas.split('\n');
 
     $.each(arrayOfLines, function(index, item) {
         try {
@@ -52,7 +58,9 @@ function download(filename, text) {
 }
 
 function downloadMath() {
-    download('liveCalc.output.txt', $("#highlights1").text());
+    var filename = window.prompt('Save calculation as:', 'liveCalc.txt');
+    var content = $("#highlights1").text().replace(/ +/g, " ");
+    download(filename, content);
     return false;
 }
 

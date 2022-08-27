@@ -14,6 +14,7 @@ function evalMath() {
     
     if(formulas.includes(",")&&!formulas.includes(".")) {
         formulas = formulas.replace(/,/gi, ".");
+        formulas = formulas.replace(/;/gi, ",");
     }
     
     var arrayOfLines = formulas.split('\n');

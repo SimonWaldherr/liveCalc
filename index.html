@@ -9,7 +9,7 @@
 </head>
 <body>
 <div id="top">
-<h1>liveCalc</h1>
+<h1 style="font-family: AppleGothic, sans-serif">liveCalc</h1>
 <a href="https://mathjs.org/"><img src="https://img.shields.io/badge/powered%20by-mathjs-blue"></a>
 <a href="https://github.com/SimonWaldherr/liveCalc/"><img src="https://img.shields.io/badge/hosted%20on-github-green"></a>
 &mdash;
@@ -24,17 +24,17 @@
     <div class="bed-highlights bed-content linked" id="highlights1" style="padding: 0px; border-width: 0px;"></div>
   </div>
   <textarea spellcheck="false" class="bed-input bed-content linked ta" name="frame1" id="frame1" style="width:100%;">
-1.2 / (3.3 + 1.7)
-B = 5.08 cm + 2 inch
-
-B * B
-
 
 </textarea>
 </div>
 </div>
 <script type="text/javascript">
 
+math.config({
+  number: 'BigNumber',      // Default type of number: 'number' (default), 'BigNumber', or 'Fraction'
+  precision: 64,            // Number of significant digits for BigNumbers
+  epsilon: 1e-60
+})
 
 document.addEventListener('DOMContentLoaded', function() {
    var hashvalue = window.location.hash.substring(1);

@@ -44,6 +44,16 @@ function evalMath() {
     $("#highlights1").html(output);
 }
 
+function clearTextarea() {
+    $('#frame1').val('');
+    evalMath();
+}
+
+function insertExample() {
+    $('#frame1').val(b64_to_utf8('QSA9ICgxLjIgLyAoMy4zICsgMS43KSkgY20KQiA9IDUuMDggY20gKyAyLjUgaW5jaApDID0gQiAqIEIgKiBBIGluIGNtMwoKCg=='));
+    evalMath();
+}
+
 function download(filename, text) {
     var element = document.createElement('a');
     element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));

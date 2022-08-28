@@ -13,8 +13,7 @@ function evalMath() {
     var formulas = $('#frame1').val();
     
     if(formulas.includes(",")&&!formulas.includes(".")) {
-        formulas = formulas.replace(/,/gi, ".");
-        formulas = formulas.replace(/;/gi, ",");
+        formulas = formulas.replace(/(\d+),(\d+)/gi, "$1.$2");
     }
     
     var arrayOfLines = formulas.split('\n');

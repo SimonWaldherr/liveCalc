@@ -15,6 +15,7 @@ The calculations can also be easily shared with colleagues, just pass the web ad
 * [example 3 - calculation of surface](https://simonwaldherr.github.io/liveCalc/#YSA9IDNjbQpiID0gNGNtCmMgPSAyLjVjbQoKc3VyZmFjZSA9IDIqKGEqYythKmIrYipjKSBpbiBjbV4yCgpzdXJmYWNlIGluIGluY2heMg==)
 * [example 4 - calculation of weights](https://simonwaldherr.github.io/liveCalc/#d2VpZ2h0ID0gNCBsYiBpbiBrZwp3ZWlnaHQgaW4gbGIK)
 * [example 5 - matrix](https://simonwaldherr.github.io/liveCalc/#YSA9IFsxOyAyOyAzOyAyKzI7IDU7IDZdCmEqMi41)
+* [example 6 - binary/oct/hex](https://simonwaldherr.github.io/liveCalc/#CkEgPSAwYjAxMTAxCkIgPSAwbzEyMzQKQyA9IDB4YmVlZgoKaGV4KEErQitDKQpvY3QoQStCK0MpCmJpbihBK0IrQykK)
 
 
 

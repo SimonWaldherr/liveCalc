@@ -4,6 +4,9 @@
 [![github](https://img.shields.io/badge/hosted%20on-github-yellow.svg)](https://github.com/SimonWaldherr/liveCalc) 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/SimonWaldherr/liveCalc/blob/main/LICENSE)  
 
+
+[![SimonWaldherr/liveCalc Online Calculator](https://simonwaldherr.github.io/liveCalc/screenshot.png)](https://simonwaldherr.github.io/liveCalc/)  
+
 With liveCalc, formulas can be calculated in real time.  
 The calculation is updated with each keystroke.  
 Variables can be used. Conversions, e.g. from cm to inch, are also possible.  

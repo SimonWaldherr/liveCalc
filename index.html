@@ -1,65 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.1.0/math.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-  <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>-->
   <script src="./script.js"></script>
+  <title>liveCalc</title>
 </head>
 <body>
-<div id="top">
-<h1 style="font-family: AppleGothic, sans-serif">liveCalc</h1>
-<a href="https://mathjs.org/"><img src="https://img.shields.io/badge/powered%20by-mathjs-blue"></a>
-<a href="https://github.com/SimonWaldherr/liveCalc/"><img src="https://img.shields.io/badge/hosted%20on-github-green"></a>
-&mdash;
-<a href="" onclick="javascript:clearTextarea(); return false;"><img src="https://img.shields.io/badge/clear-textarea-gray"></a>
-<a href="" onclick="javascript:insertExample(); return false;"><img src="https://img.shields.io/badge/insert-example-gray"></a>
-<a href="" onclick="javascript:downloadMath(); return false;"><img src="https://img.shields.io/badge/download%20math-as%20.txt-gray"></a>
-<a href="" onclick="javascript:copyURLtoClipboard(); return false;"><img src="https://img.shields.io/badge/copy%20link-to%20clipboard-gray"></a>
-
-</div>
-<div class="">
-<div class="split right">
-<div class="bed-container">
-  <div class="bed-backdrop" style="margin: 1px;">
-    <div class="bed-highlights bed-content linked" id="highlights1" style="padding: 0px; border-width: 0px;"></div>
+  <div id="top">
+    <h1>liveCalc</h1>
+    <div class="links">
+      <a href="https://mathjs.org/"><img src="https://img.shields.io/badge/powered%20by-mathjs-blue" alt="Powered by Math.js"></a>
+      <a href="https://github.com/SimonWaldherr/liveCalc/"><img src="https://img.shields.io/badge/hosted%20on-github-green" alt="Hosted on GitHub"></a>
+      <a href="" onclick="clearTextarea(); return false;"><img src="https://img.shields.io/badge/clear-textarea-gray" alt="Clear Textarea"></a>
+      <a href="" onclick="insertExample(); return false;"><img src="https://img.shields.io/badge/insert-example-gray" alt="Insert Example"></a>
+      <a href="" onclick="downloadMath(); return false;"><img src="https://img.shields.io/badge/download%20math-as%20.txt-gray" alt="Download Math"></a>
+      <a href="" onclick="copyURLtoClipboard(); return false;"><img src="https://img.shields.io/badge/copy%20link-to%20clipboard-gray" alt="Copy Link to Clipboard"></a>
+    </div>
   </div>
-  <textarea spellcheck="false" pattern="[0-9\+\-\*\/\(\)\.\,\;\[\]]" class="bed-input bed-content linked ta" name="frame1" id="frame1" style="width:100%;">
-
-</textarea>
-</div>
-</div>
-<script type="text/javascript">
-
-math.config({
-  number: 'BigNumber',      // Default type of number: 'number' (default), 'BigNumber', or 'Fraction'
-  precision: 64,            // Number of significant digits for BigNumbers
-  epsilon: 1e-60
-})
-
-document.addEventListener('DOMContentLoaded', function() {
-   var hashvalue = window.location.hash.substring(1);
-   
-   if (hashvalue.length > 4) {
-       $('#frame1').val(b64_to_utf8(hashvalue));
-   }
-   
-   evalMath();
-   
-   
-   $("#frame1").on("keyup change", function(e) {
-       evalMath();
-       var encodedMath = utf8_to_b64($('#frame1').val());
-       window.location.hash = encodedMath;
-   })
-   
-   $('.linked').scroll(function() {
-       $('.bed-highlights').css('transform', `translateY(${-this.scrollTop}px)`);
-   });
-
-}, false);
-
-</script>
+  <div class="content">
+    <div class="split right">
+      <div class="bed-container">
+        <div class="bed-backdrop">
+          <div class="bed-highlights bed-content linked" id="highlights1"></div>
+        </div>
+        <textarea spellcheck="false" class="bed-input bed-content linked ta" name="frame1" id="frame1"></textarea>
+      </div>
+    </div>
+  </div>
+  <script type="text/javascript">
+    
+    math.config({
+      number: 'BigNumber',      // Default type of number: 'number' (default), 'BigNumber', or 'Fraction'
+      precision: 64,            // Number of significant digits for BigNumbers
+      epsilon: 1e-60
+    })
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      var hashvalue = window.location.hash.substring(1);
+      
+      if (hashvalue.length > 4) {
+        $('#frame1').val(b64_to_utf8(hashvalue));
+      }
+      
+      evalMath();
+      
+      
+      $("#frame1").on("keyup change", function(e) {
+        evalMath();
+        var encodedMath = utf8_to_b64($('#frame1').val());
+        window.location.hash = encodedMath;
+      })
+      
+      $('.linked').scroll(function() {
+        $('.bed-highlights').css('transform', `translateY(${-this.scrollTop}px)`);
+      });
+      
+    }, false);
+    
+  </script>
 </body>
 </html>

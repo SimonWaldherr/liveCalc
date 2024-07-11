@@ -1,10 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
+  initializeApp();
+}, false);
+
+function initializeApp() {
   const hashvalue = window.location.hash.substring(1);
   if (hashvalue.length > 4) {
     $('#frame1').val(b64_to_utf8(hashvalue));
   }
   evalMath();
-  
+
   $('#frame1').on('keyup change', function() {
     evalMath();
     const encodedMath = utf8_to_b64($('#frame1').val());
@@ -14,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
   $('.linked').scroll(function() {
     $('.bed-highlights').css('transform', `translateY(${-this.scrollTop}px)`);
   });
-}, false);
+}
 
 function utf8_to_b64(str) {
   return window.btoa(unescape(encodeURIComponent(str)));
@@ -27,7 +31,7 @@ function b64_to_utf8(str) {
 function evalMath() {
   const parser = math.parser();
   let output = '';
-  const input = [];
+  let input = [];
   let formulas = $('#frame1').val();
 
   if (formulas.includes(",") && !formulas.includes(".")) {
@@ -35,70 +39,104 @@ function evalMath() {
   }
 
   const arrayOfLines = formulas.split('\n');
-  let sum = math.bignumber(0);
+  let globalSum = math.bignumber(0);
+  let localSum = math.bignumber(0);
   let units = null;
-  let maxLen = 0;
-  
-  $.each(arrayOfLines, function(index, item) {
-    if (item.length > maxLen) {
-      maxLen = item.length;
-    }
-  });
+  const maxLen = Math.max(...arrayOfLines.map(item => item.length));
 
-  $.each(arrayOfLines, function(index, item) {
-    try {
-      parser.evaluate(item);
-    } catch (err) {
-      output += `${item} = ${err}\n`;
-      return;
-    }
-
-    input.push(item);
-
-    const trimmedItem = item.trim();
-    if (trimmedItem.toLowerCase().includes('total') || trimmedItem.toLowerCase().includes('sum') || trimmedItem.toLowerCase().includes('summe') || trimmedItem.toLowerCase().includes('gesamt')) {
+  arrayOfLines.forEach(item => {
+    if (containsSumKeyword(item)) {
+      if (localSum.isZero() && globalSum.isZero()) {
+        output += `${item} = 0\n`;
+      } else {
+        const displaySum = units ? globalSum.toString() + units : globalSum.toString();
+        output += `${item} = ${displaySum}\n`;
+        localSum = math.bignumber(0); // Reset local sum after each Summe keyword
+      }
+    } else {
       try {
-        const result = parser.evaluate(input);
-        if (result && result.length > 0) {
-          const lastResult = result[result.length - 1];
-          if (math.typeOf(lastResult) === 'Unit') {
-            if (!units) {
-              units = lastResult.units[0].unit.name;
-            }
-            if (units === lastResult.units[0].unit.name) {
-              sum = math.add(sum, lastResult);
-            } else {
-              throw new Error('Units do not match');
-            }
-          } else if (typeof lastResult === 'number') {
-            sum = math.add(sum, lastResult);
-          }
-        }
+        parser.evaluate(item);
       } catch (err) {
-        output += `${item} = ${err.message}\n`;
+        output += `${item} = ${err}\n`;
         return;
       }
-    }
 
-    if (parser.evaluate(input) === undefined || item.trim() === '') {
-      output += `${item}\n`;
-    } else {
-      const ev_raw = parser.evaluate(input).slice(-1);
-      const ev_str = JSON.stringify(parser.evaluate(input).slice(-1));
-      if (ev_raw !== undefined && ev_str !== "[null]") {
-        let spacing = ' '.repeat(maxLen - item.length)
-        output += `${item} ${spacing}= ${ev_raw}\n`;
-      } else {
-        output += `${item}\n`;
+      input.push(item);
+      const evaluationResult = evaluateItem(parser, input, item, maxLen);
+      output += evaluationResult;
+
+      const lastResult = getLastResult(parser, input);
+      if (lastResult) {
+        try {
+          const { updatedSum, updatedUnits } = updateSum(localSum, globalSum, lastResult, units);
+          localSum = updatedSum.localSum;
+          globalSum = updatedSum.globalSum;
+          units = updatedUnits || units;
+        } catch (err) {
+          output += `${item} = ${err.message}\n`;
+          return;
+        }
       }
     }
   });
 
-  if (sum != 0) {
-    output += `\nTotal Sum = ${sum}\n`;
-  }
-
   $("#highlights1").html(output);
+}
+
+function containsSumKeyword(item) {
+  const keywords = ['total', 'sum', 'summe', 'gesamt'];
+  return keywords.some(keyword => item.toLowerCase().includes(keyword));
+}
+
+function getLastResult(parser, input) {
+  const result = parser.evaluate(input);
+  if (result && result.length > 0) {
+    return result[result.length - 1];
+  }
+  return null;
+}
+
+function updateSum(localSum, globalSum, lastResult, units) {
+  if (math.typeOf(lastResult) === 'Unit') {
+    const unitName = lastResult.units[0].unit.name;
+    const lastResultValue = lastResult.toNumber(unitName);
+
+    if (!units || units === unitName) {
+      return {
+        updatedSum: {
+          localSum: localSum.add(lastResultValue),
+          globalSum: globalSum.add(lastResultValue),
+        },
+        updatedUnits: unitName
+      };
+    } else {
+      throw new Error('Units do not match');
+    }
+  } else if (typeof lastResult === 'number' || math.typeOf(lastResult) === 'BigNumber') {
+    return {
+      updatedSum: {
+        localSum: localSum.add(lastResult),
+        globalSum: globalSum.add(lastResult),
+      },
+      updatedUnits: units
+    };
+  }
+  return { updatedSum: { localSum, globalSum }, updatedUnits: units };
+}
+
+function evaluateItem(parser, input, item, maxLen) {
+  if (parser.evaluate(input) === undefined || item.trim() === '') {
+    return `${item}\n`;
+  } else {
+    const ev_raw = parser.evaluate(input).slice(-1);
+    const ev_str = JSON.stringify(ev_raw);
+    if (ev_raw !== undefined && ev_str !== "[null]") {
+      const spacing = ' '.repeat(maxLen - item.length);
+      return `${item}${spacing} = ${ev_raw}\n`;
+    } else {
+      return `${item}\n`;
+    }
+  }
 }
 
 function clearTextarea() {

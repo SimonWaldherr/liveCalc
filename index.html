@@ -121,26 +121,48 @@
     <aside id="sidebar" role="complementary" aria-hidden="true" class="sidebar flex flex-col bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 lg:relative lg:flex transition-transform duration-300">
       
       <!-- Graph Section -->
-      <div class="h-1/3 min-h-[250px] bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex flex-col relative group">
-        <div class="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-           <button onclick="app.resetGraph()" class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 p-1 rounded text-xs hover:bg-gray-50 dark:hover:bg-gray-700">Reset</button>
-        </div>
-        <div class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center">
+      <div class="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex flex-col relative group">
+        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
+             onclick="app.toggleSection('graph')" 
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('graph');}" 
+             tabindex="0" 
+             role="button" 
+             aria-expanded="true" 
+             aria-controls="graphContent">
           <span>Graph</span>
-          <span class="text-[10px] text-gray-400">f(x), g(x)</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-gray-400">f(x), g(x)</span>
+            <span id="graphToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+          </div>
         </div>
-        <div id="plot" class="flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-white dark:bg-gray-950">
-          <div class="text-gray-400 text-sm" style="display: none;"><!-- Define a function like f(x)=x^2 to plot --></div>
-        <svg class="function-plot" font-size="8" width="299" height="217"><text class="top-right-legend" text-anchor="end" y="10" x="279"></text><g class="canvas" transform="translate(40,20)"><defs><clipPath id="function-plot-clip-sb992d5f2f61c6"><rect class="clip static-clip" width="239" height="177"></rect></clipPath><clipPath><marker id="sb992d5f2f61c6-marker" viewBox="0 -5 10 10" refX="10" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,-5L10,0L0,5L0,0" stroke-width="0px" fill-opacity="1" fill="#777"></path></marker></clipPath></defs><g class="x axis" transform="translate(0,177)" fill="none" font-size="10" font-family="sans-serif" text-anchor="middle"><path class="domain" stroke="black" d="M0,-177V0H239V-177" fill="none" shape-rendering="crispedges" opacity="0.1"></path><g class="tick" opacity="1" transform="translate(0,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−6</text></g><g class="tick" opacity="1" transform="translate(19.916666666666664,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−5</text></g><g class="tick" opacity="1" transform="translate(39.83333333333333,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−4</text></g><g class="tick" opacity="1" transform="translate(59.75,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−3</text></g><g class="tick" opacity="1" transform="translate(79.66666666666666,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−2</text></g><g class="tick" opacity="1" transform="translate(99.58333333333334,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−1</text></g><g class="tick" opacity="1" transform="translate(119.5,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">0</text></g><g class="tick" opacity="1" transform="translate(139.41666666666669,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">1</text></g><g class="tick" opacity="1" transform="translate(159.33333333333331,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">2</text></g><g class="tick" opacity="1" transform="translate(179.25,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">3</text></g><g class="tick" opacity="1" transform="translate(199.16666666666669,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">4</text></g><g class="tick" opacity="1" transform="translate(219.08333333333331,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">5</text></g><g class="tick" opacity="1" transform="translate(239,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">6</text></g></g><g class="y axis" fill="none" font-size="10" font-family="sans-serif" text-anchor="end"><path class="domain" stroke="black" d="M239,177H0V0H239" fill="none" shape-rendering="crispedges" opacity="0.1"></path><g class="tick" opacity="1" transform="translate(0,168.16666666666669)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−4</text></g><g class="tick" opacity="1" transform="translate(0,148.25)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−3</text></g><g class="tick" opacity="1" transform="translate(0,128.33333333333334)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−2</text></g><g class="tick" opacity="1" transform="translate(0,108.41666666666667)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−1</text></g><g class="tick" opacity="1" transform="translate(0,88.5)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">0</text></g><g class="tick" opacity="1" transform="translate(0,68.58333333333333)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">1</text></g><g class="tick" opacity="1" transform="translate(0,48.666666666666664)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">2</text></g><g class="tick" opacity="1" transform="translate(0,28.749999999999996)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">3</text></g><g class="tick" opacity="1" transform="translate(0,8.833333333333346)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">4</text></g></g><g class="tip" clip-path="url(#function-plot-clip-sb992d5f2f61c6)"><g class="inner-tip" style="display: none;"><path stroke="grey" stroke-dasharray="5,5" opacity="0.5" d="M0,-197L0,197" class="tip-x-line" style=""></path><path stroke="grey" stroke-dasharray="5,5" opacity="0.5" d="M-259,0L259,0" class="tip-y-line" style=""></path><circle r="3"></circle><text transform="translate(5,-5)"></text></g></g><g clip-path="url(#function-plot-clip-sb992d5f2f61c6)" class="content"><path class="y origin" stroke="black" opacity="0.2" d="M119.5,177L119.5,0"></path><path class="x origin" stroke="black" opacity="0.2" d="M0,88.5L239,88.5"></path><g class="graph"></g><g class="graph"></g></g></g></svg></div>
+        <div id="graphContent" class="h-[250px] flex flex-col transition-all duration-300 overflow-hidden">
+          <div class="absolute top-10 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+             <button onclick="app.resetGraph()" class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 p-1 rounded text-xs hover:bg-gray-50 dark:hover:bg-gray-700">Reset</button>
+          </div>
+          <div id="plot" class="flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-white dark:bg-gray-950">
+            <div class="text-gray-400 text-sm" style="display: none;"><!-- Define a function like f(x)=x^2 to plot --></div>
+          <svg class="function-plot" font-size="8" width="299" height="217"><text class="top-right-legend" text-anchor="end" y="10" x="279"></text><g class="canvas" transform="translate(40,20)"><defs><clipPath id="function-plot-clip-sb992d5f2f61c6"><rect class="clip static-clip" width="239" height="177"></rect></clipPath><clipPath><marker id="sb992d5f2f61c6-marker" viewBox="0 -5 10 10" refX="10" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,-5L10,0L0,5L0,0" stroke-width="0px" fill-opacity="1" fill="#777"></path></marker></clipPath></defs><g class="x axis" transform="translate(0,177)" fill="none" font-size="10" font-family="sans-serif" text-anchor="middle"><path class="domain" stroke="black" d="M0,-177V0H239V-177" fill="none" shape-rendering="crispedges" opacity="0.1"></path><g class="tick" opacity="1" transform="translate(0,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−6</text></g><g class="tick" opacity="1" transform="translate(19.916666666666664,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−5</text></g><g class="tick" opacity="1" transform="translate(39.83333333333333,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−4</text></g><g class="tick" opacity="1" transform="translate(59.75,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−3</text></g><g class="tick" opacity="1" transform="translate(79.66666666666666,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−2</text></g><g class="tick" opacity="1" transform="translate(99.58333333333334,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−1</text></g><g class="tick" opacity="1" transform="translate(119.5,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">0</text></g><g class="tick" opacity="1" transform="translate(139.41666666666669,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">1</text></g><g class="tick" opacity="1" transform="translate(159.33333333333331,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">2</text></g><g class="tick" opacity="1" transform="translate(179.25,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">3</text></g><g class="tick" opacity="1" transform="translate(199.16666666666669,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">4</text></g><g class="tick" opacity="1" transform="translate(219.08333333333331,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">5</text></g><g class="tick" opacity="1" transform="translate(239,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">6</text></g></g><g class="y axis" fill="none" font-size="10" font-family="sans-serif" text-anchor="end"><path class="domain" stroke="black" d="M239,177H0V0H239" fill="none" shape-rendering="crispedges" opacity="0.1"></path><g class="tick" opacity="1" transform="translate(0,168.16666666666669)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−4</text></g><g class="tick" opacity="1" transform="translate(0,148.25)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−3</text></g><g class="tick" opacity="1" transform="translate(0,128.33333333333334)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−2</text></g><g class="tick" opacity="1" transform="translate(0,108.41666666666667)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−1</text></g><g class="tick" opacity="1" transform="translate(0,88.5)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">0</text></g><g class="tick" opacity="1" transform="translate(0,68.58333333333333)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">1</text></g><g class="tick" opacity="1" transform="translate(0,48.666666666666664)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">2</text></g><g class="tick" opacity="1" transform="translate(0,28.749999999999996)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">3</text></g><g class="tick" opacity="1" transform="translate(0,8.833333333333346)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">4</text></g></g><g class="tip" clip-path="url(#function-plot-clip-sb992d5f2f61c6)"><g class="inner-tip" style="display: none;"><path stroke="grey" stroke-dasharray="5,5" opacity="0.5" d="M0,-197L0,197" class="tip-x-line" style=""></path><path stroke="grey" stroke-dasharray="5,5" opacity="0.5" d="M-259,0L259,0" class="tip-y-line" style=""></path><circle r="3"></circle><text transform="translate(5,-5)"></text></g></g><g clip-path="url(#function-plot-clip-sb992d5f2f61c6)" class="content"><path class="y origin" stroke="black" opacity="0.2" d="M119.5,177L119.5,0"></path><path class="x origin" stroke="black" opacity="0.2" d="M0,88.5L239,88.5"></path><g class="graph"></g><g class="graph"></g></g></g></svg>
+          </div>
+        </div>
       </div>
 
       <!-- Variables Section -->
-      <div class="flex-1 flex flex-col overflow-hidden">
-        <div class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center">
+      <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
+        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
+             onclick="app.toggleSection('variables')" 
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('variables');}"
+             tabindex="0" 
+             role="button" 
+             aria-expanded="true" 
+             aria-controls="variablesContent">
           <span>Variables</span>
-          <span class="text-[10px] text-gray-400" id="varCount">7 defined</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-gray-400" id="varCount">7 defined</span>
+            <span id="variablesToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+          </div>
         </div>
-        <div class="flex-1 overflow-y-auto p-2 space-y-1" id="variablesList">
+        <div id="variablesContent" class="flex flex-col overflow-hidden transition-all duration-300">
+        <div class="overflow-y-auto p-2 space-y-1" id="variablesList" style="max-height: 400px;">
             <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('area')" title="Click to insert">
               <div class="flex items-center gap-2 overflow-hidden">
                 <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">area</span>
@@ -200,26 +222,63 @@
                 <button onclick="app.forcePlot('g')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Plot</button>
               </div>
              </div>
-      </div>
+          </div>
+        </div>
 
-      <!-- Dataset Preview -->
-      <div id="datasetPreview" class="p-2 border-t border-gray-100 dark:border-gray-900 bg-white dark:bg-gray-900 hidden">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Dataset Preview</div>
+      <!-- Datasets Section -->
+      <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
+        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
+             onclick="app.toggleSection('dataset')" 
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('dataset');}"
+             tabindex="0" 
+             role="button" 
+             aria-expanded="true" 
+             aria-controls="datasetContent">
+          <span>Datasets</span>
           <div class="flex items-center gap-2">
-            <button id="previewCloseBtn" class="text-[10px] px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">Close</button>
-            <select id="previewRowsSelect" class="text-[10px] bg-white dark:bg-gray-800 rounded border px-2 py-0.5">
+            <select id="datasetSelect" onclick="event.stopPropagation();" class="text-[10px] bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 px-2 py-0.5 hover:border-blue-400 transition-colors">
+              <option value="">Select dataset</option>
+            </select>
+            <select id="previewRowsSelect" onclick="event.stopPropagation();" class="text-[10px] bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 px-2 py-0.5 hover:border-blue-400 transition-colors">
               <option value="5">5 rows</option>
               <option value="10" selected>10 rows</option>
               <option value="25">25 rows</option>
             </select>
+            <button id="datasetUploadBtn" onclick="event.stopPropagation(); document.getElementById('dataFileInput').click();" class="text-[10px] bg-white dark:bg-gray-800 rounded border px-2 py-0.5">Upload</button>
+            <span id="datasetToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
           </div>
         </div>
-        <div id="datasetPreviewInner" class="overflow-auto max-h-40">
-          <table id="datasetPreviewTable" class="min-w-full text-xs">
-            <thead id="datasetPreviewHead"></thead>
-            <tbody id="datasetPreviewBody"></tbody>
-          </table>
+        <div id="datasetContent" class="overflow-hidden transition-all duration-300">
+          <div id="datasetPreviewInner" class="overflow-auto p-2" style="max-height: 300px;">
+            <div id="datasetEmptyState" class="text-xs text-gray-400 text-center py-4">No dataset loaded</div>
+            <table id="datasetPreviewTable" class="min-w-full text-xs hidden">
+              <thead id="datasetPreviewHead"></thead>
+              <tbody id="datasetPreviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Section -->
+      <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
+        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
+             onclick="app.toggleSection('history')" 
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('history');}"
+             tabindex="0" 
+             role="button" 
+             aria-expanded="true" 
+             aria-controls="historyContent">
+          <span>History</span>
+          <div class="flex items-center gap-2">
+            <button onclick="app.saveToHistory(); event.stopPropagation();" class="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 flex items-center gap-1 transition-colors">
+              <span class="material-symbols-outlined text-[14px]">save</span>
+              Save
+            </button>
+            <span id="historyToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+          </div>
+        </div>
+        <div id="historyContent" class="overflow-y-auto p-2 space-y-1 transition-all duration-300" style="max-height: 400px;">
+          <div class="text-xs text-gray-400 text-center py-4">No history saved yet</div>
         </div>
       </div>
 

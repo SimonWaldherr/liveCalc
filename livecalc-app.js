@@ -167,11 +167,13 @@ const app = (() => {
     try {
       handleInput();
     } catch (e) {}
-    // Auto-open preview for convenience
+    // Update dataset list and auto-open preview for convenience
     try {
+      if (typeof renderDatasetList === 'function') renderDatasetList();
       if (typeof renderDatasetPreview === 'function') {
         renderDatasetPreview(name, 10);
       }
+      try { localStorage.setItem('livecalc:lastDataset', name); } catch (e) {}
     } catch (e) {}
     return true;
   }
@@ -302,10 +304,47 @@ const app = (() => {
     return s;
   }
 
+  // Initialize section states from localStorage
+  function initSectionStates() {
+    ['graph', 'variables', 'dataset', 'history'].forEach(section => {
+      try {
+        const state = localStorage.getItem('livecalc:section:' + section);
+        const content = document.getElementById(section + 'Content');
+        const icon = document.getElementById(section + 'ToggleIcon');
+        const header = icon?.closest('.section-header');
+        
+        if (state === 'collapsed') {
+          if (content && icon) {
+            content.classList.add('collapsed');
+            content.style.maxHeight = '0px';
+            icon.textContent = 'expand_more';
+            if (header) header.setAttribute('aria-expanded', 'false');
+          }
+        } else {
+          // Ensure expanded state
+          if (content && icon) {
+            content.classList.remove('collapsed');
+            content.style.maxHeight = 'none';
+            icon.textContent = 'expand_less';
+            if (header) header.setAttribute('aria-expanded', 'true');
+          }
+        }
+      } catch (e) {}
+    });
+  }
+
   // -- Initialization --
   function init() {
     applyTheme();
     applySettings();
+    
+    // Load history on init
+    renderHistory();
+    
+    // Initialize section collapse states (defer to next tick to allow DOM to be ready)
+    setTimeout(() => {
+      initSectionStates();
+    }, 0);
 
     // Load content
     const hash = window.location.hash.substring(1);
@@ -390,13 +429,23 @@ sum`;
       });
     }
 
-      // Preview controls wiring
-      const previewCloseBtn = document.getElementById('previewCloseBtn');
+      // Dataset list + preview controls wiring
+      if (typeof renderDatasetList === 'function') renderDatasetList();
+      const datasetSelect = document.getElementById('datasetSelect');
       const previewRowsSelect = document.getElementById('previewRowsSelect');
-      if (previewCloseBtn) previewCloseBtn.addEventListener('click', () => { clearDatasetPreview(); });
+      if (datasetSelect) {
+        // ensure change handled also if renderDatasetList didn't attach
+        datasetSelect.addEventListener('change', () => {
+          const v = datasetSelect.value;
+          try { localStorage.setItem('livecalc:lastDataset', v); } catch (e) {}
+          if (v) renderDatasetPreview(v, previewRowsSelect ? previewRowsSelect.value : 10);
+        });
+      }
       if (previewRowsSelect) previewRowsSelect.addEventListener('change', () => {
         const v = previewRowsSelect.value;
-        if (lastPreviewedDataset) renderDatasetPreview(lastPreviewedDataset, v);
+        const sel = datasetSelect || document.getElementById('datasetSelect');
+        const ds = sel ? sel.value : lastPreviewedDataset;
+        if (ds) renderDatasetPreview(ds, v);
       });
 
     // Initial render
@@ -897,29 +946,69 @@ sum`;
   // -- Dataset Preview Rendering --
   function renderDatasetPreview(name, rowsCount = 10) {
     lastPreviewedDataset = name;
-    const container = document.getElementById('datasetPreview');
+    const table = document.getElementById('datasetPreviewTable');
+    const emptyState = document.getElementById('datasetEmptyState');
     const head = document.getElementById('datasetPreviewHead');
     const body = document.getElementById('datasetPreviewBody');
-    if (!container || !head || !body) return;
+    
+    if (!table || !head || !body || !emptyState) return;
+    
     const data = datasets[name];
     if (!data || !Array.isArray(data)) {
-      head.innerHTML = '';
-      body.innerHTML = `<tr><td class="text-xs text-gray-500">Dataset not found</td></tr>`;
-      container.classList.remove('hidden');
+      table.classList.add('hidden');
+      emptyState.classList.remove('hidden');
+      emptyState.textContent = 'Dataset not found';
       return;
     }
+    
     const n = Math.max(0, Number(rowsCount) || 10);
     const rows = data.slice(0, n);
+    
     // Build header from keys of first row
     const keys = rows.length ? Object.keys(rows[0]) : (data.length ? Object.keys(data[0]) : []);
-    head.innerHTML = '<tr>' + keys.map(k => `<th class="text-left px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300">${escapeHtml(k)}</th>`).join('') + '</tr>';
-    body.innerHTML = rows.map(r => '<tr>' + keys.map(k => `<td class="px-2 py-1 text-xs text-gray-700 dark:text-gray-300">${escapeHtml(String(r[k] === undefined ? '' : r[k]))}</td>`).join('') + '</tr>').join('');
-    container.classList.remove('hidden');
+    head.innerHTML = '<tr>' + keys.map(k => `<th class="text-left px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">${escapeHtml(k)}</th>`).join('') + '</tr>';
+    body.innerHTML = rows.map(r => '<tr class="hover:bg-gray-50 dark:hover:bg-gray-800">' + keys.map(k => `<td class="px-2 py-1 text-xs text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800">${escapeHtml(String(r[k] === undefined ? '' : r[k]))}</td>`).join('') + '</tr>').join('');
+    
+    table.classList.remove('hidden');
+    emptyState.classList.add('hidden');
+    
+    // Expand the dataset section if collapsed
+    const datasetContent = document.getElementById('datasetContent');
+    if (datasetContent && datasetContent.classList.contains('collapsed')) {
+      if (typeof app !== 'undefined' && app.toggleSection) {
+        app.toggleSection('dataset');
+      }
+    }
   }
 
   function clearDatasetPreview() {
-    const container = document.getElementById('datasetPreview');
-    if (container) container.classList.add('hidden');
+    const table = document.getElementById('datasetPreviewTable');
+    const emptyState = document.getElementById('datasetEmptyState');
+    
+    if (table) table.classList.add('hidden');
+    if (emptyState) {
+      emptyState.classList.remove('hidden');
+      emptyState.textContent = 'No dataset loaded';
+    }
+  }
+
+  // -- Dataset List Rendering & Selection --
+  function renderDatasetList() {
+    const sel = document.getElementById('datasetSelect');
+    if (!sel) return;
+    // clear
+    const keys = Object.keys(datasets || {});
+    // remember current value
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Select dataset</option>' + keys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+    // restore previous selection if possible
+    let chosen = cur && keys.includes(cur) ? cur : (localStorage.getItem('livecalc:lastDataset') || (keys.length ? keys[0] : ''));
+    if (chosen && keys.includes(chosen)) {
+      sel.value = chosen;
+      // render preview for chosen
+      renderDatasetPreview(chosen, document.getElementById('previewRowsSelect') ? document.getElementById('previewRowsSelect').value : 10);
+    }
+    // change handler attached during init to avoid duplicates
   }
 
   // -- Helper Functions --
@@ -1163,7 +1252,144 @@ f(x) = x^2 - 5*x`;
         if (highChk && settings && settings.accessibility) highChk.checked = !!settings.accessibility.highContrast;
         modal.classList.remove('hidden');
       },
+      
+      // Section toggle functionality with state persistence
+      toggleSection: (sectionName) => {
+        const contentId = sectionName + 'Content';
+        const iconId = sectionName + 'ToggleIcon';
+        const content = document.getElementById(contentId);
+        const icon = document.getElementById(iconId);
+        const header = icon?.closest('.section-header');
+        
+        if (!content || !icon) return;
+        
+        const isCollapsed = content.classList.contains('collapsed');
+        
+        if (isCollapsed) {
+          // Expand
+          content.classList.remove('collapsed');
+          content.style.maxHeight = content.scrollHeight + 'px';
+          icon.textContent = 'expand_less';
+          if (header) header.setAttribute('aria-expanded', 'true');
+          // Remove max-height after animation completes for flexible sizing
+          setTimeout(() => {
+            if (!content.classList.contains('collapsed')) {
+              content.style.maxHeight = 'none';
+            }
+          }, 300);
+          // Store state
+          try {
+            localStorage.setItem('livecalc:section:' + sectionName, 'expanded');
+          } catch (e) {}
+        } else {
+          // Collapse
+          content.style.maxHeight = content.scrollHeight + 'px';
+          // Force reflow
+          content.offsetHeight;
+          content.classList.add('collapsed');
+          content.style.maxHeight = '0px';
+          icon.textContent = 'expand_more';
+          if (header) header.setAttribute('aria-expanded', 'false');
+          // Store state
+          try {
+            localStorage.setItem('livecalc:section:' + sectionName, 'collapsed');
+          } catch (e) {}
+        }
+      },
+      
+      // Initialize section states from localStorage
+      initSectionStates: initSectionStates,
+      
+      // History management
+      saveToHistory: () => {
+        const editorContent = editor.value;
+        if (!editorContent.trim()) {
+          showToast('Nothing to save');
+          return;
+        }
+        
+        const history = getHistory();
+        const timestamp = new Date().toLocaleString();
+        const entry = {
+          id: Date.now(),
+          timestamp: timestamp,
+          content: editorContent
+        };
+        
+        history.unshift(entry);
+        // Keep only last 20 entries
+        if (history.length > 20) {
+          history.splice(20);
+        }
+        
+        saveHistory(history);
+        renderHistory();
+        showToast('Saved to history');
+      },
+      
+      loadFromHistory: (id) => {
+        const history = getHistory();
+        const entry = history.find(e => e.id === id);
+        if (entry) {
+          editor.value = entry.content;
+          handleInput();
+          showToast('Loaded from history');
+        }
+      },
+      
+      deleteFromHistory: (id) => {
+        const history = getHistory();
+        const filtered = history.filter(e => e.id !== id);
+        saveHistory(filtered);
+        renderHistory();
+        showToast('Deleted from history');
+      },
   };
+  
+  // History helper functions
+  function getHistory() {
+    try {
+      const stored = localStorage.getItem('livecalc:history');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  
+  function saveHistory(history) {
+    try {
+      localStorage.setItem('livecalc:history', JSON.stringify(history));
+    } catch (e) {
+      console.error('Failed to save history', e);
+    }
+  }
+  
+  function renderHistory() {
+    const historyContent = document.getElementById('historyContent');
+    if (!historyContent) return;
+    
+    const history = getHistory();
+    
+    if (history.length === 0) {
+      historyContent.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">No history saved yet</div>';
+      return;
+    }
+    
+    historyContent.innerHTML = history.map(entry => `
+      <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+        <div class="flex-1 overflow-hidden mr-2">
+          <div class="text-[10px] text-gray-400 mb-1">${entry.timestamp}</div>
+          <div class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">${entry.content.split('\n')[0]}</div>
+        </div>
+        <div class="flex gap-1 flex-shrink-0">
+          <button onclick="app.loadFromHistory(${entry.id})" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Load</button>
+          <button onclick="app.deleteFromHistory(${entry.id})" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  return api;
 })();
 
 // Expose `app` on the window so other inline scripts can call `window.app.*` safely.

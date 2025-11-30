@@ -117,6 +117,52 @@
     color: transparent !important;
 }
 
+/* Collapsible sections - optimized for performance */
+#graphContent,
+#variablesContent,
+#historyContent {
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    will-change: max-height;
+}
+
+#graphContent.collapsed,
+#variablesContent.collapsed,
+#historyContent.collapsed {
+    max-height: 0 !important;
+    overflow: hidden;
+    padding: 0 !important;
+}
+
+/* Smooth transition end */
+#graphContent:not(.collapsed),
+#variablesContent:not(.collapsed),
+#historyContent:not(.collapsed) {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Section header interaction states */
+.section-header {
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.section-header:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark .section-header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.section-header:active {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.dark .section-header:active {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
 @media (max-width: 1024px) {
     .grid-layout {
         grid-template-columns: 40px 1fr;

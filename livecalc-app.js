@@ -63,6 +63,9 @@ const app = (() => {
   };
   let settings = loadSettings();
 
+  // Prevent updateHash from overwriting an incoming shared hash during initial load.
+  let suppressHashUpdate = false;
+
   function loadSettings() {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
@@ -333,6 +336,55 @@ const app = (() => {
     });
   }
 
+  // Try several heuristics to decode a base64 hash into UTF-8 text.
+  function tryDecodeHash(hash) {
+    if (!hash) return '';
+    const candidates = [hash];
+    try { candidates.push(decodeURIComponent(hash)); } catch (e) {}
+    for (const c of candidates) {
+      if (!c) continue;
+      try {
+        // common approach: atob then percent-encode bytes -> decodeURIComponent
+        const bin = window.atob(c);
+        let esc = '';
+        for (let i = 0; i < bin.length; i++) {
+          const code = bin.charCodeAt(i).toString(16).toUpperCase();
+          esc += '%' + ('00' + code).slice(-2);
+        }
+        const decoded = decodeURIComponent(esc);
+        if (decoded && decoded.trim()) {
+          // if decoded looks like another base64 blob, try one more decode
+          const maybeB64 = decoded.replace(/\s+/g, '');
+          if (/^[A-Za-z0-9+/=]+$/.test(maybeB64) && maybeB64.length > 40) {
+            try {
+              const bin2 = window.atob(maybeB64);
+              let esc2 = '';
+              for (let j = 0; j < bin2.length; j++) esc2 += '%' + ('00' + bin2.charCodeAt(j).toString(16)).slice(-2);
+              const decoded2 = decodeURIComponent(esc2);
+              if (decoded2 && decoded2.trim()) return decoded2;
+            } catch (e) {
+              // fall back to first decode
+              return decoded;
+            }
+          }
+          return decoded;
+        }
+      } catch (e) {
+        // ignore and try next
+      }
+      try {
+        // fallback: maybe it's a percent-encoded base64 of the text
+        const uri = decodeURIComponent(c);
+        const bin2 = window.atob(uri);
+        let esc2 = '';
+        for (let i = 0; i < bin2.length; i++) esc2 += '%' + ('00' + bin2.charCodeAt(i).toString(16)).slice(-2);
+        const decoded2 = decodeURIComponent(esc2);
+        if (decoded2 && decoded2.trim()) return decoded2;
+      } catch (e) {}
+    }
+    return '';
+  }
+
   // -- Initialization --
   function init() {
     applyTheme();
@@ -347,10 +399,17 @@ const app = (() => {
     }, 0);
 
     // Load content
+    suppressHashUpdate = true; // avoid overwriting incoming hash during initial load
     const hash = window.location.hash.substring(1);
     if (hash.length > 0) {
       try {
-        editor.value = b64_to_utf8(hash);
+        const decoded = tryDecodeHash(hash) || '';
+        if (decoded) {
+          editor.value = decoded;
+        } else {
+          // last attempt using legacy helper
+          try { editor.value = b64_to_utf8(hash); } catch (e) { console.error('hash decode failed', e); }
+        }
       } catch (e) {
         console.error(e);
       }
@@ -448,8 +507,10 @@ sum`;
         if (ds) renderDatasetPreview(ds, v);
       });
 
-    // Initial render
+    // Initial render (don't update URL during this first pass)
     handleInput();
+    // allow subsequent edits to update the hash
+    suppressHashUpdate = false;
   }
 
   // -- Core Logic --
@@ -1084,12 +1145,35 @@ sum`;
   }
 
   function b64_to_utf8(str) {
-    return decodeURIComponent(escape(window.atob(str)));
+    try {
+      // atob -> percent-encode each byte -> decodeURIComponent to get UTF-8 string
+      const bin = window.atob(str);
+      let esc = '';
+      for (let i = 0; i < bin.length; i++) {
+        const code = bin.charCodeAt(i).toString(16).toUpperCase();
+        esc += '%' + ('00' + code).slice(-2);
+      }
+      return decodeURIComponent(esc);
+    } catch (e) {
+      // fallback to older approach or raw atob
+      try { return decodeURIComponent(escape(window.atob(str))); } catch (e2) { try { return window.atob(str); } catch (e3) { return ''; } }
+    }
   }
   function utf8_to_b64(str) {
-    return window.btoa(unescape(encodeURIComponent(str)));
+    try {
+      // encodeURIComponent -> percent-encoded UTF-8 -> convert percent escapes to raw bytes for btoa
+      const utf8 = encodeURIComponent(str);
+      // convert percent encodings to raw bytes
+      const bytes = utf8.replace(/%([0-9A-F]{2})/g, function(match, p1) {
+        return String.fromCharCode('0x' + p1);
+      });
+      return window.btoa(bytes);
+    } catch (e) {
+      try { return window.btoa(unescape(encodeURIComponent(str))); } catch (e2) { return window.btoa(str); }
+    }
   }
   function updateHash(content) {
+    if (suppressHashUpdate) return;
     const hash = content ? utf8_to_b64(content) : "";
     history.replaceState(null, null, "#" + hash);
   }

@@ -1136,10 +1136,9 @@ sum`;
     // Unit (including currencies)
     if (res && res.isUnit) {
       try {
-        const n = rd !== null ? res.toNumber() : null;
-        const unitName = (res.units && res.units[0] && res.units[0].unit && res.units[0].unit.name) || '';
-        const valStr = rd !== null && typeof n === 'number' ? n.toFixed(rd) : res.value.toString();
-        return toPrettyUnits(valStr + (unitName ? ' ' + unitName : ''));
+          // Use math.format to preserve the original unit string and apply rounding
+          const fmt = (rd !== null) ? math.format(res, { precision: rd }) : math.format(res);
+          return toPrettyUnits(String(fmt));
       } catch (e) {
         return toPrettyUnits(res.toString());
       }

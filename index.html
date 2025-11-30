@@ -1,71 +1,494 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
+<html lang="en" class="light"><head>
+
+<script src="./livecalc.js" defer></script>
+
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.1.0/math.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-  <script src="./script.js"></script>
-  <link rel="shortcut icon" type="image/x-icon" href="https://simonwaldherr.github.io/liveCalc/favicon.ico">
-  <link rel="apple-touch-icon" sizes="180x180" href="https://simonwaldherr.github.io/liveCalc/apple-icon-180x180.png">
-  <link rel="icon" type="image/png" sizes="192x192"  href="https://simonwaldherr.github.io/liveCalc/android-icon-192x192.png">
-  <link rel="icon" type="image/png" sizes="256x256" href="https://simonwaldherr.github.io/liveCalc/favicon-256x256.png">
-  <meta name="msapplication-TileImage" content="https://simonwaldherr.github.io/liveCalc/ms-icon-144x144.png">
-  <title>liveCalc</title>
+  <title>LiveCalc Pro - Interactive Math Studio</title>
+  
+  <!-- Tailwind CSS (built locally) -->
+  <link rel="stylesheet" href="./tailwind.css">
+
+  <!-- Google Material Symbols -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+  <script src="https://unpkg.com/function-plot/dist/function-plot.js"></script>
+
+  <style></style>
+  <link rel="stylesheet" href="./style.css">
 </head>
-<body>
-  <div id="top">
-    <h1>liveCalc</h1>
-    <div class="links">
-      <a href="https://mathjs.org/"><img src="https://img.shields.io/badge/powered%20by-mathjs-blue" alt="Powered by Math.js"></a>
-      <a href="https://github.com/SimonWaldherr/liveCalc/"><img src="https://img.shields.io/badge/hosted%20on-github-green" alt="Hosted on GitHub"></a>
-      <a href="" onclick="clearTextarea(); return false;"><img src="https://img.shields.io/badge/clear-textarea-gray" alt="Clear Textarea"></a>
-      <a href="" onclick="insertExample(); return false;"><img src="https://img.shields.io/badge/insert-example-gray" alt="Insert Example"></a>
-      <a href="" onclick="downloadMath(); return false;"><img src="https://img.shields.io/badge/download%20math-as%20.txt-gray" alt="Download Math"></a>
-      <a href="" onclick="copyURLtoClipboard(); return false;"><img src="https://img.shields.io/badge/copy%20link-to%20clipboard-gray" alt="Copy Link to Clipboard"></a>
-    </div>
-  </div>
-  <div class="content">
-    <div class="split right">
-      <div class="bed-container">
-        <div class="bed-backdrop">
-          <div class="bed-highlights bed-content linked" id="highlights1"></div>
+<body class="bg-gray-50 text-slate-800 dark:bg-gray-950 dark:text-gray-100 transition-colors duration-200">
+
+  <!-- Header -->
+  <header class="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-20 relative">
+    <a href="https://github.com/SimonWaldherr/liveCalc/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 no-underline" aria-label="Open project on GitHub">
+      <div class="bg-blue-600 p-1.5 rounded-lg text-white">
+        <span class="material-symbols-outlined text-2xl block">calculate</span>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg tracking-tight leading-none">LiveCalc <span class="text-blue-600">Pro</span></h1>
+        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide uppercase">Interactive Math Studio</span>
+      </div>
+    </a>
+
+    <!-- Toolbar -->
+    <div class="flex items-center gap-2">
+      <!-- Helper Toolbar (Desktop) -->
+      <div class="hidden md:flex items-center gap-1 mr-4 border-r border-gray-200 dark:border-gray-700 pr-4" style="display: none;">
+        <button onclick="app.insert('√(')" aria-label="Insert square root" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Square Root">√</button>
+        <button onclick="app.insert('^')" aria-label="Insert power" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Power">xʸ</button>
+        <button onclick="app.insert('pi')" aria-label="Insert pi" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Pi">π</button>
+        <button onclick="app.insert('sin(')" aria-label="Insert sine function" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Sine">sin</button>
+        <button onclick="app.insert('cos(')" aria-label="Insert cosine function" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Cosine">cos</button>
+      </div>
+
+      <!-- Actions -->
+      <button onclick="app.toggleTheme()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Toggle Dark Mode">
+        <span class="material-symbols-outlined theme-icon">dark_mode</span>
+      </button>
+      <button id="sidebarToggle" onclick="app.toggleSidebar()" aria-controls="sidebar" aria-expanded="false" aria-label="Toggle sidebar" class="lg:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+        <span class="material-symbols-outlined">space_dashboard</span>
+      </button>
+      <!-- Examples toolbar item (icon + label) -->
+      <div class="relative hidden sm:inline-flex items-center mr-2" id="examplesMenuWrapper">
+        <button id="examplesToggle" aria-haspopup="true" aria-expanded="false" aria-controls="examplesMenu" onclick="toggleExamplesMenu(); return false;" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-md transition-colors" title="Examples" aria-label="Open examples menu">
+          <span class="material-symbols-outlined text-[18px]">lightbulb</span>
+          <span>Examples</span>
+        </button>
+        <div id="examplesMenu" role="menu" aria-hidden="true" class="hidden absolute mt-2 right-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded shadow-md z-40" style="min-width:220px;">
+          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleGeometry(); toggleExamplesMenu(false);">Geometry — circle area</button>
+          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleFinance(); toggleExamplesMenu(false);">Finance — compound interest</button>
+          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleSum(); toggleExamplesMenu(false);">Sum — mixed units</button>
+          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleRandom(); toggleExamplesMenu(false);">Random example</button>
+          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleTableDemo(); toggleExamplesMenu(false);">Table — CSV import & query</button>
+          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleDataPlotDemo(); toggleExamplesMenu(false);">Data Plot — avg price per region</button>
         </div>
-        <textarea spellcheck="false" class="bed-input bed-content linked ta" name="frame1" id="frame1"></textarea>
+      </div>
+      <button onclick="downloadMath()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Download" aria-label="Download math as text">
+        <span class="material-symbols-outlined">download</span>
+      </button>
+      <button onclick="app.openSettings && app.openSettings()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Settings" aria-label="Settings">
+        <span class="material-symbols-outlined">settings</span>
+      </button>
+      <button onclick="copyURLtoClipboard()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Copy link" aria-label="Copy link to clipboard">
+        <span class="material-symbols-outlined">content_copy</span>
+      </button>
+      <label for="dataFileInput" class="ml-2 p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Upload data file" aria-label="Upload data file">
+        <input id="dataFileInput" type="file" accept=".csv,.tsv,.json,.xml,text/csv,text/tab-separated-values,text/xml" style="display:none" />
+        <span class="material-symbols-outlined">upload_file</span>
+      </label>
+      <button onclick="app.clear()" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors" title="Clear All">
+        <span class="material-symbols-outlined">delete</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Links / Actions bar (trimmed: badges removed, actions remain) -->
+  <div class="links px-4 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-sm flex items-center gap-2 flex-wrap" style="display: none;">
+    <!-- compact action area (download & copy moved to header) -->
+  </div>
+
+  <!-- Main Layout -->
+  <div class="grid-layout relative">
+    
+    <!-- Left: Line Numbers -->
+    <div class="bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+      <div id="lineNumbers" class="line-numbers flex-1 py-4 pr-2 overflow-hidden bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div><div>15</div><div>16</div><div>17</div></div>
+    </div>
+
+    <!-- Center: Editor -->
+    <main class="relative bg-white dark:bg-gray-950 overflow-hidden flex flex-col group">
+      <!-- 
+           The Container for Editor Layers.
+           Relative positioning used to stack textarea over backdrop.
+      -->
+      <div class="relative flex-1 w-full h-full overflow-hidden">
+        
+        <!-- Backdrop (Results & Syntax Highlighting) -->
+        <div class="absolute inset-0 w-full h-full p-4 overflow-hidden z-0 bg-white dark:bg-gray-950">
+          <div id="backdrop" class="backdrop-layer editor-font w-full text-transparent"><div class="line min-h-[1.6em]"><span class="token-comment"># Welcome to LiveCalc Pro!</span></div><div class="line min-h-[1.6em]"><span class="token-comment"># Variables, Units, and Functions are supported.</span></div><div class="line min-h-[1.6em]">&nbsp;</div><div class="line min-h-[1.6em]">radius <span class="token-operator">=</span> <span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;5&lt;<span class="token-operator">/</span>span&gt; cm<span class="token-result"> = 5 cm</span></div><div class="line min-h-[1.6em]">area <span class="token-operator">=</span> <span class="token-keyword">pi</span> <span class="token-operator">*</span> radius<span class="token-operator">^</span><span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;2&lt;<span class="token-operator">/</span>span&gt;<span class="token-result"> = 78.5398163397448309615660845819875721049292349843776455243736148 cm^2</span></div><div class="line min-h-[1.6em]">&nbsp;</div><div class="line min-h-[1.6em]"><span class="token-comment"># Currency &amp; Conversions</span></div><div class="line min-h-[1.6em]">price <span class="token-operator">=</span> <span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;12.50&lt;<span class="token-operator">/</span>span&gt;<span class="token-result"> = 12.5</span></div><div class="line min-h-[1.6em]">qty <span class="token-operator">=</span> <span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;4&lt;<span class="token-operator">/</span>span&gt;<span class="token-result"> = 4</span></div><div class="line min-h-[1.6em]"><span class="token-keyword">total</span> <span class="token-operator">=</span> price <span class="token-operator">*</span> qty<span class="token-result"> = 50</span></div><div class="line min-h-[1.6em]">&nbsp;</div><div class="line min-h-[1.6em]"><span class="token-comment"># Define functions to graph them (look right -&gt;)</span></div><div class="line min-h-[1.6em]">f(x) <span class="token-operator">=</span> <span class="token-keyword">sin</span>(x) <span class="token-operator">*</span> x<span class="token-result"> = function I(e,t){return(arguments.length===H&amp;&amp;E(e)&amp;&amp;O(t)?q:arguments.length===G&amp;&amp;A(e)&amp;&amp;T(t)?j:arguments.length===V&amp;&amp;S(e)&amp;&amp;B(t)?P:arguments.length===Z&amp;&amp;C(e)&amp;&amp;_(t)?L:arguments.length===W&amp;&amp;M(e)&amp;&amp;R(t)?U:arguments.length===J&amp;&amp;F(e)&amp;&amp;z(t)?$:ee).apply(this,arguments)}</span></div><div class="line min-h-[1.6em]">g(x) <span class="token-operator">=</span> x<span class="token-operator">^</span><span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;2&lt;<span class="token-operator">/</span>span&gt; <span class="token-operator">/</span> <span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;10&lt;<span class="token-operator">/</span>span&gt;<span class="token-result"> = function I(e,t){return(arguments.length===H&amp;&amp;E(e)&amp;&amp;O(t)?q:arguments.length===G&amp;&amp;A(e)&amp;&amp;T(t)?j:arguments.length===V&amp;&amp;S(e)&amp;&amp;B(t)?P:arguments.length===Z&amp;&amp;C(e)&amp;&amp;_(t)?L:arguments.length===W&amp;&amp;M(e)&amp;&amp;R(t)?U:arguments.length===J&amp;&amp;F(e)&amp;&amp;z(t)?$:ee).apply(this,arguments)}</span></div><div class="line min-h-[1.6em]">&nbsp;</div><div class="line min-h-[1.6em]"><span class="token-comment"># Use 'sum' to total previous blocks</span></div><div class="line min-h-[1.6em]"><span class="token-keyword">sum</span><span class="token-result font-bold text-blue-600 dark:text-blue-400"> = 66.5</span></div></div>
+        </div>
+
+        <!-- Input (Textarea) -->
+        <textarea id="editor" class="absolute inset-0 w-full h-full p-4 editor-font transparent-input outline-none z-10 text-slate-800 dark:text-gray-100 caret-blue-600 dark:caret-blue-400" spellcheck="false" autocapitalize="off" placeholder="Type math here... e.g. a = 10 + 5"></textarea>
+        
+      </div>
+    </main>
+
+    <!-- Right: Sidebar (Variables & Graph) -->
+    <aside id="sidebar" role="complementary" aria-hidden="true" class="sidebar flex flex-col bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 lg:relative lg:flex transition-transform duration-300">
+      
+      <!-- Graph Section -->
+      <div class="h-1/3 min-h-[250px] bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex flex-col relative group">
+        <div class="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+           <button onclick="app.resetGraph()" class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 p-1 rounded text-xs hover:bg-gray-50 dark:hover:bg-gray-700">Reset</button>
+        </div>
+        <div class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center">
+          <span>Graph</span>
+          <span class="text-[10px] text-gray-400">f(x), g(x)</span>
+        </div>
+        <div id="plot" class="flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-white dark:bg-gray-950">
+          <div class="text-gray-400 text-sm" style="display: none;"><!-- Define a function like f(x)=x^2 to plot --></div>
+        <svg class="function-plot" font-size="8" width="299" height="217"><text class="top-right-legend" text-anchor="end" y="10" x="279"></text><g class="canvas" transform="translate(40,20)"><defs><clipPath id="function-plot-clip-sb992d5f2f61c6"><rect class="clip static-clip" width="239" height="177"></rect></clipPath><clipPath><marker id="sb992d5f2f61c6-marker" viewBox="0 -5 10 10" refX="10" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,-5L10,0L0,5L0,0" stroke-width="0px" fill-opacity="1" fill="#777"></path></marker></clipPath></defs><g class="x axis" transform="translate(0,177)" fill="none" font-size="10" font-family="sans-serif" text-anchor="middle"><path class="domain" stroke="black" d="M0,-177V0H239V-177" fill="none" shape-rendering="crispedges" opacity="0.1"></path><g class="tick" opacity="1" transform="translate(0,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−6</text></g><g class="tick" opacity="1" transform="translate(19.916666666666664,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−5</text></g><g class="tick" opacity="1" transform="translate(39.83333333333333,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−4</text></g><g class="tick" opacity="1" transform="translate(59.75,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−3</text></g><g class="tick" opacity="1" transform="translate(79.66666666666666,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−2</text></g><g class="tick" opacity="1" transform="translate(99.58333333333334,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−1</text></g><g class="tick" opacity="1" transform="translate(119.5,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">0</text></g><g class="tick" opacity="1" transform="translate(139.41666666666669,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">1</text></g><g class="tick" opacity="1" transform="translate(159.33333333333331,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">2</text></g><g class="tick" opacity="1" transform="translate(179.25,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">3</text></g><g class="tick" opacity="1" transform="translate(199.16666666666669,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">4</text></g><g class="tick" opacity="1" transform="translate(219.08333333333331,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">5</text></g><g class="tick" opacity="1" transform="translate(239,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">6</text></g></g><g class="y axis" fill="none" font-size="10" font-family="sans-serif" text-anchor="end"><path class="domain" stroke="black" d="M239,177H0V0H239" fill="none" shape-rendering="crispedges" opacity="0.1"></path><g class="tick" opacity="1" transform="translate(0,168.16666666666669)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−4</text></g><g class="tick" opacity="1" transform="translate(0,148.25)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−3</text></g><g class="tick" opacity="1" transform="translate(0,128.33333333333334)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−2</text></g><g class="tick" opacity="1" transform="translate(0,108.41666666666667)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−1</text></g><g class="tick" opacity="1" transform="translate(0,88.5)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">0</text></g><g class="tick" opacity="1" transform="translate(0,68.58333333333333)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">1</text></g><g class="tick" opacity="1" transform="translate(0,48.666666666666664)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">2</text></g><g class="tick" opacity="1" transform="translate(0,28.749999999999996)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">3</text></g><g class="tick" opacity="1" transform="translate(0,8.833333333333346)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">4</text></g></g><g class="tip" clip-path="url(#function-plot-clip-sb992d5f2f61c6)"><g class="inner-tip" style="display: none;"><path stroke="grey" stroke-dasharray="5,5" opacity="0.5" d="M0,-197L0,197" class="tip-x-line" style=""></path><path stroke="grey" stroke-dasharray="5,5" opacity="0.5" d="M-259,0L259,0" class="tip-y-line" style=""></path><circle r="3"></circle><text transform="translate(5,-5)"></text></g></g><g clip-path="url(#function-plot-clip-sb992d5f2f61c6)" class="content"><path class="y origin" stroke="black" opacity="0.2" d="M119.5,177L119.5,0"></path><path class="x origin" stroke="black" opacity="0.2" d="M0,88.5L239,88.5"></path><g class="graph"></g><g class="graph"></g></g></g></svg></div>
+      </div>
+
+      <!-- Variables Section -->
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center">
+          <span>Variables</span>
+          <span class="text-[10px] text-gray-400" id="varCount">7 defined</span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-1" id="variablesList">
+            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('area')" title="Click to insert">
+              <div class="flex items-center gap-2 overflow-hidden">
+                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">area</span>
+                <span class="text-xs text-gray-400">=</span>
+                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">78.5398163397448309615660845819875721049292349843776455243736148 cm^2</span>
+              </div>
+              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
+            </div>
+          
+            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('price')" title="Click to insert">
+              <div class="flex items-center gap-2 overflow-hidden">
+                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">price</span>
+                <span class="text-xs text-gray-400">=</span>
+                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">12.5</span>
+              </div>
+              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
+            </div>
+          
+            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('qty')" title="Click to insert">
+              <div class="flex items-center gap-2 overflow-hidden">
+                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">qty</span>
+                <span class="text-xs text-gray-400">=</span>
+                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">4</span>
+              </div>
+              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
+            </div>
+          
+            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('radius')" title="Click to insert">
+              <div class="flex items-center gap-2 overflow-hidden">
+                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">radius</span>
+                <span class="text-xs text-gray-400">=</span>
+                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">5 cm</span>
+              </div>
+              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
+            </div>
+          
+            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('total')" title="Click to insert">
+              <div class="flex items-center gap-2 overflow-hidden">
+                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">total</span>
+                <span class="text-xs text-gray-400">=</span>
+                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">50</span>
+              </div>
+              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
+            </div>
+          <div class="mt-2 mb-1 text-[10px] font-bold text-gray-400 uppercase">Functions</div>
+              <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-pink-600 dark:text-pink-400 font-mono">f(x)</span>
+                </div>
+                <button onclick="app.forcePlot('f')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Plot</button>
+              </div>
+             
+              <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-pink-600 dark:text-pink-400 font-mono">g(x)</span>
+                </div>
+                <button onclick="app.forcePlot('g')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Plot</button>
+              </div>
+             </div>
+      </div>
+
+      <!-- Dataset Preview -->
+      <div id="datasetPreview" class="p-2 border-t border-gray-100 dark:border-gray-900 bg-white dark:bg-gray-900 hidden">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Dataset Preview</div>
+          <div class="flex items-center gap-2">
+            <button id="previewCloseBtn" class="text-[10px] px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">Close</button>
+            <select id="previewRowsSelect" class="text-[10px] bg-white dark:bg-gray-800 rounded border px-2 py-0.5">
+              <option value="5">5 rows</option>
+              <option value="10" selected>10 rows</option>
+              <option value="25">25 rows</option>
+            </select>
+          </div>
+        </div>
+        <div id="datasetPreviewInner" class="overflow-auto max-h-40">
+          <table id="datasetPreviewTable" class="min-w-full text-xs">
+            <thead id="datasetPreviewHead"></thead>
+            <tbody id="datasetPreviewBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Footer / Info -->
+      <div class="p-3 border-t border-gray-200 dark:border-gray-800 text-[10px] text-gray-400 text-center">
+        Powered by Math.js &amp; Function Plot<br>
+        <!--<a href="#" onclick="app.download(); return false;" class="hover:underline text-blue-500">Export Text</a>-->
+      </div>
+    </aside>
+
+  </div>
+
+  <script src="./livecalc-app.js"></script>
+</body>
+
+<!-- Small helper wrappers for the badges (use app API where available) -->
+<div id="toast" aria-live="polite" style="position:fixed;right:12px;bottom:16px;z-index:60;display:none;">
+  <div id="toastInner" class="px-3 py-2 bg-gray-800 text-white rounded shadow">&nbsp;</div>
+</div>
+<script>
+  // Toast helper
+  function showToast(msg, timeout = 1400) {
+    const toast = document.getElementById('toast');
+    const inner = document.getElementById('toastInner');
+    if (!toast || !inner) return;
+    inner.textContent = msg;
+    toast.style.display = 'block';
+    toast.style.opacity = '1';
+    setTimeout(() => {
+      toast.style.transition = 'opacity 220ms ease';
+      toast.style.opacity = '0';
+      setTimeout(() => { toast.style.display = 'none'; toast.style.transition = ''; }, 260);
+    }, timeout);
+  }
+
+  function clearTextarea() {
+    if (window.app && typeof window.app.clear === 'function') { window.app.clear(); showToast('Editor cleared'); return; }
+    const editor = document.getElementById('editor'); if (editor) { editor.value=''; editor.dispatchEvent(new Event('input')); showToast('Editor cleared'); }
+  }
+
+  function insertExampleRandom() {
+    const examples = [
+      `radius = 5 cm\narea = pi * radius^2`,
+      `# Compound Interest\nP = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t`,
+      `# Sum example\nval1 = 10 m\nval2 = 20 cm\nsum`
+    ];
+    const pick = examples[Math.floor(Math.random() * examples.length)];
+    const editor = document.getElementById('editor');
+    if (editor) { editor.value = pick; editor.dispatchEvent(new Event('input')); showToast('Example inserted'); }
+  }
+
+  function insertExampleGeometry() {
+    const editor = document.getElementById('editor');
+    const txt = `# Geometry example\nradius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius`;
+    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Geometry example inserted'); }
+  }
+  function insertExampleFinance() {
+    const editor = document.getElementById('editor');
+    const txt = `# Finance example\nprice = 12.50\nqty = 4\ntotal = price * qty\nmonthly_rate = 0.035/12`;
+    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Finance example inserted'); }
+  }
+
+  function insertExampleTableDemo() {
+    const editor = document.getElementById('editor');
+    const txt = `# Table demo\n# Upload a CSV (or use demo.csv). After import try:\n# sum price from demo where qty > 2\n# count order_id from demo where region == 'North'\n\n# Example query usage when dataset named 'demo' is loaded:\nsum price from demo where qty > 2\ncount order_id from demo where region == 'North'`;
+    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Table demo inserted'); }
+  }
+
+  function insertExampleSum() {
+    const editor = document.getElementById('editor');
+    const txt = `# Sum example\nval1 = 10 m\nval2 = 20 cm\nval3 = 50 cm\nsum`;
+    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Sum example inserted'); }
+  }
+
+  function insertExampleDataPlotDemo() {
+    const editor = document.getElementById('editor');
+    const txt = `# Data Plot demo\n# Import 'demo.csv' (provided) or your own dataset named 'demo'.\n# Use query() to compute aggregates inside expressions.\n# Example: average price in North region\navgPriceNorth = query('demo', 'avg price where region == "North"')\n# Then define a simple function to plot\nf(x) = avgPriceNorth + sin(x)\n# Call forcePlot('f') to plot the function on the right`;
+    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Data plot demo inserted'); }
+  }
+
+  function downloadMath() {
+    if (window.app && typeof window.app.download === 'function') { window.app.download(); showToast('Downloaded'); return; }
+    const editor = document.getElementById('editor');
+    if (!editor) return;
+    const blob = new Blob([editor.value], { type: 'text/plain' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'calculation.txt'; a.click();
+    showToast('Downloaded');
+  }
+
+  function copyURLtoClipboard() {
+    const url = location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Link copied');
+      }).catch(() => { showToast('Copy failed'); });
+    } else {
+      prompt('Copy this link', url);
+    }
+  }
+
+  // Examples menu toggle & accessibility
+  function toggleExamplesMenu(force) {
+    const wrap = document.getElementById('examplesMenuWrapper');
+    const menu = document.getElementById('examplesMenu');
+    const toggle = document.getElementById('examplesToggle');
+    if (!menu || !toggle) return;
+    const isOpen = !menu.classList.contains('hidden');
+    const open = typeof force === 'boolean' ? force : !isOpen;
+    if (open) {
+      menu.classList.remove('hidden');
+      menu.setAttribute('aria-hidden', 'false');
+      toggle.setAttribute('aria-expanded', 'true');
+      // focus first item
+      const first = menu.querySelector('[role="menuitem"]'); if (first) first.focus();
+      // click outside to close
+      setTimeout(() => { document.addEventListener('click', outsideExampleMenu); }, 10);
+    } else {
+      menu.classList.add('hidden');
+      menu.setAttribute('aria-hidden', 'true');
+      toggle.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('click', outsideExampleMenu);
+      toggle.focus();
+    }
+  }
+
+  function outsideExampleMenu(e) {
+    const wrap = document.getElementById('examplesMenuWrapper');
+    if (!wrap) return;
+    if (!wrap.contains(e.target)) toggleExamplesMenu(false);
+  }
+
+  // Close examples menu on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const menu = document.getElementById('examplesMenu');
+      if (menu && !menu.classList.contains('hidden')) toggleExamplesMenu(false);
+    }
+  });
+</script>
+<!-- Settings Modal -->
+<style>
+  /* High-contrast override used by accessibility setting */
+  .lc-high-contrast body, .lc-high-contrast .backdrop-layer { background: #000 !important; color: #fff !important; }
+  .lc-high-contrast .token-number, .lc-high-contrast .token-result { color: #ffea00 !important; }
+  .settings-palette { display:flex; gap:6px; margin-top:6px; }
+  .settings-swatch { width:28px; height:18px; border-radius:4px; box-shadow:0 1px 1px rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.06); }
+</style>
+<div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+  <div class="absolute inset-0 bg-black opacity-40" onclick="document.getElementById('settingsModal').classList.add('hidden')"></div>
+  <div class="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-96 p-4 z-60">
+    <h3 class="text-lg font-semibold mb-2 text-slate-800 dark:text-gray-100">Settings</h3>
+    <div class="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+      <div>
+        <label class="block text-xs text-gray-500">Round decimals</label>
+        <input id="settingsRound" type="number" min="0" step="1" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" placeholder="e.g. 2" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500">Color scheme</label>
+        <select id="settingsColor" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800">
+          <option value="default">Default</option>
+          <option value="warm">Warm</option>
+          <option value="midnight">Midnight</option>
+          <option value="solarized">Solarized</option>
+          <option value="ocean">Ocean</option>
+          <option value="monochrome">Monochrome</option>
+        </select>
+        <div id="settingsPalettePreview" class="settings-palette" aria-hidden="true"></div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500">Editor font</label>
+        <select id="settingsFont" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800">
+          <option value="'Fira Code', 'Menlo', 'Monaco', monospace">Fira Code</option>
+          <option value="'Menlo', 'Monaco', 'Consolas', monospace">Menlo / Mono</option>
+          <option value="'Courier New', monospace">Courier New</option>
+          <option value="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">System UI</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-2"><input id="settingsLargeText" type="checkbox" class="form-checkbox" /> <span class="text-xs text-gray-500">Large text (accessibility)</span></label>
+        <label class="flex items-center gap-2"><input id="settingsHighContrast" type="checkbox" class="form-checkbox" /> <span class="text-xs text-gray-500">High contrast</span></label>
       </div>
     </div>
+    <div class="mt-4 flex justify-end gap-2">
+      <button id="settingsReset" class="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 rounded">Reset</button>
+      <button id="settingsCancel" class="px-3 py-1 text-sm bg-white dark:bg-gray-800 rounded border" onclick="document.getElementById('settingsModal').classList.add('hidden')">Cancel</button>
+      <button id="settingsSave" class="px-3 py-1 text-sm bg-blue-600 text-white rounded">Save</button>
+    </div>
   </div>
-  <script type="text/javascript">
-    
-    math.config({
-      number: 'BigNumber',      // Default type of number: 'number' (default), 'BigNumber', or 'Fraction'
-      precision: 64,            // Number of significant digits for BigNumbers
-      epsilon: 1e-60
-    })
-    
-    document.addEventListener('DOMContentLoaded', function() {
-      var hashvalue = window.location.hash.substring(1);
-      
-      if (hashvalue.length > 4) {
-        $('#frame1').val(b64_to_utf8(hashvalue));
-      }
-      
-      evalMath();
-      
-      
-      $("#frame1").on("keyup change", function(e) {
-        evalMath();
-        var encodedMath = utf8_to_b64($('#frame1').val());
-        window.location.hash = encodedMath;
-      })
-      
-      $('.linked').scroll(function() {
-        $('.bed-highlights').css('transform', `translateY(${-this.scrollTop}px)`);
+</div>
+
+<script>
+  // Settings modal wiring with live palette preview
+  (function() {
+    const saveBtn = document.getElementById('settingsSave');
+    const cancelBtn = document.getElementById('settingsCancel');
+    const resetBtn = document.getElementById('settingsReset');
+    const modal = document.getElementById('settingsModal');
+    const round = document.getElementById('settingsRound');
+    const color = document.getElementById('settingsColor');
+    const font = document.getElementById('settingsFont');
+    const largeText = document.getElementById('settingsLargeText');
+    const highContrast = document.getElementById('settingsHighContrast');
+    const preview = document.getElementById('settingsPalettePreview');
+
+    const palettes = {
+      default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
+      warm: ['#c2410c', '#b45309', '#92400e', '#78350f', '#4b2e05'],
+      midnight: ['#0ea5e9', '#7c3aed', '#60a5fa', '#94a3b8', '#111827'],
+      solarized: ['#268bd2', '#2aa198', '#b58900', '#cb4b16', '#6c71c4'],
+      ocean: ['#2b6cb0', '#38b2ac', '#2c7a7b', '#2a4365', '#81e6d9'],
+      monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db']
+    };
+
+    function hide() { modal.classList.add('hidden'); }
+
+    function renderPreview(s) {
+      if (!preview) return;
+      preview.innerHTML = '';
+      const p = palettes[s] || palettes.default;
+      p.forEach(c => {
+        const d = document.createElement('div');
+        d.className = 'settings-swatch';
+        d.style.background = c;
+        preview.appendChild(d);
       });
-      
-    }, false);
-    
-  </script>
-</body>
+    }
+
+    if (color) {
+      color.addEventListener('change', function() { renderPreview(color.value); });
+      // initial render
+      renderPreview(color ? color.value : 'default');
+    }
+
+    if (saveBtn) saveBtn.addEventListener('click', function() {
+      const rd = parseInt(round.value, 10);
+      const cfg = {};
+      if (!isNaN(rd)) cfg.roundDecimals = rd;
+      cfg.colorScheme = (color && color.value) ? color.value : 'default';
+      cfg.font = (font && font.value) ? font.value : "'Fira Code', 'Menlo', monospace";
+      cfg.accessibility = { largeText: !!(largeText && largeText.checked), highContrast: !!(highContrast && highContrast.checked) };
+      if (window.app && typeof window.app.setSettings === 'function') {
+        window.app.setSettings(cfg);
+        showToast('Settings saved');
+      }
+      hide();
+    });
+
+    if (resetBtn) resetBtn.addEventListener('click', function() {
+      // Default presets
+      const def = { roundDecimals: 2, colorScheme: 'default', font: "'Fira Code', 'Menlo', 'Monaco', monospace", accessibility: { largeText: false, highContrast: false } };
+      if (window.app && typeof window.app.setSettings === 'function') {
+        window.app.setSettings(def);
+        // update fields
+        if (round) round.value = def.roundDecimals;
+        if (color) color.value = def.colorScheme;
+        if (font) font.value = def.font;
+        if (largeText) largeText.checked = def.accessibility.largeText;
+        if (highContrast) highContrast.checked = def.accessibility.highContrast;
+        renderPreview(def.colorScheme);
+        showToast('Settings reset');
+      }
+    });
+
+    // When modal opens via app.openSettings populator will fill values; still attach hide
+    if (cancelBtn) cancelBtn.addEventListener('click', hide);
+
+    // Close on Escape
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) hide(); });
+  })();
+</script>
 </html>
+</body></html>

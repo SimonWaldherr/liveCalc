@@ -66,6 +66,15 @@ const app = (() => {
   // Prevent updateHash from overwriting an incoming shared hash during initial load.
   let suppressHashUpdate = false;
 
+  // Example snippets available to load into the editor
+  const examples = [
+    { id: 'geometry', title: 'Geometry — Circle Area', desc: 'radius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius', content: `# Geometry example\nradius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius` },
+    { id: 'finance', title: 'Finance — Compound Interest', desc: 'P = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t', content: `# Compound Interest example\nP = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t` },
+    { id: 'sum', title: 'Sum — Mixed Units', desc: 'val1 = 10 m\nval2 = 20 cm\nsum', content: `# Sum example\nval1 = 10 m\nval2 = 20 cm\nval3 = 50 cm\nsum` },
+    { id: 'table', title: 'Table — CSV import & query', desc: 'Instructions for using demo dataset', content: `# Table demo\n# Upload a CSV (or use demo.csv). After import try:\n# sum price from demo where qty > 2\n# count order_id from demo where region == 'North'` },
+    { id: 'dataplot', title: 'Data Plot — avg price per region', desc: 'Example for data-driven plotting', content: `# Data Plot demo\n# Import 'demo.csv' (provided) or your own dataset named 'demo'.\n# Use query() to compute aggregates inside expressions.\navgPriceNorth = query('demo', 'avg price where region == "North"')\nf(x) = avgPriceNorth + sin(x)` }
+  ];
+
   function loadSettings() {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
@@ -309,7 +318,7 @@ const app = (() => {
 
   // Initialize section states from localStorage
   function initSectionStates() {
-    ['graph', 'variables', 'dataset', 'history'].forEach(section => {
+    ['graph', 'variables', 'dataset', 'examples', 'history'].forEach(section => {
       try {
         const state = localStorage.getItem('livecalc:section:' + section);
         const content = document.getElementById(section + 'Content');
@@ -334,6 +343,43 @@ const app = (() => {
         }
       } catch (e) {}
     });
+  }
+
+  // Render the examples list in the sidebar
+  function renderExamples() {
+    const list = document.getElementById('examplesList');
+    if (!list) return;
+    if (!examples || examples.length === 0) {
+      list.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">No examples available</div>';
+      return;
+    }
+    list.innerHTML = examples.map(ex => `
+      <div class="flex items-start justify-between gap-2 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+        <div class="flex-1">
+          <div class="text-xs font-semibold text-gray-700 dark:text-gray-200">${escapeHtml(ex.title)}</div>
+          <div class="text-[10px] text-gray-400 mt-1">${escapeHtml(ex.desc)}</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <button onclick="(function(id){ if(window.app && window.app.loadExample) window.app.loadExample(id); })('${ex.id}')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded">Load</button>
+          <button onclick="(function(id){ if(window.app && window.app.insertExampleToEditor) window.app.insertExampleToEditor(id); })('${ex.id}')" class="text-[10px] bg-gray-50 text-gray-700 px-2 py-0.5 rounded">Insert</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function loadExample(id) {
+    const ex = examples.find(e => e.id === id);
+    if (!ex) { showToast('Example not found'); return; }
+    editor.value = ex.content;
+    handleInput();
+    showToast('Loaded example: ' + ex.title);
+  }
+
+  function insertExampleToEditor(id) {
+    const ex = examples.find(e => e.id === id);
+    if (!ex) { showToast('Example not found'); return; }
+    insert('\n' + ex.content + '\n');
+    showToast('Inserted example: ' + ex.title);
   }
 
   // Try several heuristics to decode a base64 hash into UTF-8 text.
@@ -400,22 +446,31 @@ const app = (() => {
 
     // Load content
     suppressHashUpdate = true; // avoid overwriting incoming hash during initial load
-    const hash = window.location.hash.substring(1);
-    if (hash.length > 0) {
-      try {
-        const decoded = tryDecodeHash(hash) || '';
-        if (decoded) {
-          editor.value = decoded;
-        } else {
-          // last attempt using legacy helper
-          try { editor.value = b64_to_utf8(hash); } catch (e) { console.error('hash decode failed', e); }
-        }
-      } catch (e) {
-        console.error(e);
-      }
+    // Prefer pre-decoded value if page injected it early
+    const preshared = window.__livecalc_shared;
+    if (preshared && preshared.length > 0) {
+      editor.value = preshared;
     } else {
-      // Default welcome text
-      editor.value = `# Welcome to LiveCalc Pro!
+      const hash = window.location.hash.substring(1);
+      if (hash.length > 0) {
+        try {
+          const decoded = tryDecodeHash(hash) || '';
+          if (decoded) {
+            editor.value = decoded;
+          } else {
+            // last attempt using legacy helper
+            try { editor.value = b64_to_utf8(hash); } catch (e) { console.error('hash decode failed', e); }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        
+      }
+    }
+      // Default welcome text (only if editor is still empty after loading)
+      if (!editor.value || editor.value.trim() === '') {
+        editor.value = `# Welcome to LiveCalc Pro!
 # Variables, Units, and Functions are supported.
 
 radius = 5 cm
@@ -432,7 +487,7 @@ g(x) = x^2 / 10
 
 # Use 'sum' to total previous blocks
 sum`;
-    }
+      }
 
     // Attach listeners
     editor.addEventListener("input", handleInput);
@@ -506,6 +561,9 @@ sum`;
         const ds = sel ? sel.value : lastPreviewedDataset;
         if (ds) renderDatasetPreview(ds, v);
       });
+
+      // Render examples list
+      try { renderExamples(); } catch (e) {}
 
     // Initial render (don't update URL during this first pass)
     handleInput();
@@ -1428,6 +1486,9 @@ f(x) = x^2 - 5*x`;
         renderHistory();
         showToast('Deleted from history');
       },
+      // Examples API
+      loadExample: (id) => loadExample(id),
+      insertExampleToEditor: (id) => insertExampleToEditor(id),
   };
   
   // History helper functions

@@ -259,6 +259,28 @@
         </div>
       </div>
 
+      <!-- Examples Section -->
+      <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
+        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
+             onclick="app.toggleSection('examples')" 
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('examples');}"
+             tabindex="0" 
+             role="button" 
+             aria-expanded="true" 
+             aria-controls="examplesContent">
+          <span>Examples</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-gray-400">Load example snippets</span>
+            <span id="examplesToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+          </div>
+        </div>
+        <div id="examplesContent" class="overflow-y-auto p-2 space-y-2 transition-all duration-300" style="max-height: 300px;">
+          <div id="examplesList" class="space-y-2 text-xs text-gray-700 dark:text-gray-300">
+            <!-- Filled by JS: example rows with Load buttons -->
+          </div>
+        </div>
+      </div>
+
       <!-- History Section -->
       <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
         <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
@@ -298,6 +320,37 @@
 <div id="toast" aria-live="polite" style="position:fixed;right:12px;bottom:16px;z-index:60;display:none;">
   <div id="toastInner" class="px-3 py-2 bg-gray-800 text-white rounded shadow">&nbsp;</div>
 </div>
+<!-- Early decode for shared hash to avoid timing/scope issues with app bundle -->
+<script>
+  (function() {
+    try {
+      const raw = window.location.hash ? window.location.hash.substring(1) : '';
+      if (!raw) return;
+      // try percent-decode first
+      let candidate = raw;
+      try { candidate = decodeURIComponent(raw); } catch (e) {}
+      // try base64 decode then UTF-8 decode
+      try {
+        const bin = atob(candidate);
+        let esc = '';
+        for (let i = 0; i < bin.length; i++) {
+          const code = bin.charCodeAt(i).toString(16).toUpperCase();
+          esc += '%' + ('00' + code).slice(-2);
+        }
+        const decoded = decodeURIComponent(esc);
+        if (decoded && decoded.trim()) {
+          window.__livecalc_shared = decoded;
+          return;
+        }
+      } catch (e) {}
+      // fallback: try atob on raw
+      try {
+        const decoded = atob(raw);
+        if (decoded && decoded.trim()) window.__livecalc_shared = decoded;
+      } catch (e) {}
+    } catch (e) { /* ignore */ }
+  })();
+</script>
 <script>
   // Toast helper
   function showToast(msg, timeout = 1400) {

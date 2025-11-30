@@ -85,56 +85,34 @@ const app = (() => {
   // Also provide a small FX table (rates expressed as USD per unit)
   // and helper to normalize currency symbols (€, $, £ etc.).
   // ------------------------------------------------------------------
-  const currencyUnits = new Set(["USD", "EUR", "GBP", "JPY", "CHF"]);
-  const fxRates = { USD: 1.0, EUR: 1.08, GBP: 1.25, JPY: 0.0072, CHF: 1.09 };
+  // Use centralized conversions if provided (loaded from conversions.js)
+  const _LC = (typeof window !== 'undefined' && window.LC_CONVERSIONS) ? window.LC_CONVERSIONS : null;
+  const fxRates = _LC && _LC.fxRates ? Object.assign({}, _LC.fxRates) : { USD: 1.0, EUR: 1.08, GBP: 1.25, JPY: 0.0072, CHF: 1.09 };
+  const currencyUnits = new Set((_LC && Array.isArray(_LC.currencyUnits)) ? _LC.currencyUnits : ["USD","EUR","GBP","JPY","CHF"]);
+
+  // Ensure currency unit names are present in math.js as simple units
   try {
-    ["USD", "EUR", "GBP", "JPY", "CHF"].forEach((c) => {
-      try {
-        math.createUnit(c);
-      } catch (e) {
-        /* ignore if already present */
-      }
+    Array.from(currencyUnits).forEach((c) => {
+      try { math.createUnit(c); } catch (e) { /* ignore if present */ }
     });
-  } catch (e) {
-    /* non-fatal */
-  }
+  } catch (e) {}
 
   // Register a set of common units and synonyms to improve conversion coverage
   function registerCommonUnits() {
-    const units = [
-      ['mm', '0.001 m'],
-      ['cm', '0.01 m'],
-      ['dm', '0.1 m'],
-      ['m', '1 m'],
-      ['km', '1000 m'],
-      ['g', '0.001 kg'],
-      ['kg', '1 kg'],
-      ['mg', '1e-6 kg'],
-      ['t', '1000 kg'],
-      ['L', '0.001 m^3'],
-      ['l', '0.001 m^3'],
-      ['ml', '1e-6 m^3'],
-      // Imperial / US customary units
-      ['in', '0.0254 m'],
-      ['ft', '0.3048 m'],
-      ['yd', '0.9144 m'],
-      ['mi', '1609.344 m'],
-      ['oz', '0.028349523125 kg'],
-      ['lb', '0.45359237 kg'],
-      ['cm2', '0.0001 m^2'],
-      ['m2', '1 m^2'],
-      ['cm3', '1e-6 m^3'],
-      ['m3', '1 m^3'],
-      ['s', '1 s'],
-      ['min', '60 s'],
-      ['h', '3600 s']
+    const units = (_LC && Array.isArray(_LC.commonUnits)) ? _LC.commonUnits : [
+      ['mm', '0.001 m'],['cm', '0.01 m'],['dm', '0.1 m'],['m', '1 m'],['km', '1000 m'],
+      ['mg', '1e-6 kg'],['g', '0.001 kg'],['kg', '1 kg'],['t', '1000 kg'],
+      ['ml', '1e-6 m^3'],['l', '0.001 m^3'],['L', '0.001 m^3'],
+      ['cm2', '0.0001 m^2'],['m2', '1 m^2'],['cm3', '1e-6 m^3'],['m3', '1 m^3'],
+      ['s', '1 s'],['sec', '1 s'],['min', '60 s'],['h', '3600 s'],
+      ['in', '0.0254 m'],['ft', '0.3048 m'],['yd', '0.9144 m'],['mi', '1609.344 m'],
+      ['oz', '0.028349523125 kg'],['lb', '0.45359237 kg'],['atm', '101325 Pa'],['bar','100000 Pa'],['percent','0.01']
     ];
     units.forEach(([name, def]) => {
       try {
         if (!math.unit || !math.createUnit) return;
         // Only create if not already defined
         try {
-          // math.unit(name) may throw if unit not defined; attempt safely
           let exists = false;
           try { exists = !!math.unit(name); } catch (e) { exists = false; }
           if (!exists) {
@@ -151,7 +129,6 @@ const app = (() => {
           }
         } catch (e) {}
       } catch (e) {
-        // math.unit(name) may throw if unit not found; try create and swallow errors
         try { math.createUnit(name, def); } catch (e2) {}
       }
     });
@@ -189,7 +166,8 @@ const app = (() => {
     { id: 'finance', title: 'Finance — Compound Interest', desc: 'P = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t', content: `# Compound Interest example\nP = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t` },
     { id: 'sum', title: 'Sum — Mixed Units', desc: 'val1 = 10 m\nval2 = 20 cm\nsum', content: `# Sum example\nval1 = 10 m\nval2 = 20 cm\nval3 = 50 cm\nsum` },
     { id: 'table', title: 'Table — CSV import & query', desc: 'Instructions for using demo dataset', content: `# Table demo\n# Upload a CSV (or use demo.csv). After import try:\n# sum price from demo where qty > 2\n# count order_id from demo where region == 'North'` },
-    { id: 'dataplot', title: 'Data Plot — avg price per region', desc: 'Example for data-driven plotting', content: `# Data Plot demo\n# Import 'demo.csv' (provided) or your own dataset named 'demo'.\n# Use query() to compute aggregates inside expressions.\navgPriceNorth = query('demo', 'avg price where region == "North"')\nf(x) = avgPriceNorth + sin(x)` }
+    { id: 'dataplot', title: 'Data Plot — avg price per region', desc: 'Example for data-driven plotting', content: `# Data Plot demo\n# Import 'demo.csv' (provided) or your own dataset named 'demo'.\n# Use query() to compute aggregates inside expressions.\navgPriceNorth = query('demo', 'avg price where region == "North"')\nf(x) = avgPriceNorth + sin(x)` },
+    { id: 'conv_all', title: 'Conversions — Mixed examples', desc: 'Collection of common conversions (weight, pressure, area, volume, force, mass, temperature, currency)', content: `# Conversions example\n# Weight\n30 lb in kg\n\n# Pressure\n14.7 psi in bar\n\n# Area\n200 in^2 in cm^2\n\n# Volume\n1 gal in L\n\n# Force\n10 lbf in N\n\n# Mass (imperial)\n1 slug in kg\n\n# Temperature (F <-> C)\n# If your environment doesn't have F/C units defined, a manual formula is provided below\n100 F in C\n# Manual (formula) alternative:\n(100 - 32) * 5/9\n\n# Currency\n100 EUR in USD\n\n# Mixed units and sum\na = 20 cm\nb = 0.5 m\nc = 3 in\n# list values then an explicit 'sum' line to show block sum\na\nb\nc\nsum\n# Convert sum to m\nsum in m` }
   ];
 
   function loadSettings() {
@@ -871,9 +849,32 @@ sum`;
       const convMatch = trimmed.match(/^(.+?)\s+in\s+([A-Za-z0-9^_\-]+)$/i);
       if (convMatch) {
         const leftExpr = convMatch[1].trim();
-        const rawTarget = convMatch[2].trim();
-        // Try sensible target candidates (user may type 'kg', 'KG', 'm^2', etc.)
-        const candidates = [rawTarget, rawTarget.toLowerCase(), rawTarget.toUpperCase()];
+          const rawTarget = convMatch[2].trim();
+          // Temperature heuristic: allow converting plain numeric temperatures even if units aren't registered
+          const tempMatch = leftExpr.match(/^\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*(°?F|F|°?C|C|K)\s*$/i);
+          if (tempMatch) {
+            try {
+              const num = Number(tempMatch[1]);
+              const src = tempMatch[2].replace('°', '').toUpperCase();
+              const tgt = rawTarget.replace('°', '').toUpperCase();
+              let celsius;
+              if (src === 'F') celsius = (num - 32) * 5/9;
+              else if (src === 'K') celsius = num - 273.15;
+              else celsius = num; // already C
+              let out;
+              if (tgt === 'C') out = celsius;
+              else if (tgt === 'F') out = celsius * 9/5 + 32;
+              else if (tgt === 'K') out = celsius + 273.15;
+              if (typeof out !== 'undefined') {
+                outputLines.push({ value: formatResult(out) + ' ' + tgt, type: 'result' });
+                continue;
+              }
+            } catch (e) {
+              // fallthrough to normal conversion logic
+            }
+          }
+          // Try sensible target candidates (user may type 'kg', 'KG', 'm^2', etc.)
+          const candidates = [rawTarget, rawTarget.toLowerCase(), rawTarget.toUpperCase()];
         try {
           let val;
           try {

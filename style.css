@@ -128,7 +128,8 @@
 
 #graphContent.collapsed,
 #variablesContent.collapsed,
-#historyContent.collapsed {
+#historyContent.collapsed,
+#examplesContent.collapsed {
     max-height: 0 !important;
     overflow: hidden;
     padding: 0 !important;

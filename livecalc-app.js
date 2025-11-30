@@ -99,6 +99,65 @@ const app = (() => {
     /* non-fatal */
   }
 
+  // Register a set of common units and synonyms to improve conversion coverage
+  function registerCommonUnits() {
+    const units = [
+      ['mm', '0.001 m'],
+      ['cm', '0.01 m'],
+      ['dm', '0.1 m'],
+      ['m', '1 m'],
+      ['km', '1000 m'],
+      ['g', '0.001 kg'],
+      ['kg', '1 kg'],
+      ['mg', '1e-6 kg'],
+      ['t', '1000 kg'],
+      ['L', '0.001 m^3'],
+      ['l', '0.001 m^3'],
+      ['ml', '1e-6 m^3'],
+      // Imperial / US customary units
+      ['in', '0.0254 m'],
+      ['ft', '0.3048 m'],
+      ['yd', '0.9144 m'],
+      ['mi', '1609.344 m'],
+      ['oz', '0.028349523125 kg'],
+      ['lb', '0.45359237 kg'],
+      ['cm2', '0.0001 m^2'],
+      ['m2', '1 m^2'],
+      ['cm3', '1e-6 m^3'],
+      ['m3', '1 m^3'],
+      ['s', '1 s'],
+      ['min', '60 s'],
+      ['h', '3600 s']
+    ];
+    units.forEach(([name, def]) => {
+      try {
+        if (!math.unit || !math.createUnit) return;
+        // Only create if not already defined
+        try {
+          // math.unit(name) may throw if unit not defined; attempt safely
+          let exists = false;
+          try { exists = !!math.unit(name); } catch (e) { exists = false; }
+          if (!exists) {
+            math.createUnit(name, def);
+          }
+        } catch (e) {
+          try { math.createUnit(name, def); } catch (e2) {}
+        }
+        // Also register uppercase alias (e.g. 'kg' -> 'KG') to be forgiving for users
+        try {
+          const up = name.toUpperCase();
+          if (up !== name) {
+            try { math.createUnit(up, name); } catch (e) {}
+          }
+        } catch (e) {}
+      } catch (e) {
+        // math.unit(name) may throw if unit not found; try create and swallow errors
+        try { math.createUnit(name, def); } catch (e2) {}
+      }
+    });
+  }
+  try { registerCommonUnits(); } catch (e) {}
+
   // ------------------------------------------------------------------
   // Data / Dataset support
   // - `datasets` stores uploaded/parsing results as arrays of objects
@@ -698,8 +757,11 @@ sum`;
 
     // Accumulators for 'sum'
     let globalSum = math.bignumber(0);
-    let blockSum = math.bignumber(0);
-    let baseUnit = null; // normalized unit for current block
+    // blockSum will be either a math.Unit, a BigNumber, or null when empty
+    let blockSum = null;
+    let blockSumIsUnit = false;
+    let blockSumIsCurrency = false;
+    let blockSumCurrencyBase = null; // currency code when summing currencies
 
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
@@ -710,8 +772,10 @@ sum`;
         outputLines.push(null);
         // blank line resets block sum
         if (trimmed === "") {
-          blockSum = math.bignumber(0);
-          lastUnit = null;
+          blockSum = null;
+          blockSumIsUnit = false;
+          blockSumIsCurrency = false;
+          blockSumCurrencyBase = null;
         }
         continue;
       }
@@ -765,15 +829,25 @@ sum`;
       if (/^(total|sum|summe|gesamt)$/i.test(trimmed)) {
         // It's a sum line
         try {
-          const display = lastUnit
-            ? blockSum.toString() + " " + lastUnit
-            : math.format(blockSum, { precision: 14 });
+          let display;
+          if (blockSum === null) {
+            display = '0';
+          } else if (blockSumIsCurrency) {
+            display = math.format(blockSum, { precision: 14 }) + ' ' + (blockSumCurrencyBase || '');
+          } else if (blockSumIsUnit) {
+            display = math.format(blockSum, { precision: 14 });
+          } else {
+            display = math.format(blockSum, { precision: 14 });
+          }
           outputLines.push({ value: display, type: "sum" });
         } catch (e) {
           outputLines.push({ value: e.message, type: "error" });
         }
-        blockSum = math.bignumber(0); // Reset block sum
-        lastUnit = null;
+        // Reset block sum
+        blockSum = null;
+        blockSumIsUnit = false;
+        blockSumIsCurrency = false;
+        blockSumCurrencyBase = null;
         continue;
       }
 
@@ -794,30 +868,66 @@ sum`;
       }
 
       // Handle conversion syntax:  expr in UNIT (especially for currencies)
-      const convMatch = trimmed.match(/^(.+?)\s+in\s+([A-Za-z]{2,5})$/i);
+      const convMatch = trimmed.match(/^(.+?)\s+in\s+([A-Za-z0-9^_\-]+)$/i);
       if (convMatch) {
         const leftExpr = convMatch[1].trim();
-        const targetUnit = convMatch[2].toUpperCase();
+        const rawTarget = convMatch[2].trim();
+        // Try sensible target candidates (user may type 'kg', 'KG', 'm^2', etc.)
+        const candidates = [rawTarget, rawTarget.toLowerCase(), rawTarget.toUpperCase()];
         try {
-          let val = parser.evaluate(normalizeCurrencySymbols(leftExpr));
-          let converted;
-          if (val && val.isUnit) {
-            const srcUnitName = (val.units && val.units[0] && val.units[0].unit && val.units[0].unit.name) || '';
-            if (currencyUnits.has(srcUnitName) && currencyUnits.has(targetUnit)) {
-              // convert via fxRates
-              const amountNum = val.toNumber(srcUnitName);
-              converted = amountNum * (fxRates[srcUnitName] / (fxRates[targetUnit] || 1));
-              outputLines.push({ value: formatResult(converted) + ' ' + targetUnit, type: 'result' });
-            } else {
-              // let mathjs try normal unit conversion
-              const mathConverted = val.to(targetUnit);
-              outputLines.push({ value: formatResult(mathConverted), type: 'result' });
-            }
-          } else {
+          let val;
+          try {
+            val = parser.evaluate(normalizeCurrencySymbols(leftExpr));
+          } catch (e) {
+            outputLines.push({ value: 'Failed to evaluate expression: ' + e.message, type: 'error' });
+            continue;
+          }
+
+          if (!val || !val.isUnit) {
             outputLines.push({ value: 'Cannot convert non-unit value', type: 'error' });
+            continue;
+          }
+
+          // Determine source unit name
+          const srcUnitName = (val.units && val.units[0] && val.units[0].unit && val.units[0].unit.name) || '';
+
+          // Currency special-case: use fxRates if both sides are currencies
+          const tryCurrency = (u) => currencyUnits.has(srcUnitName) && currencyUnits.has(u);
+
+          let success = false;
+          for (const cand of candidates) {
+            try {
+              if (tryCurrency(cand.toUpperCase())) {
+                const amountNum = val.toNumber(srcUnitName);
+                const converted = amountNum * (fxRates[srcUnitName] / (fxRates[cand.toUpperCase()] || 1));
+                outputLines.push({ value: formatResult(converted) + ' ' + cand.toUpperCase(), type: 'result' });
+                success = true;
+                break;
+              }
+
+              // try mathjs unit conversion
+              let mathConverted = null;
+              try {
+                mathConverted = val.to(cand);
+              } catch (e) {
+                // try uppercase/lowercase variations handled by candidates
+                mathConverted = null;
+              }
+              if (mathConverted !== null) {
+                outputLines.push({ value: formatResult(mathConverted), type: 'result' });
+                success = true;
+                break;
+              }
+            } catch (e) {
+              // continue trying other candidates
+            }
+          }
+
+          if (!success) {
+            outputLines.push({ value: 'Conversion failed: incompatible or unknown unit "' + rawTarget + '"', type: 'error' });
           }
         } catch (e) {
-          outputLines.push({ value: e.message, type: 'error' });
+          outputLines.push({ value: 'Conversion error: ' + (e && e.message ? e.message : String(e)), type: 'error' });
         }
         continue;
       }
@@ -833,77 +943,56 @@ sum`;
           outputLines.push({ value: formatted, type: "result" });
 
           // Update Sums logic
-          // Only sum numbers or units in a consistent unit
+          // Accumulate numbers and units while preserving correct conversions
           try {
             if (res && res.isUnit) {
-              // Attempt to extract primary unit name and convert to baseUnit
-              const u =
-                (res.units &&
-                  res.units[0] &&
-                  res.units[0].unit &&
-                  res.units[0].unit.name) ||
-                null;
+              const u = (res.units && res.units[0] && res.units[0].unit && res.units[0].unit.name) || null;
               if (u) {
-                // If this is a currency unit and baseUnit is another currency,
-                // use fxRates for conversion since mathjs won't convert different base units.
-                const isCurrency = currencyUnits.has(u);
-                const baseIsCurrency = baseUnit && currencyUnits.has(baseUnit);
-                try {
-                  // If this is the first unit in the block, choose it as baseUnit
-                  if (!baseUnit) baseUnit = u;
-                  let numeric;
-                  if (isCurrency && baseIsCurrency) {
-                    // Convert via fxRates: amount_in_base = amount * (rate[source] / rate[base])
-                    const amount =
-                      res.value && res.value.toString
-                        ? math.bignumber(res.value.toString())
-                        : math.bignumber(res.value || 0);
+                // Currency handling (use fxRates table)
+                if (currencyUnits.has(u)) {
+                  const amount = res.toNumber(u);
+                  if (blockSum === null) {
+                    blockSum = math.bignumber(amount);
+                    blockSumIsCurrency = true;
+                    blockSumCurrencyBase = u;
+                  } else if (blockSumIsCurrency) {
+                    // convert incoming to base currency
                     const rSrc = fxRates[u] || 1;
-                    const rBase = fxRates[baseUnit] || 1;
-                    numeric = math
-                      .bignumber(amount)
-                      .mul(math.bignumber(rSrc))
-                      .div(math.bignumber(rBase));
+                    const rBase = fxRates[blockSumCurrencyBase] || 1;
+                    const converted = math.bignumber(amount).mul(math.bignumber(rSrc)).div(math.bignumber(rBase));
+                    blockSum = math.add(blockSum, converted);
                   } else {
-                    // Try to convert the current unit to baseUnit using mathjs
-                    numeric = math.bignumber(res.toNumber(baseUnit));
+                    // incompatible with non-currency block sum, skip
                   }
-                  blockSum = math.add(blockSum, math.bignumber(numeric));
-                } catch (e) {
-                  // Conversion to baseUnit failed. Try converting baseUnit to this unit to see if we can normalize the other way around.
-                  if (baseUnit) {
+                } else {
+                  // Non-currency units: prefer math.add on Unit objects (mathjs will convert compatible units)
+                  if (blockSum === null) {
+                    blockSum = res; // store Unit
+                    blockSumIsUnit = true;
+                  } else if (blockSumIsUnit) {
                     try {
-                      // convert existing blockSum to current unit and set new baseUnit
-                      let converted;
-                      if (currencyUnits.has(u) && currencyUnits.has(baseUnit)) {
-                        // convert blockSum (which is numeric in baseUnit) into new unit u
-                        const rSrc = fxRates[baseUnit] || 1; // baseUnit currently
-                        const rTarget = fxRates[u] || 1;
-                        converted = math
-                          .bignumber(blockSum)
-                          .mul(math.bignumber(rSrc))
-                          .div(math.bignumber(rTarget));
-                      } else {
-                        converted = math.bignumber(
-                          math.unit(blockSum.toString(), baseUnit).toNumber(u),
-                        );
-                      }
-                      // replace blockSum with converted and set baseUnit to current unit
-                      blockSum = converted;
-                      baseUnit = u;
-                      // now add current numeric value (converted from res to baseUnit which is now u)
-                      const numeric = res.toNumber(baseUnit);
-                      blockSum = math.add(blockSum, math.bignumber(numeric));
-                    } catch (e2) {
-                      // incompatible units — skip adding to sum
+                      blockSum = math.add(blockSum, res);
+                    } catch (e) {
+                      // incompatible units — skip adding
                     }
+                  } else {
+                    // blockSum currently numeric, cannot add unit — skip
                   }
                 }
               }
-            } else if (typeof res === "number") {
-              blockSum = math.add(blockSum, math.bignumber(res));
-            } else if (res && res.isBigNumber) {
-              blockSum = math.add(blockSum, res);
+            } else if (typeof res === "number" || (res && res.isBigNumber)) {
+              // Numeric add
+              const num = res && res.isBigNumber ? res : math.bignumber(res);
+              if (blockSum === null) {
+                blockSum = num;
+                blockSumIsUnit = false;
+                blockSumIsCurrency = false;
+                blockSumCurrencyBase = null;
+              } else if (!blockSumIsUnit && !blockSumIsCurrency) {
+                blockSum = math.add(blockSum, num);
+              } else {
+                // cannot sensibly add raw number to a unit or currency block; skip
+              }
             }
           } catch (e) {
             /* ignore unit mismatch in sum */

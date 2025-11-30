@@ -9,10 +9,68 @@ const app = (() => {
   const sidebar = document.getElementById("sidebar");
 
   // -- Configuration --
-  let isDark =
-    localStorage.getItem("theme") === "dark" ||
-    (!("theme" in localStorage) &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
+  let isDark = localStorage.getItem("theme") === "dark" || (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  // Small HTML-escape helper used by highlight/preview rendering
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Synchronize scroll positions between the textarea, backdrop and line numbers
+  function syncScroll() {
+    try {
+      const st = editor.scrollTop;
+      // backdrop and lineNumbers are block elements; keep their scrollTop in sync
+      if (backdrop) backdrop.scrollTop = st;
+      if (lineNumbers) lineNumbers.scrollTop = st;
+    } catch (e) {
+      // non-fatal
+    }
+  }
+
+  // Keyboard handling for editor (supports Tab indenting and Shift-Tab unindent)
+  function handleKeydown(e) {
+    try {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const val = editor.value;
+        // Multiline selection indent/unindent
+        if (start !== end) {
+          const selected = val.slice(start, end);
+          if (e.shiftKey) {
+            // remove one leading tab or two spaces from each selected line
+            const replaced = selected.replace(/^\t|^ {2}/gm, '');
+            editor.value = val.slice(0, start) + replaced + val.slice(end);
+            editor.selectionStart = start;
+            editor.selectionEnd = start + replaced.length;
+          } else {
+            const replaced = selected.replace(/^/gm, '\t');
+            editor.value = val.slice(0, start) + replaced + val.slice(end);
+            editor.selectionStart = start;
+            editor.selectionEnd = start + replaced.length;
+          }
+        } else {
+          // single caret: insert a tab
+          const insert = '\t';
+          editor.value = val.slice(0, start) + insert + val.slice(end);
+          editor.selectionStart = editor.selectionEnd = start + insert.length;
+        }
+        // Trigger update
+        handleInput();
+      }
+    } catch (err) {
+      // swallow
+    }
+  }
+
+    
 
   // MathJS config
   math.config({
@@ -431,6 +489,27 @@ const app = (() => {
     return '';
   }
 
+  // Robust base64 <-> UTF8 helpers
+  function utf8_to_b64(str) {
+    try {
+      return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+        return String.fromCharCode('0x' + p1);
+      }));
+    } catch (e) {
+      try { return btoa(unescape(encodeURIComponent(str))); } catch (e2) { return ''; }
+    }
+  }
+
+  function b64_to_utf8(b64) {
+    try {
+      return decodeURIComponent(Array.prototype.map.call(atob(b64), function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+    } catch (e) {
+      try { return decodeURIComponent(escape(atob(b64))); } catch (e2) { return ''; }
+    }
+  }
+
   // -- Initialization --
   function init() {
     applyTheme();
@@ -714,6 +793,35 @@ sum`;
         continue;
       }
 
+      // Handle conversion syntax:  expr in UNIT (especially for currencies)
+      const convMatch = trimmed.match(/^(.+?)\s+in\s+([A-Za-z]{2,5})$/i);
+      if (convMatch) {
+        const leftExpr = convMatch[1].trim();
+        const targetUnit = convMatch[2].toUpperCase();
+        try {
+          let val = parser.evaluate(normalizeCurrencySymbols(leftExpr));
+          let converted;
+          if (val && val.isUnit) {
+            const srcUnitName = (val.units && val.units[0] && val.units[0].unit && val.units[0].unit.name) || '';
+            if (currencyUnits.has(srcUnitName) && currencyUnits.has(targetUnit)) {
+              // convert via fxRates
+              const amountNum = val.toNumber(srcUnitName);
+              converted = amountNum * (fxRates[srcUnitName] / (fxRates[targetUnit] || 1));
+              outputLines.push({ value: formatResult(converted) + ' ' + targetUnit, type: 'result' });
+            } else {
+              // let mathjs try normal unit conversion
+              const mathConverted = val.to(targetUnit);
+              outputLines.push({ value: formatResult(mathConverted), type: 'result' });
+            }
+          } else {
+            outputLines.push({ value: 'Cannot convert non-unit value', type: 'error' });
+          }
+        } catch (e) {
+          outputLines.push({ value: e.message, type: 'error' });
+        }
+        continue;
+      }
+
       try {
         // Evaluate (use processed line so symbols like € are replaced)
         let res = parser.evaluate(proc);
@@ -889,7 +997,7 @@ sum`;
     // Tokenize the line to avoid replacing inside injected HTML
     // Token types: whitespace, identifiers, numbers, operators, punctuation
     const tokenRE =
-      /(\s+|[A-Za-z_][A-Za-z0-9_]*|\d+\.\d+|\d+|==|!=|<=|>=|\+|\-|\*|\/|\^|=|\(|\)|\[|\]|,|\.|%)/g;
+      /(\s+|[A-Za-z_][A-Za-z0-9_]*|\d+\.\d+|\d+|==|!=|<=|>=|\+|\-|\*|\/|\^|=|\(|\)|\[|\]|,|;|\.|%)/g;
     const tokens = escaped.match(tokenRE) || [escaped];
 
     let out = "";
@@ -904,7 +1012,8 @@ sum`;
         continue;
       }
       if (/^(\+|\-|\*|\/|\^|==|!=|<=|>=|=)$/.test(tok)) {
-        out += `<span class="token-operator">${tok}</span>`;
+        const optok = prettyOperator(tok);
+        out += `<span class="token-operator">${optok}</span>`;
         continue;
       }
       if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(tok)) {
@@ -919,9 +1028,10 @@ sum`;
         // skip whitespace tokens between identifier and '=' (tokens array already separates whitespace)
         while (k < tokens.length && /^\s+$/.test(tokens[k])) k++;
         if (k < tokens.length && tokens[k] === "=") {
-          out += `<span class="token-variable">${tok}</span>`;
+          const prettyId = toPrettyUnits(tok);
+          out += `<span class="token-variable">${prettyId}</span>`;
         } else {
-          out += tok;
+          out += toPrettyUnits(tok);
         }
         continue;
       }
@@ -1008,6 +1118,48 @@ sum`;
     }
 
     variablesList.innerHTML = html;
+  }
+
+  // ------------------------------------------------------------
+  // Result formatting (numbers, BigNumbers, Units) with rounding &
+  // pretty unit superscripts.
+  // ------------------------------------------------------------
+  function formatResult(res) {
+    const rd = (settings && typeof settings.roundDecimals === 'number') ? settings.roundDecimals : null;
+
+    // BigNumber
+    if (res && res.isBigNumber) {
+      const numStr = (rd !== null && res.toFixed) ? res.toFixed(rd) : res.toString();
+      return numStr;
+    }
+
+    // Unit (including currencies)
+    if (res && res.isUnit) {
+      try {
+        const n = rd !== null ? res.toNumber() : null;
+        const unitName = (res.units && res.units[0] && res.units[0].unit && res.units[0].unit.name) || '';
+        const valStr = rd !== null && typeof n === 'number' ? n.toFixed(rd) : res.value.toString();
+        return toPrettyUnits(valStr + (unitName ? ' ' + unitName : ''));
+      } catch (e) {
+        return toPrettyUnits(res.toString());
+      }
+    }
+
+    if (typeof res === 'number') {
+      return rd !== null ? res.toFixed(rd) : String(res);
+    }
+
+    // Objects/arrays/matrices -> try math.format for readable output (handles matrices)
+    if (typeof res === 'object') {
+      try {
+        const fmt = (rd !== null) ? math.format(res, { precision: rd }) : math.format(res);
+        return toPrettyUnits(String(fmt));
+      } catch (e) {
+        try { return JSON.stringify(res).replace(/"/g,''); } catch (e2) { return String(res); }
+      }
+    }
+
+    return toPrettyUnits(String(res));
   }
 
   // -- Plotting --
@@ -1130,106 +1282,41 @@ sum`;
     // change handler attached during init to avoid duplicates
   }
 
-  // -- Helper Functions --
-  function escapeHtml(text) {
-    return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+  // ------------------------------------------------------------
+  // Pretty-printing helpers (visual only)
+  // ------------------------------------------------------------
+  function toPrettyUnits(str) {
+    if (!str || typeof str !== 'string') return str;
+    return str
+      // superscript 2/3 after unit letters (optionally with caret)
+      .replace(/\b([A-Za-z]{1,5})\^?2\b/g, '$1²')
+      .replace(/\b([A-Za-z]{1,5})\^?3\b/g, '$1³');
   }
 
-  function formatResult(res) {
-    const rd = (settings && typeof settings.roundDecimals === 'number') ? settings.roundDecimals : null;
-    if (res && res.isBigNumber) {
-      if (rd !== null) {
-        try {
-          if (typeof res.toFixed === 'function') return res.toFixed(rd);
-          // fallback: convert to number and format (may lose precision for huge values)
-          return Number(res.toNumber()).toFixed(rd);
-        } catch (e) {
-          return math.format(res, { precision: 14 });
-        }
-      }
-      return math.format(res, { precision: 14 });
-    }
-    if (res && res.isUnit) {
-      try {
-        if (rd !== null) {
-          const n = res.toNumber();
-          const unitName = (res.units && res.units[0] && res.units[0].unit && res.units[0].unit.name) ? res.units[0].unit.name : '';
-          // n may be BigNumber or Number; ensure formatting
-          if (typeof n === 'number') return (isFinite(n) ? n.toFixed(rd) : String(n)) + (unitName ? ' ' + unitName : '');
-          try {
-            // try BigNumber toFixed
-            if (n && typeof n.toFixed === 'function') return n.toFixed(rd) + (unitName ? ' ' + unitName : '');
-          } catch (e) {}
-          return String(n) + (unitName ? ' ' + unitName : '');
-        }
-      } catch (e) {}
-      return res.toString();
-    }
-    if (typeof res === "object")
-      return JSON.stringify(res.entries || res).replace(/"/g, "");
-    if (typeof res === 'number') {
-      if (rd !== null) return res.toFixed(rd);
-      return String(res);
-    }
-    return res !== undefined && res !== null ? res.toString() : '';
-  }
-
-  function syncScroll() {
-    // Sync backdrop and line numbers
-    backdrop.parentElement.scrollTop = editor.scrollTop;
-    lineNumbers.scrollTop = editor.scrollTop;
-  }
-
-  function handleKeydown(e) {
-    if (e.key === "Tab") {
-      e.preventDefault();
-      document.execCommand("insertText", false, "  ");
+  function prettyOperator(op) {
+    switch (op) {
+      case '<=': return '≤';
+      case '>=': return '≥';
+      case '!=': return '≠';
+      default: return op;
     }
   }
 
-  function getRandomColor(str) {
-    // Consistent color from string
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const c = (hash & 0x00ffffff).toString(16).toUpperCase();
-    return "#" + "00000".substring(0, 6 - c.length) + c;
-  }
-
-  function b64_to_utf8(str) {
+  // Deterministic color picker for plotting based on function name
+  function getRandomColor(name) {
     try {
-      // atob -> percent-encode each byte -> decodeURIComponent to get UTF-8 string
-      const bin = window.atob(str);
-      let esc = '';
-      for (let i = 0; i < bin.length; i++) {
-        const code = bin.charCodeAt(i).toString(16).toUpperCase();
-        esc += '%' + ('00' + code).slice(-2);
+      let h = 0;
+      for (let i = 0; i < name.length; i++) {
+        h = (h << 5) - h + name.charCodeAt(i);
+        h |= 0;
       }
-      return decodeURIComponent(esc);
+      const hue = Math.abs(h) % 360;
+      return `hsl(${hue} 65% 45%)`;
     } catch (e) {
-      // fallback to older approach or raw atob
-      try { return decodeURIComponent(escape(window.atob(str))); } catch (e2) { try { return window.atob(str); } catch (e3) { return ''; } }
+      return '#4f46e5';
     }
   }
-  function utf8_to_b64(str) {
-    try {
-      // encodeURIComponent -> percent-encoded UTF-8 -> convert percent escapes to raw bytes for btoa
-      const utf8 = encodeURIComponent(str);
-      // convert percent encodings to raw bytes
-      const bytes = utf8.replace(/%([0-9A-F]{2})/g, function(match, p1) {
-        return String.fromCharCode('0x' + p1);
-      });
-      return window.btoa(bytes);
-    } catch (e) {
-      try { return window.btoa(unescape(encodeURIComponent(str))); } catch (e2) { return window.btoa(str); }
-    }
-  }
+
   function updateHash(content) {
     if (suppressHashUpdate) return;
     const hash = content ? utf8_to_b64(content) : "";

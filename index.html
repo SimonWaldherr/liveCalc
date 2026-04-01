@@ -92,6 +92,8 @@
 
   <!-- Main Layout -->
   <div class="grid-layout relative">
+    <!-- Mobile sidebar backdrop (tap to close) -->
+    <div id="sidebarOverlay" onclick="app.closeSidebar && app.closeSidebar()" onkeydown="if(event.key==='Enter'||event.key===' '){app.closeSidebar && app.closeSidebar();}" role="button" tabindex="0" class="hidden fixed inset-0 bg-black/40 z-40 lg:hidden" aria-label="Close sidebar"></div>
     
     <!-- Left: Line Numbers -->
     <div class="bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
@@ -486,8 +488,9 @@
     <h3 class="text-lg font-semibold mb-2 text-slate-800 dark:text-gray-100">Settings</h3>
     <div class="space-y-3 text-sm text-gray-700 dark:text-gray-300">
       <div>
-        <label class="block text-xs text-gray-500">Round decimals</label>
-        <input id="settingsRound" type="number" min="0" step="1" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" placeholder="e.g. 2" />
+        <label class="block text-xs text-gray-500">Decimal places</label>
+        <input id="settingsRound" type="number" min="0" step="1" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" placeholder="Auto (leave empty for auto-detect)" />
+        <p class="text-[10px] text-gray-400 mt-0.5">Leave empty to auto-detect precision from your input numbers.</p>
       </div>
       <div>
         <label class="block text-xs text-gray-500">Color scheme</label>
@@ -567,9 +570,11 @@
     }
 
     if (saveBtn) saveBtn.addEventListener('click', function() {
-      const rd = parseInt(round.value, 10);
+      const rdVal = round ? round.value.trim() : '';
+      const rd = rdVal === '' ? null : parseInt(rdVal, 10);
       const cfg = {};
-      if (!isNaN(rd)) cfg.roundDecimals = rd;
+      // null = auto-detect; number = fixed decimal places
+      cfg.roundDecimals = (!isNaN(rd) && rd !== null) ? Math.max(0, Math.min(20, rd)) : null;
       cfg.colorScheme = (color && color.value) ? color.value : 'default';
       cfg.font = (font && font.value) ? font.value : "'Fira Code', 'Menlo', monospace";
       cfg.accessibility = { largeText: !!(largeText && largeText.checked), highContrast: !!(highContrast && highContrast.checked) };
@@ -581,18 +586,18 @@
     });
 
     if (resetBtn) resetBtn.addEventListener('click', function() {
-      // Default presets
-      const def = { roundDecimals: 2, colorScheme: 'default', font: "'Fira Code', 'Menlo', 'Monaco', monospace", accessibility: { largeText: false, highContrast: false } };
+      // Default: auto-detect decimal places (null), default color scheme and font
+      const def = { roundDecimals: null, colorScheme: 'default', font: "'Fira Code', 'Menlo', 'Monaco', monospace", accessibility: { largeText: false, highContrast: false } };
       if (window.app && typeof window.app.setSettings === 'function') {
         window.app.setSettings(def);
         // update fields
-        if (round) round.value = def.roundDecimals;
+        if (round) round.value = '';
         if (color) color.value = def.colorScheme;
         if (font) font.value = def.font;
         if (largeText) largeText.checked = def.accessibility.largeText;
         if (highContrast) highContrast.checked = def.accessibility.highContrast;
         renderPreview(def.colorScheme);
-        showToast('Settings reset');
+        showToast('Settings reset to defaults');
       }
     });
 

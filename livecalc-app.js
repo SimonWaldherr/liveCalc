@@ -146,8 +146,12 @@ const app = (() => {
 
   // -- Settings (persisted) --
   const SETTINGS_KEY = 'livecalc:v9:settings';
+  // Number of significant digits to show when no decimal input is detected (auto mode).
+  const AUTO_DEFAULT_PRECISION = 6;
+  // Maximum allowed value for the roundDecimals setting.
+  const MAX_DECIMAL_PLACES = 20;
   const defaultSettings = {
-    roundDecimals: 2,
+    roundDecimals: null, // null = auto-detect from input; number = fixed decimal places
     colorScheme: 'default', // options: default, warm, midnight, solarized, ocean, monochrome
     font: "'Fira Code', 'Menlo', 'Monaco', monospace",
     accessibility: {
@@ -159,6 +163,25 @@ const app = (() => {
 
   // Prevent updateHash from overwriting an incoming shared hash during initial load.
   let suppressHashUpdate = false;
+
+  // Cache for auto-detected decimal places (updated on every handleInput call)
+  let _autoDecimalPlaces = null;
+
+  // Detect the maximum number of decimal places used in any literal number in the code.
+  // Returns null if no decimal numbers are found (fall back to smart formatting).
+  function detectInputDecimalPlaces(code) {
+    // Match decimal numbers like 3.14, 0.5, 12.50 (anywhere in the expression)
+    const matches = code.match(/\b\d+\.(\d+)\b/g);
+    if (!matches || matches.length === 0) return null;
+    let maxPlaces = 0;
+    for (const m of matches) {
+      const dec = m.split('.')[1] || '';
+      // Strip trailing zeros: 1.50 counts as 1 significant decimal place
+      const significant = dec.replace(/0+$/, '');
+      if (significant.length > maxPlaces) maxPlaces = significant.length;
+    }
+    return maxPlaces > 0 ? maxPlaces : 0;
+  }
 
   // Example snippets available to load into the editor
   const examples = [
@@ -549,6 +572,10 @@ const app = (() => {
 
   // -- Initialization --
   function init() {
+    // Suppress hash updates during the entire init phase so that applyTheme/applySettings
+    // cannot accidentally clear an incoming shared hash before the editor is populated.
+    suppressHashUpdate = true;
+
     applyTheme();
     applySettings();
     
@@ -561,7 +588,6 @@ const app = (() => {
     }, 0);
 
     // Load content
-    suppressHashUpdate = true; // avoid overwriting incoming hash during initial load
     // Prefer pre-decoded value if page injected it early
     const preshared = window.__livecalc_shared;
     if (preshared && preshared.length > 0) {
@@ -685,11 +711,19 @@ sum`;
     handleInput();
     // allow subsequent edits to update the hash
     suppressHashUpdate = false;
+    // Set the URL hash to the current content if there was none on load (fresh page)
+    // so that "Copy Link" immediately gives a shareable URL.
+    if (!window.location.hash || window.location.hash === '#') {
+      updateHash(editor.value);
+    }
   }
 
   // -- Core Logic --
 
   function handleInput() {
+    // 0. Update auto-detected decimal places from current input
+    _autoDecimalPlaces = detectInputDecimalPlaces(editor.value);
+
     // 1. Evaluate Math
     const results = evalMath(editor.value);
 
@@ -1214,28 +1248,63 @@ sum`;
   // Result formatting (numbers, BigNumbers, Units) with rounding &
   // pretty unit superscripts.
   // ------------------------------------------------------------
+
+  // Smart number formatter: strips unnecessary trailing zeros but keeps meaningful precision.
+  function smartFormat(num, autoPlaces) {
+    try {
+      if (autoPlaces !== null && autoPlaces !== undefined) {
+        // Use auto-detected decimal places, but cap at MAX_DECIMAL_PLACES
+        const places = Math.min(autoPlaces, MAX_DECIMAL_PLACES);
+        const fixed = Number(num).toFixed(places);
+        // Strip trailing zeros after decimal point
+        return fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+      }
+      // Fallback: use AUTO_DEFAULT_PRECISION significant digits, strip trailing zeros
+      const n = Number(num);
+      if (!isFinite(n)) return String(num);
+      const s = n.toPrecision(AUTO_DEFAULT_PRECISION).replace(/\.?0+$/, '');
+      return s;
+    } catch (e) {
+      return String(num);
+    }
+  }
+
   function formatResult(res) {
-    const rd = (settings && typeof settings.roundDecimals === 'number') ? settings.roundDecimals : null;
+    // Determine rounding: explicit setting takes priority; null = use auto-detection.
+    const explicitRd = (settings && typeof settings.roundDecimals === 'number') ? settings.roundDecimals : null;
+    const rd = explicitRd; // null means "auto"
 
     // BigNumber
     if (res && res.isBigNumber) {
-      const numStr = (rd !== null && res.toFixed) ? res.toFixed(rd) : res.toString();
-      return numStr;
+      if (rd !== null && res.toFixed) return res.toFixed(rd);
+      // Auto: use detected decimal places
+      return smartFormat(res.toNumber ? res.toNumber() : Number(res.toString()), _autoDecimalPlaces);
     }
 
     // Unit (including currencies)
     if (res && res.isUnit) {
       try {
-          // Use math.format to preserve the original unit string and apply rounding
-          const fmt = (rd !== null) ? math.format(res, { precision: rd }) : math.format(res);
+        if (rd !== null) {
+          const fmt = math.format(res, { precision: rd });
           return toPrettyUnits(String(fmt));
+        }
+        // Auto: format with math.format then apply smart rounding to the numeric part
+        const rawFmt = math.format(res);
+        const numMatch = rawFmt.match(/^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*(.*)/);
+        if (numMatch) {
+          const numPart = smartFormat(parseFloat(numMatch[1]), _autoDecimalPlaces);
+          const unitPart = numMatch[2] ? ' ' + numMatch[2] : '';
+          return toPrettyUnits(numPart + unitPart);
+        }
+        return toPrettyUnits(rawFmt);
       } catch (e) {
         return toPrettyUnits(res.toString());
       }
     }
 
     if (typeof res === 'number') {
-      return rd !== null ? res.toFixed(rd) : String(res);
+      if (rd !== null) return res.toFixed(rd);
+      return smartFormat(res, _autoDecimalPlaces);
     }
 
     // Objects/arrays/matrices -> try math.format for readable output (handles matrices)
@@ -1464,11 +1533,16 @@ sum`;
 
   function toggleSidebar() {
     const toggleBtn = document.getElementById("sidebarToggle");
+    const overlay = document.getElementById("sidebarOverlay");
     const open = sidebar.classList.toggle("open");
     // Update ARIA attributes for accessibility
     if (toggleBtn)
       toggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
     sidebar.setAttribute("aria-hidden", open ? "false" : "true");
+    // Show/hide the backdrop overlay on mobile
+    if (overlay) {
+      overlay.classList.toggle("hidden", !open);
+    }
     // When opening, focus first focusable element in sidebar for keyboard users
     if (open) {
       const first = sidebar.querySelector("button, [tabindex]");
@@ -1476,15 +1550,21 @@ sum`;
     }
   }
 
+  function closeSidebar() {
+    const toggleBtn = document.getElementById("sidebarToggle");
+    const overlay = document.getElementById("sidebarOverlay");
+    sidebar.classList.remove("open");
+    sidebar.setAttribute("aria-hidden", "true");
+    if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
+    if (overlay) overlay.classList.add("hidden");
+    if (toggleBtn) toggleBtn.focus();
+  }
+
   // Close sidebar on Escape for accessibility
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       if (sidebar.classList.contains("open")) {
-        sidebar.classList.remove("open");
-        sidebar.setAttribute("aria-hidden", "true");
-        const toggleBtn = document.getElementById("sidebarToggle");
-        if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
-        toggleBtn && toggleBtn.focus();
+        closeSidebar();
       }
     }
   });
@@ -1528,6 +1608,7 @@ f(x) = x^2 - 5*x`;
     insertExample,
     download,
     toggleSidebar,
+    closeSidebar,
     resetGraph,
       previewDataset: (name, n) => { renderDatasetPreview(name, n); },
       clearDatasetPreview: () => { clearDatasetPreview(); },
@@ -1563,12 +1644,39 @@ f(x) = x^2 - 5*x`;
         const fontSelect = document.getElementById('settingsFont');
         const largeChk = document.getElementById('settingsLargeText');
         const highChk = document.getElementById('settingsHighContrast');
+        // null/undefined → empty string (auto-detect mode)
         if (roundInput) roundInput.value = (settings && typeof settings.roundDecimals === 'number') ? settings.roundDecimals : '';
         if (colorSelect) colorSelect.value = settings.colorScheme || 'default';
         if (fontSelect) fontSelect.value = settings.font || defaultSettings.font;
         if (largeChk && settings && settings.accessibility) largeChk.checked = !!settings.accessibility.largeText;
         if (highChk && settings && settings.accessibility) highChk.checked = !!settings.accessibility.highContrast;
         modal.classList.remove('hidden');
+      },
+      closeSettings: () => {
+        const modal = document.getElementById('settingsModal');
+        if (modal) modal.classList.add('hidden');
+      },
+      saveSettingsFromModal: () => {
+        const roundInput = document.getElementById('settingsRound');
+        const colorSelect = document.getElementById('settingsColor');
+        const fontSelect = document.getElementById('settingsFont');
+        const largeChk = document.getElementById('settingsLargeText');
+        const highChk = document.getElementById('settingsHighContrast');
+        const next = {};
+        if (roundInput) {
+          const v = roundInput.value.trim();
+          next.roundDecimals = v === '' ? null : (isNaN(parseInt(v, 10)) ? null : Math.max(0, Math.min(MAX_DECIMAL_PLACES, parseInt(v, 10))));
+        }
+        if (colorSelect) next.colorScheme = colorSelect.value;
+        if (fontSelect) next.font = fontSelect.value;
+        next.accessibility = {
+          largeText: largeChk ? largeChk.checked : false,
+          highContrast: highChk ? highChk.checked : false
+        };
+        setSettings(next);
+        const modal = document.getElementById('settingsModal');
+        if (modal) modal.classList.add('hidden');
+        showToast('Settings saved');
       },
       
       // Section toggle functionality with state persistence

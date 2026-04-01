@@ -93,7 +93,7 @@
   <!-- Main Layout -->
   <div class="grid-layout relative">
     <!-- Mobile sidebar backdrop (tap to close) -->
-    <div id="sidebarOverlay" onclick="app.closeSidebar && app.closeSidebar()" class="hidden fixed inset-0 bg-black/40 z-40 lg:hidden" aria-hidden="true"></div>
+    <div id="sidebarOverlay" onclick="app.closeSidebar && app.closeSidebar()" onkeydown="if(event.key==='Enter'||event.key===' '){app.closeSidebar && app.closeSidebar();}" role="button" tabindex="0" class="hidden fixed inset-0 bg-black/40 z-40 lg:hidden" aria-label="Close sidebar"></div>
     
     <!-- Left: Line Numbers -->
     <div class="bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">

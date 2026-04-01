@@ -146,6 +146,10 @@ const app = (() => {
 
   // -- Settings (persisted) --
   const SETTINGS_KEY = 'livecalc:v9:settings';
+  // Number of significant digits to show when no decimal input is detected (auto mode).
+  const AUTO_DEFAULT_PRECISION = 6;
+  // Maximum allowed value for the roundDecimals setting.
+  const MAX_DECIMAL_PLACES = 20;
   const defaultSettings = {
     roundDecimals: null, // null = auto-detect from input; number = fixed decimal places
     colorScheme: 'default', // options: default, warm, midnight, solarized, ocean, monochrome
@@ -166,7 +170,8 @@ const app = (() => {
   // Detect the maximum number of decimal places used in any literal number in the code.
   // Returns null if no decimal numbers are found (fall back to smart formatting).
   function detectInputDecimalPlaces(code) {
-    const matches = code.match(/(?<![a-zA-Z0-9_])\d+\.(\d+)/g);
+    // Match decimal numbers like 3.14, 0.5, 12.50 (anywhere in the expression)
+    const matches = code.match(/\b\d+\.(\d+)\b/g);
     if (!matches || matches.length === 0) return null;
     let maxPlaces = 0;
     for (const m of matches) {
@@ -1248,16 +1253,16 @@ sum`;
   function smartFormat(num, autoPlaces) {
     try {
       if (autoPlaces !== null && autoPlaces !== undefined) {
-        // Use auto-detected decimal places, but cap at a reasonable max
-        const places = Math.min(autoPlaces, 10);
+        // Use auto-detected decimal places, but cap at MAX_DECIMAL_PLACES
+        const places = Math.min(autoPlaces, MAX_DECIMAL_PLACES);
         const fixed = Number(num).toFixed(places);
         // Strip trailing zeros after decimal point
         return fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
       }
-      // Fallback: use a sensible default of 6 significant digits, strip trailing zeros
+      // Fallback: use AUTO_DEFAULT_PRECISION significant digits, strip trailing zeros
       const n = Number(num);
       if (!isFinite(n)) return String(num);
-      const s = n.toPrecision(6).replace(/\.?0+$/, '');
+      const s = n.toPrecision(AUTO_DEFAULT_PRECISION).replace(/\.?0+$/, '');
       return s;
     } catch (e) {
       return String(num);
@@ -1660,7 +1665,7 @@ f(x) = x^2 - 5*x`;
         const next = {};
         if (roundInput) {
           const v = roundInput.value.trim();
-          next.roundDecimals = v === '' ? null : (isNaN(parseInt(v, 10)) ? null : Math.max(0, Math.min(20, parseInt(v, 10))));
+          next.roundDecimals = v === '' ? null : (isNaN(parseInt(v, 10)) ? null : Math.max(0, Math.min(MAX_DECIMAL_PLACES, parseInt(v, 10))));
         }
         if (colorSelect) next.colorScheme = colorSelect.value;
         if (fontSelect) next.font = fontSelect.value;

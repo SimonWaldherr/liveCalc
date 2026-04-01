@@ -171,8 +171,8 @@
     }
 
     .sidebar {
-        /* Hidden by default on mobile, toggled via JS using transform instead of display
-           so that CSS transitions work properly */
+        /* On mobile: fixed overlay panel, hidden via transform (not display:none)
+           so CSS transitions work. Always rendered as flex, just off-screen. */
         position: fixed;
         right: 0;
         top: 64px;
@@ -183,8 +183,8 @@
         border-left: 1px solid #e5e7eb;
         transform: translateX(100%);
         transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        /* Keep flex layout but hide via transform */
-        display: flex !important;
+        display: flex;
+        flex-direction: column;
     }
 
     .sidebar.open {

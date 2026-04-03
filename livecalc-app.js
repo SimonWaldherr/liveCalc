@@ -77,7 +77,9 @@ const app = (() => {
 
   // MathJS config
   math.config({
-    number: "BigNumber",
+    // math.js 11.8.0 has a bug with unit arithmetic in BigNumber mode
+    // (for example `radius = 5 cm` followed by `radius^2`).
+    number: "number",
     precision: 64,
   });
 
@@ -110,27 +112,26 @@ const app = (() => {
       ['s', '1 s'],['sec', '1 s'],['min', '60 s'],['h', '3600 s'],
       ['in', '0.0254 m'],['ft', '0.3048 m'],['yd', '0.9144 m'],['mi', '1609.344 m'],
       ['oz', '0.028349523125 kg'],['lb', '0.45359237 kg'],['atm', '101325 Pa'],['bar','100000 Pa'],['percent','0.01']
+      ['sec', '1 s'],
+      ['percent', '0.01'],
+      ['L', '1 l']
     ];
+
+    function unitExists(name) {
+      try {
+        math.evaluate('1 ' + name);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
     units.forEach(([name, def]) => {
       try {
         if (!math.unit || !math.createUnit) return;
-        // Only create if not already defined
-        try {
-          let exists = false;
-          try { exists = !!math.unit(name); } catch (e) { exists = false; }
-          if (!exists) {
-            math.createUnit(name, def);
-          }
-        } catch (e) {
-          try { math.createUnit(name, def); } catch (e2) {}
+        if (!unitExists(name)) {
+          math.createUnit(name, def);
         }
-        // Also register uppercase alias (e.g. 'kg' -> 'KG') to be forgiving for users
-        try {
-          const up = name.toUpperCase();
-          if (up !== name) {
-            try { math.createUnit(up, name); } catch (e) {}
-          }
-        } catch (e) {}
       } catch (e) {
         try { math.createUnit(name, def); } catch (e2) {}
       }

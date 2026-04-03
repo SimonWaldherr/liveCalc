@@ -111,6 +111,18 @@
     /* LineNums | Editor | Sidebar */
     height: calc(100vh - 64px);
     /* Minus header */
+    transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.grid-layout.sidebar-collapsed {
+    grid-template-columns: 40px 1fr 0;
+}
+
+.grid-layout.sidebar-collapsed .sidebar {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    border-left-width: 0;
 }
 
 #editor {
@@ -168,6 +180,11 @@
     .grid-layout {
         grid-template-columns: 40px 1fr;
         grid-template-rows: 1fr auto;
+        transition: none;
+    }
+
+    .grid-layout.sidebar-collapsed {
+        grid-template-columns: 40px 1fr;
     }
 
     .sidebar {
@@ -185,6 +202,11 @@
         transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex;
         flex-direction: column;
+    }
+
+    .grid-layout.sidebar-collapsed .sidebar {
+        width: min(300px, 85vw);
+        border-left-width: 1px;
     }
 
     .sidebar.open {

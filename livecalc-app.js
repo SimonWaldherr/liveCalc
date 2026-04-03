@@ -7,6 +7,9 @@ const app = (() => {
   const varCount = document.getElementById("varCount");
   const plotContainer = document.getElementById("plot");
   const sidebar = document.getElementById("sidebar");
+  const gridLayout = document.querySelector(".grid-layout");
+
+  const DESKTOP_SIDEBAR_MEDIA = "(min-width: 1024px)";
 
   // -- Configuration --
   let isDark = localStorage.getItem("theme") === "dark" || (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -707,6 +710,9 @@ sum`;
       // Render examples list
       try { renderExamples(); } catch (e) {}
 
+      restoreSidebarState();
+      window.addEventListener('resize', syncSidebarToggleUi);
+
     // Initial render (don't update URL during this first pass)
     handleInput();
     // allow subsequent edits to update the hash
@@ -1056,7 +1062,7 @@ sum`;
         } else {
           // fallback: skip adding complex function objects to plotting list
         }
-      } else if (typeof val !== "function") {
+      } else if (shouldDisplayScopeValue(key, val)) {
         vars[key] = val;
       }
     }
@@ -1191,7 +1197,12 @@ sum`;
     // Variables
     keys.forEach((key) => {
       let val = vars[key];
-      let displayVal = formatResult(val);
+      let displayVal;
+      try {
+        displayVal = formatResult(val);
+      } catch (e) {
+        return;
+      }
       html += `
             <div role="button" tabindex="0" class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('${key}')" onkeydown="if(event.key==='Enter'||event.key===' ') app.insert('${key}');" title="Click to insert">
               <div class="flex items-center gap-2 overflow-hidden">
@@ -1269,7 +1280,31 @@ sum`;
     }
   }
 
+  function isMathNodeValue(value) {
+    if (!value || typeof value !== 'object') return false;
+    if (value.isNode) return true;
+    if (typeof value.type === 'string' && /Node$/.test(value.type)) return true;
+    const ctorName = value.constructor && value.constructor.name;
+    return typeof ctorName === 'string' && /Node$/.test(ctorName);
+  }
+
+  function shouldDisplayScopeValue(key, value) {
+    if (key === 'query') return false;
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'function') return false;
+    if (isMathNodeValue(value)) return false;
+    return true;
+  }
+
   function formatResult(res) {
+    if (res === undefined || res === null) {
+      return String(res);
+    }
+
+    if (isMathNodeValue(res)) {
+      return res.toString ? res.toString() : '';
+    }
+
     // Determine rounding: explicit setting takes priority; null = use auto-detection.
     const explicitRd = (settings && typeof settings.roundDecimals === 'number') ? settings.roundDecimals : null;
     const rd = explicitRd; // null means "auto"
@@ -1318,6 +1353,45 @@ sum`;
     }
 
     return toPrettyUnits(String(res));
+  }
+
+  function isDesktopViewport() {
+    return window.matchMedia(DESKTOP_SIDEBAR_MEDIA).matches;
+  }
+
+  function syncSidebarToggleUi() {
+    const toggleBtn = document.getElementById("sidebarToggle");
+    const toggleIcon = document.getElementById("sidebarToggleIcon");
+    const overlay = document.getElementById("sidebarOverlay");
+    const desktopCollapsed = !!(gridLayout && gridLayout.classList.contains("sidebar-collapsed"));
+    const mobileOpen = sidebar.classList.contains("open");
+    const visible = isDesktopViewport() ? !desktopCollapsed : mobileOpen;
+
+    sidebar.setAttribute("aria-hidden", visible ? "false" : "true");
+
+    if (toggleBtn) {
+      toggleBtn.setAttribute("aria-expanded", visible ? "true" : "false");
+      toggleBtn.setAttribute("aria-label", visible ? "Hide sidebar" : "Show sidebar");
+      toggleBtn.title = visible ? "Hide sidebar" : "Show sidebar";
+    }
+
+    if (toggleIcon) {
+      toggleIcon.textContent = visible ? "right_panel_close" : "right_panel_open";
+    }
+
+    if (overlay) {
+      overlay.classList.toggle("hidden", isDesktopViewport() || !mobileOpen);
+    }
+  }
+
+  function restoreSidebarState() {
+    if (gridLayout) {
+      const desktopCollapsed = localStorage.getItem("livecalc:sidebarCollapsed") === "true";
+      gridLayout.classList.toggle("sidebar-collapsed", desktopCollapsed);
+    }
+
+    sidebar.classList.remove("open");
+    syncSidebarToggleUi();
   }
 
   // -- Plotting --
@@ -1532,18 +1606,20 @@ sum`;
   }
 
   function toggleSidebar() {
-    const toggleBtn = document.getElementById("sidebarToggle");
-    const overlay = document.getElementById("sidebarOverlay");
-    const open = sidebar.classList.toggle("open");
-    // Update ARIA attributes for accessibility
-    if (toggleBtn)
-      toggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
-    sidebar.setAttribute("aria-hidden", open ? "false" : "true");
-    // Show/hide the backdrop overlay on mobile
-    if (overlay) {
-      overlay.classList.toggle("hidden", !open);
+    let open = false;
+
+    if (isDesktopViewport()) {
+      if (gridLayout) {
+        const collapsed = gridLayout.classList.toggle("sidebar-collapsed");
+        localStorage.setItem("livecalc:sidebarCollapsed", collapsed ? "true" : "false");
+        open = !collapsed;
+      }
+    } else {
+      open = sidebar.classList.toggle("open");
     }
-    // When opening, focus first focusable element in sidebar for keyboard users
+
+    syncSidebarToggleUi();
+
     if (open) {
       const first = sidebar.querySelector("button, [tabindex]");
       if (first) first.focus();
@@ -1551,12 +1627,9 @@ sum`;
   }
 
   function closeSidebar() {
-    const toggleBtn = document.getElementById("sidebarToggle");
-    const overlay = document.getElementById("sidebarOverlay");
     sidebar.classList.remove("open");
-    sidebar.setAttribute("aria-hidden", "true");
-    if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
-    if (overlay) overlay.classList.add("hidden");
+    syncSidebarToggleUi();
+    const toggleBtn = document.getElementById("sidebarToggle");
     if (toggleBtn) toggleBtn.focus();
   }
 

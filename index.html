@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
 
   <!-- Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/14.8.1/math.min.js"></script>
   <script src="https://unpkg.com/function-plot/dist/function-plot.js"></script>
 
   <style></style>
@@ -48,8 +48,8 @@
       <button onclick="app.toggleTheme()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Toggle Dark Mode">
         <span class="material-symbols-outlined theme-icon">dark_mode</span>
       </button>
-      <button id="sidebarToggle" onclick="app.toggleSidebar()" aria-controls="sidebar" aria-expanded="false" aria-label="Toggle sidebar" class="lg:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-        <span class="material-symbols-outlined">space_dashboard</span>
+      <button id="sidebarToggle" onclick="app.toggleSidebar()" aria-controls="sidebar" aria-expanded="true" aria-label="Hide sidebar" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+        <span id="sidebarToggleIcon" class="material-symbols-outlined">right_panel_close</span>
       </button>
       <!-- Examples toolbar item (icon + label) -->
       <div class="relative hidden sm:inline-flex items-center mr-2" id="examplesMenuWrapper">
@@ -120,7 +120,7 @@
     </main>
 
     <!-- Right: Sidebar (Variables & Graph) -->
-    <aside id="sidebar" role="complementary" aria-hidden="true" class="sidebar flex flex-col bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 lg:relative lg:flex transition-transform duration-300">
+    <aside id="sidebar" role="complementary" aria-hidden="false" class="sidebar flex flex-col bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 lg:relative lg:flex transition-transform duration-300">
       
       <!-- Graph Section -->
       <div class="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex flex-col relative group">

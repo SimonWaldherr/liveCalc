@@ -48,6 +48,9 @@
       <button onclick="app.toggleTheme()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Toggle Dark Mode">
         <span class="material-symbols-outlined theme-icon">dark_mode</span>
       </button>
+      <button id="aiChatToggleBtn" onclick="lcAI && lcAI.togglePanel()" class="hidden p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors" title="AI Chat" aria-label="Toggle AI Chat">
+        <span class="material-symbols-outlined">smart_toy</span>
+      </button>
       <button id="sidebarToggle" onclick="app.toggleSidebar()" aria-controls="sidebar" aria-expanded="true" aria-label="Hide sidebar" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
         <span id="sidebarToggleIcon" class="material-symbols-outlined">right_panel_close</span>
       </button>
@@ -251,14 +254,6 @@
           </div>
         </div>
         <div id="datasetContent" class="overflow-hidden transition-all duration-300">
-          <div class="p-2 border-b border-gray-200 dark:border-gray-800 space-y-1">
-            <div class="flex items-center gap-2">
-              <input id="datasetUrlInput" type="url" placeholder="https://example.com/data.csv" class="flex-1 text-[11px] rounded border border-gray-300 dark:border-gray-600 px-2 py-1 bg-white dark:bg-gray-800" />
-              <button id="datasetLoadUrlBtn" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Load URL</button>
-            </div>
-            <div id="datasetStatus" class="text-[10px] text-gray-400">No dataset loaded</div>
-            <div id="datasetInfo" class="text-[10px] text-gray-400"></div>
-          </div>
           <div id="datasetPreviewInner" class="overflow-auto p-2" style="max-height: 300px;">
             <div id="datasetEmptyState" class="text-xs text-gray-400 text-center py-4">No dataset loaded</div>
             <table id="datasetPreviewTable" class="min-w-full text-xs hidden">
@@ -314,6 +309,40 @@
         </div>
       </div>
 
+      <!-- AI Chat Section -->
+      <div id="aiChatSection" class="hidden flex flex-col border-b border-gray-200 dark:border-gray-800">
+        <div class="section-header px-4 py-2 bg-blue-50 dark:bg-blue-950/40 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
+             onclick="app.toggleSection('aiChat')"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('aiChat');}"
+             tabindex="0"
+             role="button"
+             aria-expanded="true"
+             aria-controls="aiChatContent">
+          <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">smart_toy</span> AI Assistant</span>
+          <div class="flex items-center gap-2">
+            <span id="aiChatStatus" class="text-[10px] text-green-500">Connected</span>
+            <span id="aiChatToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+          </div>
+        </div>
+        <div id="aiChatContent" class="flex flex-col transition-all duration-300 overflow-hidden" style="max-height: 480px;">
+          <!-- Chat messages -->
+          <div id="aiChatMessages" class="flex-1 overflow-y-auto p-2 space-y-2 text-xs" style="min-height:120px;max-height:300px;">
+            <div class="text-gray-400 text-center py-2 text-[11px]" id="aiChatPlaceholder">Ask the AI about your calculation…</div>
+          </div>
+          <!-- Input area -->
+          <div class="border-t border-gray-200 dark:border-gray-700 p-2 flex gap-2 items-end">
+            <textarea id="aiChatInput" rows="2" placeholder="Ask a question or describe what to calculate…"
+              class="flex-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 resize-none focus:outline-none focus:border-blue-400"
+              onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();lcAI.send();}"></textarea>
+            <button onclick="lcAI.send()" title="Send (Ctrl+Enter)"
+              class="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-[18px]">send</span>
+            </button>
+          </div>
+          <div class="px-2 pb-1 text-[10px] text-gray-400">Ctrl+Enter to send &bull; The AI sees your current calculation</div>
+        </div>
+      </div>
+
       <!-- Footer / Info -->
       <div class="p-3 border-t border-gray-200 dark:border-gray-800 text-[10px] text-gray-400 text-center">
         Powered by Math.js &amp; Function Plot<br>
@@ -325,6 +354,7 @@
 
   <script src="./conversions.js"></script>
   <script src="./livecalc-app.js"></script>
+  <script src="./livecalc-ai.js"></script>
 </body>
 
 <!-- Small helper wrappers for the badges (use app API where available) -->
@@ -492,42 +522,13 @@
 </style>
 <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
   <div class="absolute inset-0 bg-black opacity-40" onclick="document.getElementById('settingsModal').classList.add('hidden')"></div>
-  <div class="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-96 p-4 z-60">
+  <div class="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-[480px] max-w-[95vw] p-4 z-60 max-h-[90vh] overflow-y-auto">
     <h3 class="text-lg font-semibold mb-2 text-slate-800 dark:text-gray-100">Settings</h3>
     <div class="space-y-3 text-sm text-gray-700 dark:text-gray-300">
       <div>
         <label class="block text-xs text-gray-500">Decimal places</label>
         <input id="settingsRound" type="number" min="0" step="1" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" placeholder="Auto (leave empty for auto-detect)" />
         <p class="text-[10px] text-gray-400 mt-0.5">Leave empty to auto-detect precision from your input numbers.</p>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs text-gray-500">Decimal separator</label>
-          <select id="settingsDecimalSeparator" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800">
-            <option value=".">Dot (1.23)</option>
-            <option value=",">Comma (1,23)</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500">CSV delimiter</label>
-          <select id="settingsCsvDelimiter" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800">
-            <option value="auto">Auto-detect</option>
-            <option value="comma">Comma (,)</option>
-            <option value="semicolon">Semicolon (;)</option>
-            <option value="tab">Tab</option>
-            <option value="pipe">Pipe (|)</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs text-gray-500">URL cache (minutes)</label>
-          <input id="settingsExternalCacheMinutes" type="number" min="0" step="1" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" />
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500">Request timeout (ms)</label>
-          <input id="settingsExternalTimeoutMs" type="number" min="1000" step="500" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" />
-        </div>
       </div>
       <div>
         <label class="block text-xs text-gray-500">Color scheme</label>
@@ -554,6 +555,32 @@
         <label class="flex items-center gap-2"><input id="settingsLargeText" type="checkbox" class="form-checkbox" /> <span class="text-xs text-gray-500">Large text (accessibility)</span></label>
         <label class="flex items-center gap-2"><input id="settingsHighContrast" type="checkbox" class="form-checkbox" /> <span class="text-xs text-gray-500">High contrast</span></label>
       </div>
+      <!-- AI / LLM Connection -->
+      <div class="border-t border-gray-200 dark:border-gray-700 pt-3 mt-1">
+        <p class="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">smart_toy</span> AI / LLM Connection</p>
+        <div>
+          <label class="block text-xs text-gray-500">Endpoint URL</label>
+          <input id="settingsLlmEndpoint" type="url" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800 text-xs font-mono" placeholder="http://localhost:1234/v1/chat/completions" autocomplete="off" />
+          <p class="text-[10px] text-gray-400 mt-0.5">LM-Studio, llmster, Ollama (/api/chat) or any OpenAI-compatible endpoint.</p>
+        </div>
+        <div class="mt-2">
+          <label class="block text-xs text-gray-500">Model name <span class="text-gray-300">(optional)</span></label>
+          <div class="flex gap-1 mt-1">
+            <input id="settingsLlmModel" type="text" list="llmModelList" class="flex-1 rounded border px-2 py-1 bg-white dark:bg-gray-800 text-xs font-mono" placeholder="e.g. llama3, mistral, gpt-4o" autocomplete="off" />
+            <datalist id="llmModelList"></datalist>
+            <button id="settingsLlmDetect" type="button" title="Auto-detect models from server"
+              class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-1 whitespace-nowrap transition-colors">
+              <span class="material-symbols-outlined text-[14px]">refresh</span>
+              <span id="settingsLlmDetectLabel">Detect</span>
+            </button>
+          </div>
+          <p id="settingsLlmModelHint" class="text-[10px] text-gray-400 mt-0.5">Click Detect to load available models from the server.</p>
+        </div>
+        <div class="mt-2">
+          <label class="block text-xs text-gray-500">API key <span class="text-gray-300">(optional)</span></label>
+          <input id="settingsLlmApiKey" type="password" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800 text-xs font-mono" placeholder="sk-... (leave blank for local servers)" autocomplete="new-password" />
+        </div>
+      </div>
     </div>
     <div class="mt-4 flex justify-end gap-2">
       <button id="settingsReset" class="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 rounded">Reset</button>
@@ -573,13 +600,49 @@
     const round = document.getElementById('settingsRound');
     const color = document.getElementById('settingsColor');
     const font = document.getElementById('settingsFont');
-    const decimalSep = document.getElementById('settingsDecimalSeparator');
-    const csvDelim = document.getElementById('settingsCsvDelimiter');
-    const cacheMins = document.getElementById('settingsExternalCacheMinutes');
-    const timeoutMs = document.getElementById('settingsExternalTimeoutMs');
     const largeText = document.getElementById('settingsLargeText');
     const highContrast = document.getElementById('settingsHighContrast');
     const preview = document.getElementById('settingsPalettePreview');
+    const llmEndpoint = document.getElementById('settingsLlmEndpoint');
+    const llmModel = document.getElementById('settingsLlmModel');
+    const llmApiKey = document.getElementById('settingsLlmApiKey');
+    const llmDetectBtn = document.getElementById('settingsLlmDetect');
+    const llmDetectLabel = document.getElementById('settingsLlmDetectLabel');
+    const llmModelList = document.getElementById('llmModelList');
+    const llmModelHint = document.getElementById('settingsLlmModelHint');
+
+    if (llmDetectBtn) {
+      llmDetectBtn.addEventListener('click', async function() {
+        const url = llmEndpoint ? llmEndpoint.value.trim() : '';
+        const apiKey = llmApiKey ? llmApiKey.value.trim() : '';
+        if (!url) { if (llmModelHint) { llmModelHint.textContent = '⚠️ Enter an endpoint URL first.'; llmModelHint.className = 'text-[10px] text-red-500 mt-0.5'; } return; }
+        llmDetectBtn.disabled = true;
+        if (llmDetectLabel) llmDetectLabel.textContent = '…';
+        if (llmModelHint) { llmModelHint.textContent = 'Fetching models…'; llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5'; }
+        try {
+          const models = await (window.lcAI && window.lcAI.fetchModels ? window.lcAI.fetchModels(url, apiKey) : Promise.reject(new Error('lcAI not ready')));
+          if (llmModelList) {
+            llmModelList.innerHTML = '';
+            models.forEach(m => {
+              const opt = document.createElement('option');
+              opt.value = m;
+              llmModelList.appendChild(opt);
+            });
+          }
+          if (models.length === 0) {
+            if (llmModelHint) { llmModelHint.textContent = 'No models returned by server.'; llmModelHint.className = 'text-[10px] text-yellow-500 mt-0.5'; }
+          } else {
+            if (!llmModel.value && models.length >= 1) llmModel.value = models[0];
+            if (llmModelHint) { llmModelHint.textContent = `✓ ${models.length} model(s) found. Select from the list or type a name.`; llmModelHint.className = 'text-[10px] text-green-600 mt-0.5'; }
+          }
+        } catch (err) {
+          if (llmModelHint) { llmModelHint.textContent = '⚠️ ' + err.message; llmModelHint.className = 'text-[10px] text-red-500 mt-0.5'; }
+        } finally {
+          llmDetectBtn.disabled = false;
+          if (llmDetectLabel) llmDetectLabel.textContent = 'Detect';
+        }
+      });
+    }
 
     const palettes = {
       default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
@@ -618,40 +681,32 @@
       cfg.roundDecimals = (!isNaN(rd) && rd !== null) ? Math.max(0, Math.min(20, rd)) : null;
       cfg.colorScheme = (color && color.value) ? color.value : 'default';
       cfg.font = (font && font.value) ? font.value : "'Fira Code', 'Menlo', monospace";
-      cfg.decimalSeparator = (decimalSep && decimalSep.value === ',') ? ',' : '.';
-      cfg.csvDelimiter = (csvDelim && csvDelim.value) ? csvDelim.value : 'auto';
-      cfg.externalCacheMinutes = cacheMins ? Math.max(0, parseInt(cacheMins.value || '30', 10) || 30) : 30;
-      cfg.externalRequestTimeoutMs = timeoutMs ? Math.max(1000, parseInt(timeoutMs.value || '12000', 10) || 12000) : 12000;
       cfg.accessibility = { largeText: !!(largeText && largeText.checked), highContrast: !!(highContrast && highContrast.checked) };
+      cfg.llm = {
+        endpoint: llmEndpoint ? llmEndpoint.value.trim() : '',
+        model: llmModel ? llmModel.value.trim() : '',
+        apiKey: llmApiKey ? llmApiKey.value.trim() : ''
+      };
       if (window.app && typeof window.app.setSettings === 'function') {
         window.app.setSettings(cfg);
+        try { if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility(); } catch (e) {}
         showToast('Settings saved');
       }
       hide();
     });
 
     if (resetBtn) resetBtn.addEventListener('click', function() {
-      // Default: auto-detect decimal places (null), default color scheme and font
-      const def = {
-        roundDecimals: null,
-        colorScheme: 'default',
-        font: "'Fira Code', 'Menlo', 'Monaco', monospace",
-        decimalSeparator: '.',
-        csvDelimiter: 'auto',
-        externalCacheMinutes: 30,
-        externalRequestTimeoutMs: 12000,
-        accessibility: { largeText: false, highContrast: false }
-      };
+      // Default: auto-detect decimal places (null), default color scheme and font. Keep LLM settings.
+      const def = { roundDecimals: null, colorScheme: 'default', font: "'Fira Code', 'Menlo', 'Monaco', monospace", accessibility: { largeText: false, highContrast: false } };
       if (window.app && typeof window.app.setSettings === 'function') {
+        // Preserve existing LLM settings
+        const currentLlm = (window.app.getLlmSettings && window.app.getLlmSettings()) || { endpoint: '', model: '', apiKey: '' };
+        def.llm = currentLlm;
         window.app.setSettings(def);
         // update fields
         if (round) round.value = '';
         if (color) color.value = def.colorScheme;
         if (font) font.value = def.font;
-        if (decimalSep) decimalSep.value = def.decimalSeparator;
-        if (csvDelim) csvDelim.value = def.csvDelimiter;
-        if (cacheMins) cacheMins.value = String(def.externalCacheMinutes);
-        if (timeoutMs) timeoutMs.value = String(def.externalRequestTimeoutMs);
         if (largeText) largeText.checked = def.accessibility.largeText;
         if (highContrast) highContrast.checked = def.accessibility.highContrast;
         renderPreview(def.colorScheme);

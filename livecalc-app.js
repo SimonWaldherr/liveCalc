@@ -146,15 +146,7 @@ const app = (() => {
   //   reference them by name in expressions or use the simple query syntax
   // ------------------------------------------------------------------
   const datasets = {};
-  const datasetMeta = {};
   let lastPreviewedDataset = null;
-  let activeExternalDatasetLoad = null;
-
-  const EXTERNAL_CACHE_PREFIX = 'livecalc:externalDataset:v1:';
-  const DEFAULT_EXTERNAL_CACHE_MINUTES = 30;
-  const DEFAULT_EXTERNAL_TIMEOUT_MS = 12000;
-  const MAX_EXTERNAL_CACHE_MINUTES = 7 * 24 * 60;
-  const MAX_EXTERNAL_TIMEOUT_MS = 60000;
 
   // -- Settings (persisted) --
   const SETTINGS_KEY = 'livecalc:v9:settings';
@@ -166,13 +158,14 @@ const app = (() => {
     roundDecimals: null, // null = auto-detect from input; number = fixed decimal places
     colorScheme: 'default', // options: default, warm, midnight, solarized, ocean, monochrome
     font: "'Fira Code', 'Menlo', 'Monaco', monospace",
-    decimalSeparator: '.', // options: "." or ","
-    csvDelimiter: 'auto', // options: auto, comma, semicolon, tab, pipe
-    externalCacheMinutes: DEFAULT_EXTERNAL_CACHE_MINUTES,
-    externalRequestTimeoutMs: DEFAULT_EXTERNAL_TIMEOUT_MS,
     accessibility: {
       largeText: false,
       highContrast: false
+    },
+    llm: {
+      endpoint: '',  // e.g. http://localhost:1234/v1/chat/completions
+      model: '',     // e.g. llama3, mistral, or leave blank
+      apiKey: ''     // optional, for servers that require it
     }
   };
   let settings = loadSettings();
@@ -186,13 +179,12 @@ const app = (() => {
   // Detect the maximum number of decimal places used in any literal number in the code.
   // Returns null if no decimal numbers are found (fall back to smart formatting).
   function detectInputDecimalPlaces(code) {
-    const matches = code.match(/\b\d+[.,](\d+)\b/g);
+    // Match decimal numbers like 3.14, 0.5, 12.50 (anywhere in the expression)
+    const matches = code.match(/\b\d+\.(\d+)\b/g);
     if (!matches || matches.length === 0) return null;
     let maxPlaces = 0;
     for (const m of matches) {
-      const sep = m.indexOf(',') >= 0 ? ',' : '.';
-      const parts = m.split(sep);
-      const dec = parts[1] || '';
+      const dec = m.split('.')[1] || '';
       // Strip trailing zeros: 1.50 counts as 1 significant decimal place
       const significant = dec.replace(/0+$/, '');
       if (significant.length > maxPlaces) maxPlaces = significant.length;
@@ -210,35 +202,14 @@ const app = (() => {
     { id: 'conv_all', title: 'Conversions — Mixed examples', desc: 'Collection of common conversions (weight, pressure, area, volume, force, mass, temperature, currency)', content: `# Conversions example\n# Weight\n30 lb in kg\n\n# Pressure\n14.7 psi in bar\n\n# Area\n200 in^2 in cm^2\n\n# Volume\n1 gal in L\n\n# Force\n10 lbf in N\n\n# Mass (imperial)\n1 slug in kg\n\n# Temperature (F <-> C)\n# If your environment doesn't have F/C units defined, a manual formula is provided below\n100 F in C\n# Manual (formula) alternative:\n(100 - 32) * 5/9\n\n# Currency\n100 EUR in USD\n\n# Mixed units and sum\na = 20 cm\nb = 0.5 m\nc = 3 in\n# list values then an explicit 'sum' line to show block sum\na\nb\nc\nsum\n# Convert sum to m\nsum in m` }
   ];
 
-  function normalizeSettings(input) {
-    const merged = Object.assign({}, defaultSettings, input || {});
-    merged.accessibility = Object.assign(
-      {},
-      defaultSettings.accessibility,
-      (input && input.accessibility) || {}
-    );
-    merged.decimalSeparator = merged.decimalSeparator === ',' ? ',' : '.';
-    const allowedDelims = new Set(['auto', 'comma', 'semicolon', 'tab', 'pipe']);
-    merged.csvDelimiter = allowedDelims.has(merged.csvDelimiter) ? merged.csvDelimiter : 'auto';
-    const cacheMins = Number(merged.externalCacheMinutes);
-    merged.externalCacheMinutes = Number.isFinite(cacheMins)
-      ? Math.max(0, Math.min(MAX_EXTERNAL_CACHE_MINUTES, Math.round(cacheMins)))
-      : DEFAULT_EXTERNAL_CACHE_MINUTES;
-    const timeout = Number(merged.externalRequestTimeoutMs);
-    merged.externalRequestTimeoutMs = Number.isFinite(timeout)
-      ? Math.max(1000, Math.min(MAX_EXTERNAL_TIMEOUT_MS, Math.round(timeout)))
-      : DEFAULT_EXTERNAL_TIMEOUT_MS;
-    return merged;
-  }
-
   function loadSettings() {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return normalizeSettings(defaultSettings);
+      if (!raw) return Object.assign({}, defaultSettings);
       const parsed = JSON.parse(raw);
-      return normalizeSettings(parsed);
+      return Object.assign({}, defaultSettings, parsed);
     } catch (e) {
-      return normalizeSettings(defaultSettings);
+      return Object.assign({}, defaultSettings);
     }
   }
 
@@ -316,166 +287,21 @@ const app = (() => {
     saveSettings();
     // re-render to pick up font/format changes
     try { handleInput(); } catch (e) {}
-    try {
-      if (lastPreviewedDataset) {
-        const rowsSelect = document.getElementById('previewRowsSelect');
-        renderDatasetPreview(lastPreviewedDataset, rowsSelect ? rowsSelect.value : 10);
-      }
-    } catch (e) {}
   }
 
   function setSettings(next) {
-    const merged = Object.assign({}, settings, next || {});
-    if (next && next.accessibility) {
-      merged.accessibility = Object.assign({}, settings.accessibility || {}, next.accessibility);
-    }
-    settings = normalizeSettings(merged);
+    settings = Object.assign({}, settings, next || {});
     applySettings();
     return settings;
   }
 
   function getSettings() {
-    return JSON.parse(JSON.stringify(settings));
+    return Object.assign({}, settings);
   }
 
-  function cleanDatasetName(name) {
-    return String(name || '')
-      .trim()
-      .replace(/[^A-Za-z0-9_]/g, '_')
-      .replace(/^_+/, '')
-      || 'dataset';
-  }
-
-  function uniqueDatasetName(base) {
-    const root = cleanDatasetName(base);
-    let attempt = root;
-    let i = 1;
-    while (datasets[attempt]) {
-      attempt = root + '_' + (i++);
-    }
-    return attempt;
-  }
-
-  function inferDatasetNameFromUrl(url) {
-    try {
-      const u = new URL(url);
-      const seg = (u.pathname.split('/').pop() || 'dataset').replace(/\.[^/.]+$/, '');
-      return cleanDatasetName(seg || 'dataset');
-    } catch (e) {
-      return 'dataset';
-    }
-  }
-
-  function getDatasetColumns(data) {
-    if (!Array.isArray(data) || data.length === 0) return 0;
-    const first = data[0];
-    return first && typeof first === 'object' ? Object.keys(first).length : 0;
-  }
-
-  function setDatasetStatus(text, level = 'info') {
-    const statusEl = document.getElementById('datasetStatus');
-    if (!statusEl) return;
-    statusEl.textContent = text || '';
-    statusEl.className = 'text-[10px] mt-1';
-    if (level === 'error') {
-      statusEl.classList.add('text-red-500');
-    } else if (level === 'success') {
-      statusEl.classList.add('text-green-600', 'dark:text-green-400');
-    } else if (level === 'muted') {
-      statusEl.classList.add('text-gray-400');
-    } else {
-      statusEl.classList.add('text-blue-600', 'dark:text-blue-400');
-    }
-  }
-
-  function mapDelimiterSetting(choice) {
-    if (choice === 'comma') return ',';
-    if (choice === 'semicolon') return ';';
-    if (choice === 'tab') return '\t';
-    if (choice === 'pipe') return '|';
-    return 'auto';
-  }
-
-  function detectDecimalSeparatorFromValue(raw) {
-    const s = String(raw || '');
-    const lastDot = s.lastIndexOf('.');
-    const lastComma = s.lastIndexOf(',');
-    if (lastDot === -1 && lastComma === -1) return null;
-    if (lastDot === -1) return ',';
-    if (lastComma === -1) return '.';
-    return lastComma > lastDot ? ',' : '.';
-  }
-
-  function parseMaybeNumber(value, forcedDecimalSeparator) {
-    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-    if (typeof value !== 'string') return null;
-    let s = value.trim();
-    if (!s) return null;
-    s = s.replace(/\u00A0/g, '').replace(/\s+/g, '');
-    if (!/[0-9]/.test(s)) return null;
-    s = s.replace(/^[^\d+\-]*/, '').replace(/[^\d]*$/, '');
-    if (!/^[+\-]?\d[\d.,]*(?:[eE][+\-]?\d+)?$/.test(s)) return null;
-
-    const decimal = forcedDecimalSeparator || detectDecimalSeparatorFromValue(s);
-    if (decimal === ',') {
-      s = s.replace(/\./g, '').replace(/,/g, '.');
-    } else {
-      s = s.replace(/,/g, '');
-    }
-    if ((s.match(/\./g) || []).length > 1) return null;
-    const num = Number(s);
-    return Number.isFinite(num) ? num : null;
-  }
-
-  function normalizeDatasetValue(v) {
-    if (typeof v === 'number') return Number.isFinite(v) ? v : v;
-    if (typeof v === 'string') {
-      const forcedDecimal = settings && settings.decimalSeparator === ',' ? ',' : null;
-      const parsed = parseMaybeNumber(v, forcedDecimal);
-      return parsed === null ? v.trim() : parsed;
-    }
-    return v;
-  }
-
-  function normalizeDatasetRows(data) {
-    const arr = Array.isArray(data) ? data : [data];
-    return arr.map((row) => {
-      if (row && typeof row === 'object' && !Array.isArray(row)) {
-        const out = {};
-        Object.keys(row).forEach((k) => {
-          out[k] = normalizeDatasetValue(row[k]);
-        });
-        return out;
-      }
-      if (Array.isArray(row)) {
-        const out = {};
-        row.forEach((val, idx) => {
-          out['col' + (idx + 1)] = normalizeDatasetValue(val);
-        });
-        return out;
-      }
-      return { value: normalizeDatasetValue(row) };
-    });
-  }
-
-  function registerDataset(name, data, meta = {}) {
+  function registerDataset(name, data) {
     if (!name) return false;
-    const safeName = cleanDatasetName(name);
-    const normalized = normalizeDatasetRows(data);
-    datasets[safeName] = normalized;
-    datasetMeta[safeName] = Object.assign(
-      {
-        sourceType: 'memory',
-        source: '',
-        format: 'unknown',
-        loadedAt: Date.now(),
-        rows: normalized.length,
-        columns: getDatasetColumns(normalized),
-        cached: false
-      },
-      meta || {},
-      { rows: normalized.length, columns: getDatasetColumns(normalized), loadedAt: Date.now() }
-    );
+    datasets[name] = data;
     // trigger a re-evaluation so new dataset is available
     try {
       handleInput();
@@ -484,152 +310,44 @@ const app = (() => {
     try {
       if (typeof renderDatasetList === 'function') renderDatasetList();
       if (typeof renderDatasetPreview === 'function') {
-        renderDatasetPreview(safeName, 10);
+        renderDatasetPreview(name, 10);
       }
-      try { localStorage.setItem('livecalc:lastDataset', safeName); } catch (e) {}
+      try { localStorage.setItem('livecalc:lastDataset', name); } catch (e) {}
     } catch (e) {}
     return true;
   }
 
-  function deleteDataset(name) {
-    if (!name || !datasets[name]) return false;
-    delete datasets[name];
-    delete datasetMeta[name];
-    if (lastPreviewedDataset === name) {
-      lastPreviewedDataset = null;
-      clearDatasetPreview();
-    }
-    try {
-      handleInput();
-      renderDatasetList();
-    } catch (e) {}
-    setDatasetStatus('Dataset "' + name + '" deleted', 'muted');
-    return true;
-  }
-
-  function detectDelimiter(text) {
-    const sampleLines = String(text || '')
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .slice(0, 15);
-    if (sampleLines.length === 0) return ',';
-    const candidates = [',', ';', '\t', '|'];
-
-    function countOutsideQuotes(line, delim) {
-      let count = 0;
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          const escapedQuote = inQuotes && line[i + 1] === '"';
-          if (escapedQuote) {
-            i += 1;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (!inQuotes && ch === delim) {
-          count += 1;
-        }
-      }
-      return count;
-    }
-
-    let best = { delim: ',', score: -1 };
-    candidates.forEach((cand) => {
-      const counts = sampleLines.map((ln) => countOutsideQuotes(ln, cand));
-      const positive = counts.filter((n) => n > 0);
-      if (positive.length === 0) return;
-      const avg = positive.reduce((a, b) => a + b, 0) / positive.length;
-      const consistencyPenalty = counts.reduce((acc, n) => acc + Math.abs(n - avg), 0) / counts.length;
-      const score = avg - consistencyPenalty;
-      if (score > best.score) best = { delim: cand, score };
-    });
-    return best.delim;
-  }
-
-  function parseDelimitedRows(text, delim) {
-    const rows = [];
-    let row = [];
-    let field = '';
-    let inQuotes = false;
-    let i = 0;
-    while (i < text.length) {
-      const ch = text[i];
-      if (ch === '"') {
-        if (inQuotes && text[i + 1] === '"') {
-          field += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = !inQuotes;
-        i += 1;
-        continue;
-      }
-      if (!inQuotes && ch === delim) {
-        row.push(field);
-        field = '';
-        i += 1;
-        continue;
-      }
-      if (!inQuotes && (ch === '\n' || ch === '\r')) {
-        if (ch === '\r' && text[i + 1] === '\n') i += 1;
-        row.push(field);
-        rows.push(row);
-        row = [];
-        field = '';
-        i += 1;
-        continue;
-      }
-      field += ch;
-      i += 1;
-    }
-    row.push(field);
-    rows.push(row);
-    return rows.filter((r) => r.some((cell) => String(cell || '').trim() !== ''));
-  }
-
-  function parseCSV(text, delim = 'auto') {
-    const resolvedDelim = delim === 'auto' ? detectDelimiter(text) : delim;
-    const rows = parseDelimitedRows(String(text || ''), resolvedDelim);
-    if (rows.length === 0) return [];
-    const headers = rows[0].map((h, idx) => {
-      const clean = String(h || '').trim();
-      return clean || ('col' + (idx + 1));
-    });
-    const body = rows.slice(1).map((parts) => {
+  function parseCSV(text, delim = ",") {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+    if (lines.length === 0) return [];
+    const headers = lines[0].split(delim).map((h) => h.trim());
+    const rows = lines.slice(1).map((ln) => {
+      const parts = ln.split(delim).map((p) => p.trim());
       const obj = {};
       for (let i = 0; i < headers.length; i++) {
-        const raw = parts[i] === undefined ? '' : String(parts[i]).trim();
-        const forcedDecimal = settings && settings.decimalSeparator === ',' ? ',' : null;
-        const num = parseMaybeNumber(raw, forcedDecimal);
-        obj[headers[i]] = raw === '' ? '' : (num === null ? raw : num);
+        let v = parts[i] === undefined ? "" : parts[i];
+        // try number
+        const num = Number(v.replace(/,/g, ""));
+        obj[headers[i]] = isFinite(num) && v !== "" ? num : v;
       }
       return obj;
     });
-    return body;
+    return rows;
   }
 
   function parseXML(text) {
     try {
-      const doc = new DOMParser().parseFromString(text, 'text/xml');
+      const doc = new DOMParser().parseFromString(text, "text/xml");
+      // find the first repeating child collection
       const root = doc.documentElement;
-      if (!root) return [];
-      const parserErr = doc.querySelector('parsererror');
-      if (parserErr) return [];
-
+      // find child node name which repeats
       const counts = {};
       for (let i = 0; i < root.children.length; i++) {
         const n = root.children[i].nodeName;
         counts[n] = (counts[n] || 0) + 1;
       }
       let repeated = null;
-      for (const k in counts) {
-        if (counts[k] > 1) {
-          repeated = k;
-          break;
-        }
-      }
+      for (const k in counts) if (counts[k] > 1) { repeated = k; break; }
       const arr = [];
       if (repeated) {
         const elems = root.getElementsByTagName(repeated);
@@ -638,15 +356,20 @@ const app = (() => {
           const obj = {};
           for (let j = 0; j < e.children.length; j++) {
             const c = e.children[j];
-            obj[c.nodeName] = normalizeDatasetValue(c.textContent.trim());
+            const txt = c.textContent.trim();
+            const num = Number(txt.replace(/,/g, ""));
+            obj[c.nodeName] = isFinite(num) && txt !== "" ? num : txt;
           }
           arr.push(obj);
         }
       } else {
+        // fallback: use children of root as single object
         const obj = {};
         for (let j = 0; j < root.children.length; j++) {
           const c = root.children[j];
-          obj[c.nodeName] = normalizeDatasetValue(c.textContent.trim());
+          const txt = c.textContent.trim();
+          const num = Number(txt.replace(/,/g, ""));
+          obj[c.nodeName] = isFinite(num) && txt !== "" ? num : txt;
         }
         return [obj];
       }
@@ -654,158 +377,6 @@ const app = (() => {
     } catch (e) {
       return [];
     }
-  }
-
-  function detectFormat(nameOrUrl, contentType) {
-    const target = String(nameOrUrl || '').toLowerCase();
-    const type = String(contentType || '').toLowerCase();
-    if (target.endsWith('.json') || type.includes('application/json')) return 'json';
-    if (target.endsWith('.xml') || type.includes('application/xml') || type.includes('text/xml')) return 'xml';
-    if (target.endsWith('.tsv') || type.includes('text/tab-separated-values')) return 'tsv';
-    if (target.endsWith('.csv') || type.includes('text/csv')) return 'csv';
-    return 'auto';
-  }
-
-  function parseDatasetPayload(text, formatHint = 'auto') {
-    const hint = (formatHint || 'auto').toLowerCase();
-    let data = [];
-    let format = hint;
-    if (hint === 'json') {
-      data = JSON.parse(text);
-    } else if (hint === 'xml') {
-      data = parseXML(text);
-    } else if (hint === 'tsv') {
-      data = parseCSV(text, '\t');
-      format = 'tsv';
-    } else if (hint === 'csv') {
-      data = parseCSV(text, mapDelimiterSetting(settings.csvDelimiter));
-      format = 'csv';
-    } else {
-      try {
-        data = JSON.parse(text);
-        format = 'json';
-      } catch (e) {
-        const maybeXml = String(text || '').trim();
-        if (maybeXml.startsWith('<')) {
-          data = parseXML(text);
-          format = 'xml';
-        } else {
-          const autoDelim = mapDelimiterSetting(settings.csvDelimiter);
-          data = parseCSV(text, autoDelim);
-          format = autoDelim === '\t' ? 'tsv' : 'csv';
-        }
-      }
-    }
-    const normalized = normalizeDatasetRows(data);
-    if (
-      format === 'json' &&
-      data &&
-      typeof data === 'object' &&
-      !Array.isArray(data)
-    ) {
-      const firstArrayKey = Object.keys(data).find((k) => Array.isArray(data[k]));
-      if (firstArrayKey) {
-        return { data: normalizeDatasetRows(data[firstArrayKey]), format };
-      }
-    }
-    return { data: normalized, format };
-  }
-
-  function getExternalCacheKey(url) {
-    return EXTERNAL_CACHE_PREFIX + encodeURIComponent(url);
-  }
-
-  function readExternalDatasetCache(url) {
-    const ttlMinutes = Number(settings.externalCacheMinutes) || 0;
-    if (ttlMinutes <= 0) return null;
-    try {
-      const raw = localStorage.getItem(getExternalCacheKey(url));
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || !parsed.text || !parsed.savedAt) return null;
-      const ageMs = Date.now() - Number(parsed.savedAt);
-      if (ageMs > ttlMinutes * 60 * 1000) return null;
-      return parsed;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function writeExternalDatasetCache(url, payload) {
-    const ttlMinutes = Number(settings.externalCacheMinutes) || 0;
-    if (ttlMinutes <= 0) return;
-    try {
-      localStorage.setItem(
-        getExternalCacheKey(url),
-        JSON.stringify({
-          text: payload.text,
-          contentType: payload.contentType || '',
-          formatHint: payload.formatHint || 'auto',
-          savedAt: Date.now()
-        })
-      );
-    } catch (e) {}
-  }
-
-  async function importDatasetFromUrl(inputUrl, explicitName) {
-    const trimmed = String(inputUrl || '').trim();
-    if (!trimmed) throw new Error('Please enter a dataset URL');
-    let url;
-    try {
-      url = new URL(trimmed, window.location.href).href;
-    } catch (e) {
-      throw new Error('Invalid URL');
-    }
-
-    const cached = readExternalDatasetCache(url);
-    if (cached) {
-      const cachedParsed = parseDatasetPayload(cached.text, cached.formatHint || detectFormat(url, cached.contentType));
-      const cachedName = uniqueDatasetName(explicitName || inferDatasetNameFromUrl(url));
-      registerDataset(cachedName, cachedParsed.data, {
-        sourceType: 'url',
-        source: url,
-        format: cachedParsed.format,
-        cached: true
-      });
-      return { datasetName: cachedName, rows: cachedParsed.data.length, format: cachedParsed.format, cached: true };
-    }
-
-    if (activeExternalDatasetLoad && activeExternalDatasetLoad.controller) {
-      activeExternalDatasetLoad.controller.abort();
-    }
-    const controller = new AbortController();
-    activeExternalDatasetLoad = { controller, url };
-
-    const timeoutMs = Number(settings.externalRequestTimeoutMs) || DEFAULT_EXTERNAL_TIMEOUT_MS;
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    let res;
-    try {
-      res = await fetch(url, { method: 'GET', signal: controller.signal, cache: 'no-store' });
-    } catch (e) {
-      if (e && e.name === 'AbortError') throw new Error('Request timed out');
-      throw new Error('Failed to fetch URL');
-    } finally {
-      clearTimeout(timeoutId);
-      activeExternalDatasetLoad = null;
-    }
-
-    if (!res.ok) {
-      throw new Error('HTTP ' + res.status + ' while loading dataset');
-    }
-
-    const contentType = res.headers.get('content-type') || '';
-    const text = await res.text();
-    const formatHint = detectFormat(url, contentType);
-    const parsed = parseDatasetPayload(text, formatHint);
-    writeExternalDatasetCache(url, { text, contentType, formatHint });
-    const dsName = uniqueDatasetName(explicitName || inferDatasetNameFromUrl(url));
-    registerDataset(dsName, parsed.data, {
-      sourceType: 'url',
-      source: url,
-      format: parsed.format,
-      cached: false
-    });
-    return { datasetName: dsName, rows: parsed.data.length, format: parsed.format, cached: false };
   }
 
   // Simple query engine: supports queries like
@@ -818,8 +389,7 @@ const app = (() => {
     if (whereExpr) {
       // very small sandbox: create a function with r in scope
       try {
-        const normalizedWhere = normalizeDecimalInput(whereExpr);
-        const fn = new Function('r', 'with(r){ return (' + normalizedWhere + '); }');
+        const fn = new Function('r', 'with(r){ return (' + whereExpr + '); }');
         rows = rows.filter((r) => {
           try { return !!fn(r); } catch (e) { return false; }
         });
@@ -831,10 +401,7 @@ const app = (() => {
     if (!col) throw new Error('No column specified');
     const vals = rows.map((r) => {
       const v = r[col];
-      if (typeof v === 'number') return v;
-      const forcedDecimal = settings && settings.decimalSeparator === ',' ? ',' : null;
-      const parsed = parseMaybeNumber(String(v), forcedDecimal);
-      return parsed === null ? NaN : parsed;
+      return typeof v === 'number' ? v : Number(String(v).replace(/[^0-9.-]+/g, ''));
     }).filter((v) => isFinite(v));
     if (op === 'sum') return vals.reduce((a, b) => a + b, 0);
     if (op === 'avg') return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
@@ -874,23 +441,6 @@ const app = (() => {
       return a + " " + b.toUpperCase();
     });
     return s;
-  }
-
-  function normalizeDecimalInput(line) {
-    if (!line || typeof line !== 'string') return line;
-    if (!settings || settings.decimalSeparator !== ',') return line;
-    if (!/\d,\d/.test(line)) return line;
-
-    // Keep comma-separated function arguments and array literals intact.
-    if (/[A-Za-z_][A-Za-z0-9_]*\s*\([^()]*,[^()]*\)/.test(line)) return line;
-    if (/\[[^\]]*,[^\]]*\]/.test(line)) return line;
-
-    return line.replace(/(\d),(\d)/g, '$1.$2');
-  }
-
-  function localizeNumericText(text) {
-    if (!settings || settings.decimalSeparator !== ',') return String(text);
-    return String(text).replace(/(-?\d+\.\d+(?:[eE][+-]?\d+)?)/g, (m) => m.replace('.', ','));
   }
 
   // Initialize section states from localStorage
@@ -1109,31 +659,34 @@ sum`;
           const text = e.target.result;
           const nameParts = (f.name || 'dataset').split('.');
           const ext = (nameParts.pop() || '').toLowerCase();
-          let parsed = { data: [], format: ext || 'auto' };
+          let data = [];
           try {
-            parsed = parseDatasetPayload(text, detectFormat(f.name, f.type));
+            if (ext === 'csv' || f.type === 'text/csv') data = parseCSV(text, ',');
+            else if (ext === 'tsv' || f.type === 'text/tab-separated-values') data = parseCSV(text, '\t');
+            else if (ext === 'json' || f.type === 'application/json') data = JSON.parse(text);
+            else if (ext === 'xml' || f.type === 'text/xml' || f.type === 'application/xml') data = parseXML(text);
+            else {
+              // try JSON first
+              try { data = JSON.parse(text); } catch (e) { data = parseCSV(text, ','); }
+            }
           } catch (e) {
             showToast('Failed to parse file');
-            setDatasetStatus('Could not parse "' + f.name + '"', 'error');
             return;
           }
+          // normalize non-array JSON to array
+          if (!Array.isArray(data)) data = [data];
           // ask user for dataset name
           const base = nameParts.join('.') || 'data';
-          let dsName = uniqueDatasetName(base);
+          let dsName = base.replace(/[^A-Za-z0-9_]/g, '_');
+          let attempt = dsName;
+          let i = 1;
+          while (datasets[attempt]) { attempt = dsName + '_' + (i++); }
+          dsName = attempt;
           // prompt user to rename (non-blocking)
           const custom = prompt('Dataset name', dsName);
-          if (custom && custom.trim()) dsName = uniqueDatasetName(custom.trim());
-          registerDataset(dsName, parsed.data, {
-            sourceType: 'file',
-            source: f.name || '',
-            format: parsed.format || ext || 'auto',
-            cached: false
-          });
+          if (custom && custom.trim()) dsName = custom.trim().replace(/[^A-Za-z0-9_]/g, '_');
+          registerDataset(dsName, data);
           showToast('Imported ' + f.name + ' as ' + dsName);
-          setDatasetStatus(
-            'Loaded "' + dsName + '" (' + parsed.data.length + ' rows, ' + (parsed.format || ext || 'auto').toUpperCase() + ')',
-            'success'
-          );
           // clear input so same file can be re-selected later
           fileInput.value = '';
         };
@@ -1159,43 +712,6 @@ sum`;
         const ds = sel ? sel.value : lastPreviewedDataset;
         if (ds) renderDatasetPreview(ds, v);
       });
-      const datasetUrlInput = document.getElementById('datasetUrlInput');
-      const datasetLoadUrlBtn = document.getElementById('datasetLoadUrlBtn');
-      if (datasetUrlInput && datasetLoadUrlBtn) {
-        const triggerUrlLoad = async () => {
-          const url = datasetUrlInput.value.trim();
-          if (!url) {
-            setDatasetStatus('Enter a dataset URL first', 'error');
-            return;
-          }
-          datasetLoadUrlBtn.disabled = true;
-          datasetLoadUrlBtn.classList.add('opacity-60', 'cursor-not-allowed');
-          setDatasetStatus('Loading external dataset...', 'info');
-          try {
-            const loaded = await importDatasetFromUrl(url);
-            const sourceNote = loaded.cached ? 'from cache' : 'from network';
-            setDatasetStatus(
-              'Loaded "' + loaded.datasetName + '" (' + loaded.rows + ' rows, ' + loaded.format.toUpperCase() + ', ' + sourceNote + ')',
-              'success'
-            );
-            showToast('External dataset loaded: ' + loaded.datasetName);
-          } catch (err) {
-            setDatasetStatus(err && err.message ? err.message : 'External load failed', 'error');
-            showToast('External dataset load failed');
-          } finally {
-            datasetLoadUrlBtn.disabled = false;
-            datasetLoadUrlBtn.classList.remove('opacity-60', 'cursor-not-allowed');
-          }
-        };
-        datasetLoadUrlBtn.addEventListener('click', triggerUrlLoad);
-        datasetUrlInput.addEventListener('keydown', (ev) => {
-          if (ev.key === 'Enter') {
-            ev.preventDefault();
-            triggerUrlLoad();
-          }
-        });
-      }
-      setDatasetStatus('No dataset loaded', 'muted');
 
       // Render examples list
       try { renderExamples(); } catch (e) {}
@@ -1297,7 +813,7 @@ sum`;
         const expr = fnMatch[3];
         functionDefs[name] = expr.trim();
         try {
-          parser.evaluate(normalizeDecimalInput(trimmed)); // register function in scope
+          parser.evaluate(trimmed); // register function in scope
           outputLines.push(null);
         } catch (e) {
           outputLines.push({ value: e.message, type: "error" });
@@ -1321,7 +837,7 @@ sum`;
             const val = runSimpleQuery(op, col, ds, where);
             // set in parser so subsequent lines can use it
             try { parser.set(varName, val); } catch (e) {}
-            outputLines.push({ value: formatResult(val), type: "result" });
+            outputLines.push({ value: String(val), type: "result" });
           } catch (e) {
             outputLines.push({ value: e.message, type: "error" });
           }
@@ -1331,7 +847,7 @@ sum`;
       }
 
       // Prepare processed line (normalize currency symbols etc.)
-      const proc = normalizeDecimalInput(normalizeCurrencySymbols(trimmed));
+      const proc = normalizeCurrencySymbols(trimmed);
 
       // Check for 'sum' keyword
       if (/^(total|sum|summe|gesamt)$/i.test(trimmed)) {
@@ -1339,13 +855,13 @@ sum`;
         try {
           let display;
           if (blockSum === null) {
-            display = formatResult(0);
+            display = '0';
           } else if (blockSumIsCurrency) {
-            display = formatResult(blockSum) + ' ' + (blockSumCurrencyBase || '');
+            display = math.format(blockSum, { precision: 14 }) + ' ' + (blockSumCurrencyBase || '');
           } else if (blockSumIsUnit) {
-            display = formatResult(blockSum);
+            display = math.format(blockSum, { precision: 14 });
           } else {
-            display = formatResult(blockSum);
+            display = math.format(blockSum, { precision: 14 });
           }
           outputLines.push({ value: display, type: "sum" });
         } catch (e) {
@@ -1368,7 +884,7 @@ sum`;
         const where = qMatch[4];
         try {
           const val = runSimpleQuery(op, col, ds, where);
-          outputLines.push({ value: formatResult(val), type: 'result' });
+          outputLines.push({ value: String(val), type: 'result' });
         } catch (e) {
           outputLines.push({ value: e.message, type: 'error' });
         }
@@ -1381,12 +897,10 @@ sum`;
         const leftExpr = convMatch[1].trim();
           const rawTarget = convMatch[2].trim();
           // Temperature heuristic: allow converting plain numeric temperatures even if units aren't registered
-          const tempMatch = leftExpr.match(/^\s*([+-]?\d+(?:[.,]\d+)?(?:[eE][+-]?\d+)?)\s*(°?F|F|°?C|C|K)\s*$/i);
+          const tempMatch = leftExpr.match(/^\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*(°?F|F|°?C|C|K)\s*$/i);
           if (tempMatch) {
             try {
-              const forcedDecimal = settings && settings.decimalSeparator === ',' ? ',' : null;
-              const num = parseMaybeNumber(tempMatch[1], forcedDecimal);
-              if (num === null) throw new Error('Invalid temperature value');
+              const num = Number(tempMatch[1]);
               const src = tempMatch[2].replace('°', '').toUpperCase();
               const tgt = rawTarget.replace('°', '').toUpperCase();
               let celsius;
@@ -1410,7 +924,7 @@ sum`;
         try {
           let val;
           try {
-            val = parser.evaluate(normalizeDecimalInput(normalizeCurrencySymbols(leftExpr)));
+            val = parser.evaluate(normalizeCurrencySymbols(leftExpr));
           } catch (e) {
             outputLines.push({ value: 'Failed to evaluate expression: ' + e.message, type: 'error' });
             continue;
@@ -1619,7 +1133,7 @@ sum`;
     // Tokenize the line to avoid replacing inside injected HTML
     // Token types: whitespace, identifiers, numbers, operators, punctuation
     const tokenRE =
-      /(\s+|[A-Za-z_][A-Za-z0-9_]*|\d+[.,]\d+|\d+|==|!=|<=|>=|\+|\-|\*|\/|\^|=|\(|\)|\[|\]|,|;|\.|%)/g;
+      /(\s+|[A-Za-z_][A-Za-z0-9_]*|\d+\.\d+|\d+|==|!=|<=|>=|\+|\-|\*|\/|\^|=|\(|\)|\[|\]|,|;|\.|%)/g;
     const tokens = escaped.match(tokenRE) || [escaped];
 
     let out = "";
@@ -1629,7 +1143,7 @@ sum`;
         out += tok;
         continue;
       }
-      if (/^[0-9]+([.,][0-9]+)?$/.test(tok)) {
+      if (/^[0-9]+(\.[0-9]+)?$/.test(tok)) {
         out += `<span class="token-number">${tok}</span>`;
         continue;
       }
@@ -1728,20 +1242,16 @@ sum`;
     if (dsKeys.length > 0) {
       html += `<div class="mt-2 mb-1 text-[10px] font-bold text-gray-400 uppercase">Datasets</div>`;
       dsKeys.forEach((key) => {
-        const meta = datasetMeta[key] || {};
-        const sourceLabel = meta.sourceType === 'url' ? 'URL' : (meta.sourceType === 'file' ? 'File' : 'Local');
         html += `
           <div role="button" tabindex="0" onclick="app.insert('${key}')" class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" title="Insert dataset name">
             <div class="flex items-center gap-2">
               <span class="text-xs font-bold text-green-600 dark:text-green-400 font-mono">${key}</span>
               <span class="text-xs text-gray-400">rows</span>
               <span class="text-xs font-mono text-gray-700 dark:text-gray-300">${(datasets[key] && datasets[key].length) || 0}</span>
-              <span class="text-[10px] text-gray-400 uppercase">${sourceLabel}</span>
             </div>
             <div class="flex items-center gap-2">
               <button onclick="(function(e,k){ if(e && e.stopPropagation) e.stopPropagation(); if(window.app && window.app.previewDataset) window.app.previewDataset(k); })(event,'${key}')" class="text-[10px] bg-gray-50 text-gray-700 px-2 py-0.5 rounded">Preview</button>
               <button onclick="(function(e,k){ if(e && e.stopPropagation) e.stopPropagation(); const ans=prompt('Rename dataset', k); if(ans) { if(window.app && window.app.renameDataset) window.app.renameDataset(k, ans); } })(event,'${key}')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded">Rename</button>
-              <button onclick="(function(e,k){ if(e && e.stopPropagation) e.stopPropagation(); if(confirm('Delete dataset \"' + k + '\"?')) { if(window.app && window.app.deleteDataset) window.app.deleteDataset(k); } })(event,'${key}')" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded">Delete</button>
             </div>
           </div>
         `;
@@ -1792,17 +1302,13 @@ sum`;
     return true;
   }
 
-  function finalizeResultText(value) {
-    return localizeNumericText(toPrettyUnits(String(value)));
-  }
-
   function formatResult(res) {
     if (res === undefined || res === null) {
-      return finalizeResultText(res);
+      return String(res);
     }
 
     if (isMathNodeValue(res)) {
-      return finalizeResultText(res.toString ? res.toString() : '');
+      return res.toString ? res.toString() : '';
     }
 
     // Determine rounding: explicit setting takes priority; null = use auto-detection.
@@ -1811,9 +1317,9 @@ sum`;
 
     // BigNumber
     if (res && res.isBigNumber) {
-      if (rd !== null && res.toFixed) return finalizeResultText(res.toFixed(rd));
+      if (rd !== null && res.toFixed) return res.toFixed(rd);
       // Auto: use detected decimal places
-      return finalizeResultText(smartFormat(res.toNumber ? res.toNumber() : Number(res.toString()), _autoDecimalPlaces));
+      return smartFormat(res.toNumber ? res.toNumber() : Number(res.toString()), _autoDecimalPlaces);
     }
 
     // Unit (including currencies)
@@ -1821,7 +1327,7 @@ sum`;
       try {
         if (rd !== null) {
           const fmt = math.format(res, { precision: rd });
-          return finalizeResultText(fmt);
+          return toPrettyUnits(String(fmt));
         }
         // Auto: format with math.format then apply smart rounding to the numeric part
         const rawFmt = math.format(res);
@@ -1829,30 +1335,30 @@ sum`;
         if (numMatch) {
           const numPart = smartFormat(parseFloat(numMatch[1]), _autoDecimalPlaces);
           const unitPart = numMatch[2] ? ' ' + numMatch[2] : '';
-          return finalizeResultText(numPart + unitPart);
+          return toPrettyUnits(numPart + unitPart);
         }
-        return finalizeResultText(rawFmt);
+        return toPrettyUnits(rawFmt);
       } catch (e) {
-        return finalizeResultText(res.toString());
+        return toPrettyUnits(res.toString());
       }
     }
 
     if (typeof res === 'number') {
-      if (rd !== null) return finalizeResultText(res.toFixed(rd));
-      return finalizeResultText(smartFormat(res, _autoDecimalPlaces));
+      if (rd !== null) return res.toFixed(rd);
+      return smartFormat(res, _autoDecimalPlaces);
     }
 
     // Objects/arrays/matrices -> try math.format for readable output (handles matrices)
     if (typeof res === 'object') {
       try {
         const fmt = (rd !== null) ? math.format(res, { precision: rd }) : math.format(res);
-        return finalizeResultText(fmt);
+        return toPrettyUnits(String(fmt));
       } catch (e) {
-        try { return finalizeResultText(JSON.stringify(res).replace(/"/g,'')); } catch (e2) { return finalizeResultText(res); }
+        try { return JSON.stringify(res).replace(/"/g,''); } catch (e2) { return String(res); }
       }
     }
 
-    return finalizeResultText(res);
+    return toPrettyUnits(String(res));
   }
 
   function isDesktopViewport() {
@@ -1953,7 +1459,6 @@ sum`;
     const emptyState = document.getElementById('datasetEmptyState');
     const head = document.getElementById('datasetPreviewHead');
     const body = document.getElementById('datasetPreviewBody');
-    const info = document.getElementById('datasetInfo');
     
     if (!table || !head || !body || !emptyState) return;
     
@@ -1962,7 +1467,6 @@ sum`;
       table.classList.add('hidden');
       emptyState.classList.remove('hidden');
       emptyState.textContent = 'Dataset not found';
-      if (info) info.textContent = '';
       return;
     }
     
@@ -1972,22 +1476,10 @@ sum`;
     // Build header from keys of first row
     const keys = rows.length ? Object.keys(rows[0]) : (data.length ? Object.keys(data[0]) : []);
     head.innerHTML = '<tr>' + keys.map(k => `<th class="text-left px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">${escapeHtml(k)}</th>`).join('') + '</tr>';
-    body.innerHTML = rows.map(r => '<tr class="hover:bg-gray-50 dark:hover:bg-gray-800">' + keys.map(k => {
-      const cell = r[k] === undefined ? '' : r[k];
-      const view = typeof cell === 'number' ? localizeNumericText(cell) : String(cell);
-      return `<td class="px-2 py-1 text-xs text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800">${escapeHtml(view)}</td>`;
-    }).join('') + '</tr>').join('');
+    body.innerHTML = rows.map(r => '<tr class="hover:bg-gray-50 dark:hover:bg-gray-800">' + keys.map(k => `<td class="px-2 py-1 text-xs text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800">${escapeHtml(String(r[k] === undefined ? '' : r[k]))}</td>`).join('') + '</tr>').join('');
     
     table.classList.remove('hidden');
     emptyState.classList.add('hidden');
-    const meta = datasetMeta[name] || {};
-    if (info) {
-      const src = meta.sourceType === 'url' ? 'URL' : (meta.sourceType === 'file' ? 'File' : 'Local');
-      const fmt = (meta.format || 'unknown').toUpperCase();
-      const cacheNote = meta.cached ? ', cached' : '';
-      info.textContent = `${name}: ${data.length} rows, ${keys.length} cols, ${fmt}, ${src}${cacheNote}`;
-    }
-    setDatasetStatus('Previewing "' + name + '"', 'muted');
     
     // Expand the dataset section if collapsed
     const datasetContent = document.getElementById('datasetContent');
@@ -2001,14 +1493,12 @@ sum`;
   function clearDatasetPreview() {
     const table = document.getElementById('datasetPreviewTable');
     const emptyState = document.getElementById('datasetEmptyState');
-    const info = document.getElementById('datasetInfo');
     
     if (table) table.classList.add('hidden');
     if (emptyState) {
       emptyState.classList.remove('hidden');
       emptyState.textContent = 'No dataset loaded';
     }
-    if (info) info.textContent = '';
   }
 
   // -- Dataset List Rendering & Selection --
@@ -2026,9 +1516,6 @@ sum`;
       sel.value = chosen;
       // render preview for chosen
       renderDatasetPreview(chosen, document.getElementById('previewRowsSelect') ? document.getElementById('previewRowsSelect').value : 10);
-    } else if (keys.length === 0) {
-      clearDatasetPreview();
-      setDatasetStatus('No dataset loaded', 'muted');
     }
     // change handler attached during init to avoid duplicates
   }
@@ -2204,25 +1691,13 @@ f(x) = x^2 - 5*x`;
     resetGraph,
       previewDataset: (name, n) => { renderDatasetPreview(name, n); },
       clearDatasetPreview: () => { clearDatasetPreview(); },
-    deleteDataset: (name) => deleteDataset(name),
     renameDataset: (oldName, newName) => {
       if (!datasets[oldName] || !newName) return false;
-      const clean = cleanDatasetName(newName);
-      if (clean !== oldName && datasets[clean]) return false;
-      if (clean === oldName) return true;
+      const clean = newName.trim().replace(/[^A-Za-z0-9_]/g, '_');
+      if (datasets[clean]) return false;
       datasets[clean] = datasets[oldName];
       delete datasets[oldName];
-      if (datasetMeta[oldName]) {
-        datasetMeta[clean] = datasetMeta[oldName];
-        delete datasetMeta[oldName];
-      }
-      if (lastPreviewedDataset === oldName) lastPreviewedDataset = clean;
-      try {
-        localStorage.setItem('livecalc:lastDataset', clean);
-      } catch (e) {}
-      renderDatasetList();
       handleInput();
-      setDatasetStatus('Dataset renamed to "' + clean + '"', 'success');
       return true;
     },
     forcePlot: (name) => {
@@ -2246,22 +1721,20 @@ f(x) = x^2 - 5*x`;
         const roundInput = document.getElementById('settingsRound');
         const colorSelect = document.getElementById('settingsColor');
         const fontSelect = document.getElementById('settingsFont');
-        const decimalSelect = document.getElementById('settingsDecimalSeparator');
-        const csvDelimiterSelect = document.getElementById('settingsCsvDelimiter');
-        const cacheInput = document.getElementById('settingsExternalCacheMinutes');
-        const timeoutInput = document.getElementById('settingsExternalTimeoutMs');
         const largeChk = document.getElementById('settingsLargeText');
         const highChk = document.getElementById('settingsHighContrast');
+        const llmEndpoint = document.getElementById('settingsLlmEndpoint');
+        const llmModel = document.getElementById('settingsLlmModel');
+        const llmApiKey = document.getElementById('settingsLlmApiKey');
         // null/undefined → empty string (auto-detect mode)
         if (roundInput) roundInput.value = (settings && typeof settings.roundDecimals === 'number') ? settings.roundDecimals : '';
         if (colorSelect) colorSelect.value = settings.colorScheme || 'default';
         if (fontSelect) fontSelect.value = settings.font || defaultSettings.font;
-        if (decimalSelect) decimalSelect.value = settings.decimalSeparator || '.';
-        if (csvDelimiterSelect) csvDelimiterSelect.value = settings.csvDelimiter || 'auto';
-        if (cacheInput) cacheInput.value = String(settings.externalCacheMinutes ?? DEFAULT_EXTERNAL_CACHE_MINUTES);
-        if (timeoutInput) timeoutInput.value = String(settings.externalRequestTimeoutMs ?? DEFAULT_EXTERNAL_TIMEOUT_MS);
         if (largeChk && settings && settings.accessibility) largeChk.checked = !!settings.accessibility.largeText;
         if (highChk && settings && settings.accessibility) highChk.checked = !!settings.accessibility.highContrast;
+        if (llmEndpoint) llmEndpoint.value = (settings && settings.llm && settings.llm.endpoint) || '';
+        if (llmModel) llmModel.value = (settings && settings.llm && settings.llm.model) || '';
+        if (llmApiKey) llmApiKey.value = (settings && settings.llm && settings.llm.apiKey) || '';
         modal.classList.remove('hidden');
       },
       closeSettings: () => {
@@ -2272,12 +1745,11 @@ f(x) = x^2 - 5*x`;
         const roundInput = document.getElementById('settingsRound');
         const colorSelect = document.getElementById('settingsColor');
         const fontSelect = document.getElementById('settingsFont');
-        const decimalSelect = document.getElementById('settingsDecimalSeparator');
-        const csvDelimiterSelect = document.getElementById('settingsCsvDelimiter');
-        const cacheInput = document.getElementById('settingsExternalCacheMinutes');
-        const timeoutInput = document.getElementById('settingsExternalTimeoutMs');
         const largeChk = document.getElementById('settingsLargeText');
         const highChk = document.getElementById('settingsHighContrast');
+        const llmEndpoint = document.getElementById('settingsLlmEndpoint');
+        const llmModel = document.getElementById('settingsLlmModel');
+        const llmApiKey = document.getElementById('settingsLlmApiKey');
         const next = {};
         if (roundInput) {
           const v = roundInput.value.trim();
@@ -2285,23 +1757,20 @@ f(x) = x^2 - 5*x`;
         }
         if (colorSelect) next.colorScheme = colorSelect.value;
         if (fontSelect) next.font = fontSelect.value;
-        if (decimalSelect) next.decimalSeparator = decimalSelect.value === ',' ? ',' : '.';
-        if (csvDelimiterSelect) next.csvDelimiter = csvDelimiterSelect.value || 'auto';
-        if (cacheInput) {
-          const mins = parseInt(cacheInput.value, 10);
-          next.externalCacheMinutes = isNaN(mins) ? DEFAULT_EXTERNAL_CACHE_MINUTES : mins;
-        }
-        if (timeoutInput) {
-          const ms = parseInt(timeoutInput.value, 10);
-          next.externalRequestTimeoutMs = isNaN(ms) ? DEFAULT_EXTERNAL_TIMEOUT_MS : ms;
-        }
         next.accessibility = {
           largeText: largeChk ? largeChk.checked : false,
           highContrast: highChk ? highChk.checked : false
         };
+        next.llm = {
+          endpoint: llmEndpoint ? llmEndpoint.value.trim() : '',
+          model: llmModel ? llmModel.value.trim() : '',
+          apiKey: llmApiKey ? llmApiKey.value.trim() : ''
+        };
         setSettings(next);
         const modal = document.getElementById('settingsModal');
         if (modal) modal.classList.add('hidden');
+        // update AI chat visibility
+        try { if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility(); } catch (e) {}
         showToast('Settings saved');
       },
       
@@ -2399,6 +1868,20 @@ f(x) = x^2 - 5*x`;
       // Examples API
       loadExample: (id) => loadExample(id),
       insertExampleToEditor: (id) => insertExampleToEditor(id),
+      // LLM API
+      getEditorContent: () => editor ? editor.value : '',
+      insertIntoEditor: (text) => {
+        if (!editor) return;
+        const pos = editor.selectionEnd;
+        const val = editor.value;
+        const before = val.slice(0, pos);
+        const after = val.slice(pos);
+        const insert = (before.length > 0 && !before.endsWith('\n') ? '\n' : '') + text;
+        editor.value = before + insert + after;
+        editor.selectionStart = editor.selectionEnd = pos + insert.length;
+        editor.dispatchEvent(new Event('input'));
+      },
+      getLlmSettings: () => (settings && settings.llm) ? Object.assign({}, settings.llm) : { endpoint: '', model: '', apiKey: '' },
   };
   
   // History helper functions
@@ -2443,6 +1926,8 @@ f(x) = x^2 - 5*x`;
       </div>
     `).join('');
   }
+  
+  return api;
 })();
 
 // Expose `app` on the window so other inline scripts can call `window.app.*` safely.

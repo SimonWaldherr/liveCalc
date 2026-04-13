@@ -1,6 +1,10 @@
-document.addEventListener('DOMContentLoaded', function() {
-  initializeApp();
-}, false);
+document.addEventListener(
+  'DOMContentLoaded',
+  function () {
+    initializeApp();
+  },
+  false
+);
 
 function initializeApp() {
   const hashvalue = window.location.hash.substring(1);
@@ -9,13 +13,13 @@ function initializeApp() {
   }
   evalMath();
 
-  $('#frame1').on('keyup change', function() {
+  $('#frame1').on('keyup change', function () {
     evalMath();
     const encodedMath = utf8_to_b64($('#frame1').val());
     window.location.hash = encodedMath;
   });
 
-  $('.linked').scroll(function() {
+  $('.linked').scroll(function () {
     $('.bed-highlights').css('transform', `translateY(${-this.scrollTop}px)`);
   });
 }
@@ -34,17 +38,17 @@ function evalMath() {
   let input = [];
   let formulas = $('#frame1').val();
 
-  if (formulas.includes(",") && !formulas.includes(".")) {
-    formulas = formulas.replace(/(\d+),(\d+)/gi, "$1.$2");
+  if (formulas.includes(',') && !formulas.includes('.')) {
+    formulas = formulas.replace(/(\d+),(\d+)/gi, '$1.$2');
   }
 
   const arrayOfLines = formulas.split('\n');
   let globalSum = math.bignumber(0);
   let localSum = math.bignumber(0);
   let units = null;
-  const maxLen = Math.max(...arrayOfLines.map(item => item.length));
+  const maxLen = Math.max(...arrayOfLines.map((item) => item.length));
 
-  arrayOfLines.forEach(item => {
+  arrayOfLines.forEach((item) => {
     if (containsSumKeyword(item)) {
       if (localSum.isZero() && globalSum.isZero()) {
         output += `${item} = 0\n`;
@@ -80,12 +84,12 @@ function evalMath() {
     }
   });
 
-  $("#highlights1").html(output);
+  $('#highlights1').html(output);
 }
 
 function containsSumKeyword(item) {
   const keywords = ['total', 'sum', 'summe', 'gesamt'];
-  return keywords.some(keyword => item.toLowerCase().includes(keyword));
+  return keywords.some((keyword) => item.toLowerCase().includes(keyword));
 }
 
 function getLastResult(parser, input) {
@@ -107,7 +111,7 @@ function updateSum(localSum, globalSum, lastResult, units) {
           localSum: localSum.add(lastResultValue),
           globalSum: globalSum.add(lastResultValue),
         },
-        updatedUnits: unitName
+        updatedUnits: unitName,
       };
     } else {
       throw new Error('Units do not match');
@@ -118,7 +122,7 @@ function updateSum(localSum, globalSum, lastResult, units) {
         localSum: localSum.add(lastResult),
         globalSum: globalSum.add(lastResult),
       },
-      updatedUnits: units
+      updatedUnits: units,
     };
   }
   return { updatedSum: { localSum, globalSum }, updatedUnits: units };
@@ -130,7 +134,7 @@ function evaluateItem(parser, input, item, maxLen) {
   } else {
     const ev_raw = parser.evaluate(input).slice(-1);
     const ev_str = JSON.stringify(ev_raw);
-    if (ev_raw !== undefined && ev_str !== "[null]") {
+    if (ev_raw !== undefined && ev_str !== '[null]') {
       const spacing = ' '.repeat(maxLen - item.length);
       return `${item}${spacing} = ${ev_raw}\n`;
     } else {
@@ -145,7 +149,9 @@ function clearTextarea() {
 }
 
 function insertExample() {
-  $('#frame1').val(b64_to_utf8('QSA9ICgxLjIgLyAoMy4zICsgMS43KSkgY20KQiA9IDUuMDggY20gKyAyLjUgaW5jaApDID0gQiAqIEIgKiBBIGluIGNtMwoKCg=='));
+  $('#frame1').val(
+    b64_to_utf8('QSA9ICgxLjIgLyAoMy4zICsgMS43KSkgY20KQiA9IDUuMDggY20gKyAyLjUgaW5jaApDID0gQiAqIEIgKiBBIGluIGNtMwoKCg==')
+  );
   evalMath();
 }
 
@@ -164,7 +170,7 @@ function download(filename, text) {
 
 function downloadMath() {
   const filename = window.prompt('Save calculation as:', 'liveCalc.txt');
-  const content = $("#highlights1").text().replace(/ +/g, " ");
+  const content = $('#highlights1').text().replace(/ +/g, ' ');
   download(filename, content);
   return false;
 }

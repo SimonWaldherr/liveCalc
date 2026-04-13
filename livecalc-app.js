@@ -1,18 +1,20 @@
 const app = (() => {
   // -- DOM Elements --
-  const editor = document.getElementById("editor");
-  const backdrop = document.getElementById("backdrop");
-  const lineNumbers = document.getElementById("lineNumbers");
-  const variablesList = document.getElementById("variablesList");
-  const varCount = document.getElementById("varCount");
-  const plotContainer = document.getElementById("plot");
-  const sidebar = document.getElementById("sidebar");
-  const gridLayout = document.querySelector(".grid-layout");
+  const editor = document.getElementById('editor');
+  const backdrop = document.getElementById('backdrop');
+  const lineNumbers = document.getElementById('lineNumbers');
+  const variablesList = document.getElementById('variablesList');
+  const varCount = document.getElementById('varCount');
+  const plotContainer = document.getElementById('plot');
+  const sidebar = document.getElementById('sidebar');
+  const gridLayout = document.querySelector('.grid-layout');
 
-  const DESKTOP_SIDEBAR_MEDIA = "(min-width: 1024px)";
+  const DESKTOP_SIDEBAR_MEDIA = '(min-width: 1024px)';
 
   // -- Configuration --
-  let isDark = localStorage.getItem("theme") === "dark" || (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  let isDark =
+    localStorage.getItem('theme') === 'dark' ||
+    (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
   // Small HTML-escape helper used by highlight/preview rendering
   function escapeHtml(s) {
     if (s === null || s === undefined) return '';
@@ -73,13 +75,11 @@ const app = (() => {
     }
   }
 
-    
-
   // MathJS config
   math.config({
     // math.js 11.8.0 has a bug with unit arithmetic in BigNumber mode
     // (for example `radius = 5 cm` followed by `radius^2`).
-    number: "number",
+    number: 'number',
     precision: 64,
   });
 
@@ -91,31 +91,62 @@ const app = (() => {
   // and helper to normalize currency symbols (€, $, £ etc.).
   // ------------------------------------------------------------------
   // Use centralized conversions if provided (loaded from conversions.js)
-  const _LC = (typeof window !== 'undefined' && window.LC_CONVERSIONS) ? window.LC_CONVERSIONS : null;
-  const fxRates = _LC && _LC.fxRates ? Object.assign({}, _LC.fxRates) : { USD: 1.0, EUR: 1.08, GBP: 1.25, JPY: 0.0072, CHF: 1.09 };
-  const currencyUnits = new Set((_LC && Array.isArray(_LC.currencyUnits)) ? _LC.currencyUnits : ["USD","EUR","GBP","JPY","CHF"]);
+  const _LC = typeof window !== 'undefined' && window.LC_CONVERSIONS ? window.LC_CONVERSIONS : null;
+  const fxRates =
+    _LC && _LC.fxRates ? Object.assign({}, _LC.fxRates) : { USD: 1.0, EUR: 1.08, GBP: 1.25, JPY: 0.0072, CHF: 1.09 };
+  const currencyUnits = new Set(
+    _LC && Array.isArray(_LC.currencyUnits) ? _LC.currencyUnits : ['USD', 'EUR', 'GBP', 'JPY', 'CHF']
+  );
 
   // Ensure currency unit names are present in math.js as simple units
   try {
     Array.from(currencyUnits).forEach((c) => {
-      try { math.createUnit(c); } catch (e) { /* ignore if present */ }
+      try {
+        math.createUnit(c);
+      } catch (e) {
+        /* ignore if present */
+      }
     });
   } catch (e) {}
 
   // Register a set of common units and synonyms to improve conversion coverage
   function registerCommonUnits() {
-    const units = (_LC && Array.isArray(_LC.commonUnits)) ? _LC.commonUnits : [
-      ['mm', '0.001 m'],['cm', '0.01 m'],['dm', '0.1 m'],['m', '1 m'],['km', '1000 m'],
-      ['mg', '1e-6 kg'],['g', '0.001 kg'],['kg', '1 kg'],['t', '1000 kg'],
-      ['ml', '1e-6 m^3'],['l', '0.001 m^3'],['L', '0.001 m^3'],
-      ['cm2', '0.0001 m^2'],['m2', '1 m^2'],['cm3', '1e-6 m^3'],['m3', '1 m^3'],
-      ['s', '1 s'],['sec', '1 s'],['min', '60 s'],['h', '3600 s'],
-      ['in', '0.0254 m'],['ft', '0.3048 m'],['yd', '0.9144 m'],['mi', '1609.344 m'],
-      ['oz', '0.028349523125 kg'],['lb', '0.45359237 kg'],['atm', '101325 Pa'],['bar','100000 Pa'],['percent','0.01']
-      ['sec', '1 s'],
-      ['percent', '0.01'],
-      ['L', '1 l']
-    ];
+    const units =
+      _LC && Array.isArray(_LC.commonUnits)
+        ? _LC.commonUnits
+        : [
+            ['mm', '0.001 m'],
+            ['cm', '0.01 m'],
+            ['dm', '0.1 m'],
+            ['m', '1 m'],
+            ['km', '1000 m'],
+            ['mg', '1e-6 kg'],
+            ['g', '0.001 kg'],
+            ['kg', '1 kg'],
+            ['t', '1000 kg'],
+            ['ml', '1e-6 m^3'],
+            ['l', '0.001 m^3'],
+            ['L', '0.001 m^3'],
+            ['cm2', '0.0001 m^2'],
+            ['m2', '1 m^2'],
+            ['cm3', '1e-6 m^3'],
+            ['m3', '1 m^3'],
+            ['s', '1 s'],
+            ['sec', '1 s'],
+            ['min', '60 s'],
+            ['h', '3600 s'],
+            ['in', '0.0254 m'],
+            ['ft', '0.3048 m'],
+            ['yd', '0.9144 m'],
+            ['mi', '1609.344 m'],
+            ['oz', '0.028349523125 kg'],
+            ['lb', '0.45359237 kg'],
+            ['atm', '101325 Pa'],
+            ['bar', '100000 Pa'],
+            ['percent', '0.01'][('sec', '1 s')],
+            ['percent', '0.01'],
+            ['L', '1 l'],
+          ];
 
     function unitExists(name) {
       try {
@@ -133,11 +164,15 @@ const app = (() => {
           math.createUnit(name, def);
         }
       } catch (e) {
-        try { math.createUnit(name, def); } catch (e2) {}
+        try {
+          math.createUnit(name, def);
+        } catch (e2) {}
       }
     });
   }
-  try { registerCommonUnits(); } catch (e) {}
+  try {
+    registerCommonUnits();
+  } catch (e) {}
 
   // ------------------------------------------------------------------
   // Data / Dataset support
@@ -156,17 +191,19 @@ const app = (() => {
   const MAX_DECIMAL_PLACES = 20;
   const defaultSettings = {
     roundDecimals: null, // null = auto-detect from input; number = fixed decimal places
+    decimalSeparator: '.', // '.' or ','
+    csvDelimiter: 'auto', // 'auto', 'comma', 'semicolon', 'tab', 'pipe'
     colorScheme: 'default', // options: default, warm, midnight, solarized, ocean, monochrome
     font: "'Fira Code', 'Menlo', 'Monaco', monospace",
     accessibility: {
       largeText: false,
-      highContrast: false
+      highContrast: false,
     },
     llm: {
-      endpoint: '',  // e.g. http://localhost:1234/v1/chat/completions
-      model: '',     // e.g. llama3, mistral, or leave blank
-      apiKey: ''     // optional, for servers that require it
-    }
+      endpoint: '', // e.g. http://localhost:1234/v1/chat/completions
+      model: '', // e.g. llama3, mistral, or leave blank
+      apiKey: '', // optional, for servers that require it
+    },
   };
   let settings = loadSettings();
 
@@ -194,12 +231,42 @@ const app = (() => {
 
   // Example snippets available to load into the editor
   const examples = [
-    { id: 'geometry', title: 'Geometry — Circle Area', desc: 'radius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius', content: `# Geometry example\nradius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius` },
-    { id: 'finance', title: 'Finance — Compound Interest', desc: 'P = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t', content: `# Compound Interest example\nP = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t` },
-    { id: 'sum', title: 'Sum — Mixed Units', desc: 'val1 = 10 m\nval2 = 20 cm\nsum', content: `# Sum example\nval1 = 10 m\nval2 = 20 cm\nval3 = 50 cm\nsum` },
-    { id: 'table', title: 'Table — CSV import & query', desc: 'Instructions for using demo dataset', content: `# Table demo\n# Upload a CSV (or use demo.csv). After import try:\n# sum price from demo where qty > 2\n# count order_id from demo where region == 'North'` },
-    { id: 'dataplot', title: 'Data Plot — avg price per region', desc: 'Example for data-driven plotting', content: `# Data Plot demo\n# Import 'demo.csv' (provided) or your own dataset named 'demo'.\n# Use query() to compute aggregates inside expressions.\navgPriceNorth = query('demo', 'avg price where region == "North"')\nf(x) = avgPriceNorth + sin(x)` },
-    { id: 'conv_all', title: 'Conversions — Mixed examples', desc: 'Collection of common conversions (weight, pressure, area, volume, force, mass, temperature, currency)', content: `# Conversions example\n# Weight\n30 lb in kg\n\n# Pressure\n14.7 psi in bar\n\n# Area\n200 in^2 in cm^2\n\n# Volume\n1 gal in L\n\n# Force\n10 lbf in N\n\n# Mass (imperial)\n1 slug in kg\n\n# Temperature (F <-> C)\n# If your environment doesn't have F/C units defined, a manual formula is provided below\n100 F in C\n# Manual (formula) alternative:\n(100 - 32) * 5/9\n\n# Currency\n100 EUR in USD\n\n# Mixed units and sum\na = 20 cm\nb = 0.5 m\nc = 3 in\n# list values then an explicit 'sum' line to show block sum\na\nb\nc\nsum\n# Convert sum to m\nsum in m` }
+    {
+      id: 'geometry',
+      title: 'Geometry — Circle Area',
+      desc: 'radius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius',
+      content: `# Geometry example\nradius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius`,
+    },
+    {
+      id: 'finance',
+      title: 'Finance — Compound Interest',
+      desc: 'P = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t',
+      content: `# Compound Interest example\nP = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t`,
+    },
+    {
+      id: 'sum',
+      title: 'Sum — Mixed Units',
+      desc: 'val1 = 10 m\nval2 = 20 cm\nsum',
+      content: `# Sum example\nval1 = 10 m\nval2 = 20 cm\nval3 = 50 cm\nsum`,
+    },
+    {
+      id: 'table',
+      title: 'Table — CSV import & query',
+      desc: 'Instructions for using demo dataset',
+      content: `# Table demo\n# Upload a CSV (or use demo.csv). After import try:\n# sum price from demo where qty > 2\n# count order_id from demo where region == 'North'`,
+    },
+    {
+      id: 'dataplot',
+      title: 'Data Plot — avg price per region',
+      desc: 'Example for data-driven plotting',
+      content: `# Data Plot demo\n# Import 'demo.csv' (provided) or your own dataset named 'demo'.\n# Use query() to compute aggregates inside expressions.\navgPriceNorth = query('demo', 'avg price where region == "North"')\nf(x) = avgPriceNorth + sin(x)`,
+    },
+    {
+      id: 'conv_all',
+      title: 'Conversions — Mixed examples',
+      desc: 'Collection of common conversions (weight, pressure, area, volume, force, mass, temperature, currency)',
+      content: `# Conversions example\n# Weight\n30 lb in kg\n\n# Pressure\n14.7 psi in bar\n\n# Area\n200 in^2 in cm^2\n\n# Volume\n1 gal in L\n\n# Force\n10 lbf in N\n\n# Mass (imperial)\n1 slug in kg\n\n# Temperature (F <-> C)\n# If your environment doesn't have F/C units defined, a manual formula is provided below\n100 F in C\n# Manual (formula) alternative:\n(100 - 32) * 5/9\n\n# Currency\n100 EUR in USD\n\n# Mixed units and sum\na = 20 cm\nb = 0.5 m\nc = 3 in\n# list values then an explicit 'sum' line to show block sum\na\nb\nc\nsum\n# Convert sum to m\nsum in m`,
+    },
   ];
 
   function loadSettings() {
@@ -242,7 +309,7 @@ const app = (() => {
         midnight: ['#0ea5e9', '#7c3aed', '#60a5fa', '#94a3b8', '#111827'],
         solarized: ['#268bd2', '#2aa198', '#b58900', '#cb4b16', '#6c71c4'],
         ocean: ['#2b6cb0', '#38b2ac', '#2c7a7b', '#2a4365', '#81e6d9'],
-        monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db']
+        monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db'],
       };
       const p = palettes[settings.colorScheme] || palettes.default;
       // set CSS variables for use in UI or for palette preview
@@ -261,7 +328,9 @@ const app = (() => {
       const html = document.documentElement;
       if (settings.accessibility && settings.accessibility.largeText) {
         // scale the entire page for larger text to ensure all UI elements enlarge
-        try { document.body.style.zoom = '1.3'; } catch (e) {
+        try {
+          document.body.style.zoom = '1.3';
+        } catch (e) {
           // fallback: increase editor/backdrop font sizes
           const editorEl = document.getElementById('editor');
           const backEls = document.querySelectorAll('.editor-font');
@@ -269,7 +338,9 @@ const app = (() => {
           backEls.forEach((el) => (el.style.fontSize = '17px'));
         }
       } else {
-        try { document.body.style.zoom = ''; } catch (e) {
+        try {
+          document.body.style.zoom = '';
+        } catch (e) {
           const editorEl = document.getElementById('editor');
           const backEls = document.querySelectorAll('.editor-font');
           if (editorEl) editorEl.style.fontSize = '';
@@ -286,7 +357,9 @@ const app = (() => {
 
     saveSettings();
     // re-render to pick up font/format changes
-    try { handleInput(); } catch (e) {}
+    try {
+      handleInput();
+    } catch (e) {}
   }
 
   function setSettings(next) {
@@ -312,23 +385,25 @@ const app = (() => {
       if (typeof renderDatasetPreview === 'function') {
         renderDatasetPreview(name, 10);
       }
-      try { localStorage.setItem('livecalc:lastDataset', name); } catch (e) {}
+      try {
+        localStorage.setItem('livecalc:lastDataset', name);
+      } catch (e) {}
     } catch (e) {}
     return true;
   }
 
-  function parseCSV(text, delim = ",") {
-    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+  function parseCSV(text, delim = ',') {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
     if (lines.length === 0) return [];
     const headers = lines[0].split(delim).map((h) => h.trim());
     const rows = lines.slice(1).map((ln) => {
       const parts = ln.split(delim).map((p) => p.trim());
       const obj = {};
       for (let i = 0; i < headers.length; i++) {
-        let v = parts[i] === undefined ? "" : parts[i];
+        let v = parts[i] === undefined ? '' : parts[i];
         // try number
-        const num = Number(v.replace(/,/g, ""));
-        obj[headers[i]] = isFinite(num) && v !== "" ? num : v;
+        const num = Number(v.replace(/,/g, ''));
+        obj[headers[i]] = isFinite(num) && v !== '' ? num : v;
       }
       return obj;
     });
@@ -337,7 +412,7 @@ const app = (() => {
 
   function parseXML(text) {
     try {
-      const doc = new DOMParser().parseFromString(text, "text/xml");
+      const doc = new DOMParser().parseFromString(text, 'text/xml');
       // find the first repeating child collection
       const root = doc.documentElement;
       // find child node name which repeats
@@ -347,7 +422,11 @@ const app = (() => {
         counts[n] = (counts[n] || 0) + 1;
       }
       let repeated = null;
-      for (const k in counts) if (counts[k] > 1) { repeated = k; break; }
+      for (const k in counts)
+        if (counts[k] > 1) {
+          repeated = k;
+          break;
+        }
       const arr = [];
       if (repeated) {
         const elems = root.getElementsByTagName(repeated);
@@ -357,8 +436,8 @@ const app = (() => {
           for (let j = 0; j < e.children.length; j++) {
             const c = e.children[j];
             const txt = c.textContent.trim();
-            const num = Number(txt.replace(/,/g, ""));
-            obj[c.nodeName] = isFinite(num) && txt !== "" ? num : txt;
+            const num = Number(txt.replace(/,/g, ''));
+            obj[c.nodeName] = isFinite(num) && txt !== '' ? num : txt;
           }
           arr.push(obj);
         }
@@ -368,8 +447,8 @@ const app = (() => {
         for (let j = 0; j < root.children.length; j++) {
           const c = root.children[j];
           const txt = c.textContent.trim();
-          const num = Number(txt.replace(/,/g, ""));
-          obj[c.nodeName] = isFinite(num) && txt !== "" ? num : txt;
+          const num = Number(txt.replace(/,/g, ''));
+          obj[c.nodeName] = isFinite(num) && txt !== '' ? num : txt;
         }
         return [obj];
       }
@@ -384,14 +463,18 @@ const app = (() => {
   // avg value from dataset where col == 'x'
   function runSimpleQuery(op, col, datasetName, whereExpr) {
     const data = datasets[datasetName];
-    if (!data || !Array.isArray(data)) throw new Error("Dataset not found: " + datasetName);
+    if (!data || !Array.isArray(data)) throw new Error('Dataset not found: ' + datasetName);
     let rows = data;
     if (whereExpr) {
       // very small sandbox: create a function with r in scope
       try {
         const fn = new Function('r', 'with(r){ return (' + whereExpr + '); }');
         rows = rows.filter((r) => {
-          try { return !!fn(r); } catch (e) { return false; }
+          try {
+            return !!fn(r);
+          } catch (e) {
+            return false;
+          }
         });
       } catch (e) {
         throw new Error('Invalid where expression');
@@ -399,12 +482,14 @@ const app = (() => {
     }
     if (op === 'count') return rows.length;
     if (!col) throw new Error('No column specified');
-    const vals = rows.map((r) => {
-      const v = r[col];
-      return typeof v === 'number' ? v : Number(String(v).replace(/[^0-9.-]+/g, ''));
-    }).filter((v) => isFinite(v));
+    const vals = rows
+      .map((r) => {
+        const v = r[col];
+        return typeof v === 'number' ? v : Number(String(v).replace(/[^0-9.-]+/g, ''));
+      })
+      .filter((v) => isFinite(v));
     if (op === 'sum') return vals.reduce((a, b) => a + b, 0);
-    if (op === 'avg') return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+    if (op === 'avg') return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
     if (op === 'min') return vals.length ? Math.min(...vals) : null;
     if (op === 'max') return vals.length ? Math.max(...vals) : null;
     throw new Error('Unsupported op: ' + op);
@@ -416,7 +501,9 @@ const app = (() => {
     if (!datasetName) throw new Error('Missing dataset name');
     if (!qstring) throw new Error('Missing query string');
     // allow calling with either (ds, "sum price where ...") or (ds, "sum(price) where ...")
-    const m = qstring.match(/^\s*(sum|avg|min|max|count)\s*(?:\(|\s+)?\s*([A-Za-z_][A-Za-z0-9_]*)?\s*(?:\))?\s*(?:where\s+(.+))?$/i);
+    const m = qstring.match(
+      /^\s*(sum|avg|min|max|count)\s*(?:\(|\s+)?\s*([A-Za-z_][A-Za-z0-9_]*)?\s*(?:\))?\s*(?:where\s+(.+))?$/i
+    );
     if (!m) throw new Error('Invalid query string');
     const op = m[1].toLowerCase();
     const col = m[2];
@@ -426,32 +513,32 @@ const app = (() => {
 
   // Normalize common currency symbols and compact notations to unit names
   function normalizeCurrencySymbols(s) {
-    if (!s || typeof s !== "string") return s;
+    if (!s || typeof s !== 'string') return s;
     // Replace euro sign after number: 300€ -> 300 EUR
-    s = s.replace(/(\d[\d\.,]*)\s*€/g, "$1 EUR");
+    s = s.replace(/(\d[\d\.,]*)\s*€/g, '$1 EUR');
     // Replace pound sign after number: 100£ -> 100 GBP
-    s = s.replace(/(\d[\d\.,]*)\s*£/g, "$1 GBP");
+    s = s.replace(/(\d[\d\.,]*)\s*£/g, '$1 GBP');
     // Dollar sign before or after number: $300 or 300$ -> 300 USD
-    s = s.replace(/\$(\d[\d\.,]*)/g, "$1 USD");
-    s = s.replace(/(\d[\d\.,]*)\s*\$/g, "$1 USD");
+    s = s.replace(/\$(\d[\d\.,]*)/g, '$1 USD');
+    s = s.replace(/(\d[\d\.,]*)\s*\$/g, '$1 USD');
     // Yen symbol
-    s = s.replace(/(\d[\d\.,]*)\s*¥/g, "$1 JPY");
+    s = s.replace(/(\d[\d\.,]*)\s*¥/g, '$1 JPY');
     // Common abbreviations with no space: 100USD -> 100 USD
     s = s.replace(/(\d)\s*(USD|EUR|GBP|JPY|CHF)\b/gi, function (m, a, b) {
-      return a + " " + b.toUpperCase();
+      return a + ' ' + b.toUpperCase();
     });
     return s;
   }
 
   // Initialize section states from localStorage
   function initSectionStates() {
-    ['graph', 'variables', 'dataset', 'examples', 'history'].forEach(section => {
+    ['graph', 'variables', 'dataset', 'examples', 'history'].forEach((section) => {
       try {
         const state = localStorage.getItem('livecalc:section:' + section);
         const content = document.getElementById(section + 'Content');
         const icon = document.getElementById(section + 'ToggleIcon');
         const header = icon?.closest('.section-header');
-        
+
         if (state === 'collapsed') {
           if (content && icon) {
             content.classList.add('collapsed');
@@ -480,7 +567,9 @@ const app = (() => {
       list.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">No examples available</div>';
       return;
     }
-    list.innerHTML = examples.map(ex => `
+    list.innerHTML = examples
+      .map(
+        (ex) => `
       <div class="flex items-start justify-between gap-2 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
         <div class="flex-1">
           <div class="text-xs font-semibold text-gray-700 dark:text-gray-200">${escapeHtml(ex.title)}</div>
@@ -491,20 +580,28 @@ const app = (() => {
           <button onclick="(function(id){ if(window.app && window.app.insertExampleToEditor) window.app.insertExampleToEditor(id); })('${ex.id}')" class="text-[10px] bg-gray-50 text-gray-700 px-2 py-0.5 rounded">Insert</button>
         </div>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
   }
 
   function loadExample(id) {
-    const ex = examples.find(e => e.id === id);
-    if (!ex) { showToast('Example not found'); return; }
+    const ex = examples.find((e) => e.id === id);
+    if (!ex) {
+      showToast('Example not found');
+      return;
+    }
     editor.value = ex.content;
     handleInput();
     showToast('Loaded example: ' + ex.title);
   }
 
   function insertExampleToEditor(id) {
-    const ex = examples.find(e => e.id === id);
-    if (!ex) { showToast('Example not found'); return; }
+    const ex = examples.find((e) => e.id === id);
+    if (!ex) {
+      showToast('Example not found');
+      return;
+    }
     insert('\n' + ex.content + '\n');
     showToast('Inserted example: ' + ex.title);
   }
@@ -513,7 +610,9 @@ const app = (() => {
   function tryDecodeHash(hash) {
     if (!hash) return '';
     const candidates = [hash];
-    try { candidates.push(decodeURIComponent(hash)); } catch (e) {}
+    try {
+      candidates.push(decodeURIComponent(hash));
+    } catch (e) {}
     for (const c of candidates) {
       if (!c) continue;
       try {
@@ -561,21 +660,35 @@ const app = (() => {
   // Robust base64 <-> UTF8 helpers
   function utf8_to_b64(str) {
     try {
-      return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
-        return String.fromCharCode('0x' + p1);
-      }));
+      return btoa(
+        encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function (match, p1) {
+          return String.fromCharCode('0x' + p1);
+        })
+      );
     } catch (e) {
-      try { return btoa(unescape(encodeURIComponent(str))); } catch (e2) { return ''; }
+      try {
+        return btoa(unescape(encodeURIComponent(str)));
+      } catch (e2) {
+        return '';
+      }
     }
   }
 
   function b64_to_utf8(b64) {
     try {
-      return decodeURIComponent(Array.prototype.map.call(atob(b64), function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
+      return decodeURIComponent(
+        Array.prototype.map
+          .call(atob(b64), function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join('')
+      );
     } catch (e) {
-      try { return decodeURIComponent(escape(atob(b64))); } catch (e2) { return ''; }
+      try {
+        return decodeURIComponent(escape(atob(b64)));
+      } catch (e2) {
+        return '';
+      }
     }
   }
 
@@ -587,10 +700,10 @@ const app = (() => {
 
     applyTheme();
     applySettings();
-    
+
     // Load history on init
     renderHistory();
-    
+
     // Initialize section collapse states (defer to next tick to allow DOM to be ready)
     setTimeout(() => {
       initSectionStates();
@@ -610,18 +723,21 @@ const app = (() => {
             editor.value = decoded;
           } else {
             // last attempt using legacy helper
-            try { editor.value = b64_to_utf8(hash); } catch (e) { console.error('hash decode failed', e); }
+            try {
+              editor.value = b64_to_utf8(hash);
+            } catch (e) {
+              console.error('hash decode failed', e);
+            }
           }
         } catch (e) {
           console.error(e);
         }
       } else {
-        
       }
     }
-      // Default welcome text (only if editor is still empty after loading)
-      if (!editor.value || editor.value.trim() === '') {
-        editor.value = `# Welcome to LiveCalc Pro!
+    // Default welcome text (only if editor is still empty after loading)
+    if (!editor.value || editor.value.trim() === '') {
+      editor.value = `# Welcome to LiveCalc Pro!
 # Variables, Units, and Functions are supported.
 
 radius = 5 cm
@@ -638,13 +754,13 @@ g(x) = x^2 / 10
 
 # Use 'sum' to total previous blocks
 sum`;
-      }
+    }
 
     // Attach listeners
-    editor.addEventListener("input", handleInput);
-    editor.addEventListener("scroll", syncScroll);
-    editor.addEventListener("keydown", handleKeydown); // For tab support
-    window.addEventListener("resize", () => {
+    editor.addEventListener('input', handleInput);
+    editor.addEventListener('scroll', syncScroll);
+    editor.addEventListener('keydown', handleKeydown); // For tab support
+    window.addEventListener('resize', () => {
       plotFunctions();
     });
 
@@ -655,19 +771,31 @@ sum`;
         const f = ev.target.files && ev.target.files[0];
         if (!f) return;
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = function (e) {
           const text = e.target.result;
           const nameParts = (f.name || 'dataset').split('.');
           const ext = (nameParts.pop() || '').toLowerCase();
           let data = [];
           try {
-            if (ext === 'csv' || f.type === 'text/csv') data = parseCSV(text, ',');
+            const csvDelim = (function () {
+              const d = settings && settings.csvDelimiter;
+              if (d === 'semicolon') return ';';
+              if (d === 'tab') return '\t';
+              if (d === 'pipe') return '|';
+              if (d === 'comma') return ',';
+              return ','; // auto or default
+            })();
+            if (ext === 'csv' || f.type === 'text/csv') data = parseCSV(text, csvDelim);
             else if (ext === 'tsv' || f.type === 'text/tab-separated-values') data = parseCSV(text, '\t');
             else if (ext === 'json' || f.type === 'application/json') data = JSON.parse(text);
             else if (ext === 'xml' || f.type === 'text/xml' || f.type === 'application/xml') data = parseXML(text);
             else {
               // try JSON first
-              try { data = JSON.parse(text); } catch (e) { data = parseCSV(text, ','); }
+              try {
+                data = JSON.parse(text);
+              } catch (e) {
+                data = parseCSV(text, ',');
+              }
             }
           } catch (e) {
             showToast('Failed to parse file');
@@ -680,7 +808,9 @@ sum`;
           let dsName = base.replace(/[^A-Za-z0-9_]/g, '_');
           let attempt = dsName;
           let i = 1;
-          while (datasets[attempt]) { attempt = dsName + '_' + (i++); }
+          while (datasets[attempt]) {
+            attempt = dsName + '_' + i++;
+          }
           dsName = attempt;
           // prompt user to rename (non-blocking)
           const custom = prompt('Dataset name', dsName);
@@ -694,30 +824,35 @@ sum`;
       });
     }
 
-      // Dataset list + preview controls wiring
-      if (typeof renderDatasetList === 'function') renderDatasetList();
-      const datasetSelect = document.getElementById('datasetSelect');
-      const previewRowsSelect = document.getElementById('previewRowsSelect');
-      if (datasetSelect) {
-        // ensure change handled also if renderDatasetList didn't attach
-        datasetSelect.addEventListener('change', () => {
-          const v = datasetSelect.value;
-          try { localStorage.setItem('livecalc:lastDataset', v); } catch (e) {}
-          if (v) renderDatasetPreview(v, previewRowsSelect ? previewRowsSelect.value : 10);
-        });
-      }
-      if (previewRowsSelect) previewRowsSelect.addEventListener('change', () => {
+    // Dataset list + preview controls wiring
+    if (typeof renderDatasetList === 'function') renderDatasetList();
+    const datasetSelect = document.getElementById('datasetSelect');
+    const previewRowsSelect = document.getElementById('previewRowsSelect');
+    if (datasetSelect) {
+      // ensure change handled also if renderDatasetList didn't attach
+      datasetSelect.addEventListener('change', () => {
+        const v = datasetSelect.value;
+        try {
+          localStorage.setItem('livecalc:lastDataset', v);
+        } catch (e) {}
+        if (v) renderDatasetPreview(v, previewRowsSelect ? previewRowsSelect.value : 10);
+      });
+    }
+    if (previewRowsSelect)
+      previewRowsSelect.addEventListener('change', () => {
         const v = previewRowsSelect.value;
         const sel = datasetSelect || document.getElementById('datasetSelect');
         const ds = sel ? sel.value : lastPreviewedDataset;
         if (ds) renderDatasetPreview(ds, v);
       });
 
-      // Render examples list
-      try { renderExamples(); } catch (e) {}
+    // Render examples list
+    try {
+      renderExamples();
+    } catch (e) {}
 
-      restoreSidebarState();
-      window.addEventListener('resize', syncSidebarToggleUi);
+    restoreSidebarState();
+    window.addEventListener('resize', syncSidebarToggleUi);
 
     // Initial render (don't update URL during this first pass)
     handleInput();
@@ -736,11 +871,19 @@ sum`;
     // 0. Update auto-detected decimal places from current input
     _autoDecimalPlaces = detectInputDecimalPlaces(editor.value);
 
+    // 0b. If comma-as-decimal is configured, pre-substitute before eval
+    let editorValue = editor.value;
+    if (settings && settings.decimalSeparator === ',') {
+      // Replace decimal commas (e.g. 1,23) with dots, but leave function-arg commas alone.
+      // Strategy: only replace comma that is surrounded by digits on both sides.
+      editorValue = editorValue.replace(/(\d),(\d)/g, '$1.$2');
+    }
+
     // 1. Evaluate Math
-    const results = evalMath(editor.value);
+    const results = evalMath(editorValue);
 
     // 2. Update Backdrop (Syntax Highlight + Results)
-    renderBackdrop(editor.value, results);
+    renderBackdrop(editorValue, results);
 
     // 3. Update Line Numbers
     renderLineNumbers(editor.value);
@@ -765,17 +908,17 @@ sum`;
     } catch (e) {}
     // expose explicit query function in parser scope
     try {
-      parser.set('query', function(dsName, q) {
-        try { return queryHelper(dsName, q); } catch (e) { throw new Error(e.message); }
+      parser.set('query', function (dsName, q) {
+        try {
+          return queryHelper(dsName, q);
+        } catch (e) {
+          throw new Error(e.message);
+        }
       });
     } catch (e) {}
-    let lines = code.split("\n");
+    let lines = code.split('\n');
     // collect function RHS strings (f(x) = expr) so we can pass raw expressions to function-plot
     const functionDefs = {};
-
-    // Pre-process for comma decimals if needed (European support simple check)
-    // Note: this breaks function arguments like max(1,2) if not careful.
-    // We'll skip aggressive replacement for now to keep functions working.
 
     let outputLines = [];
 
@@ -792,10 +935,10 @@ sum`;
       const trimmed = line.trim();
 
       // Skip empty or comments for eval
-      if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) {
+      if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) {
         outputLines.push(null);
         // blank line resets block sum
-        if (trimmed === "") {
+        if (trimmed === '') {
           blockSum = null;
           blockSumIsUnit = false;
           blockSumIsCurrency = false;
@@ -805,9 +948,7 @@ sum`;
       }
 
       // Detect function definition like f(x) = expr and capture RHS for plotting
-      const fnMatch = trimmed.match(
-        /^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)\s*=\s*(.+)$/,
-      );
+      const fnMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)\s*=\s*(.+)$/);
       if (fnMatch) {
         const name = fnMatch[1];
         const expr = fnMatch[3];
@@ -816,7 +957,7 @@ sum`;
           parser.evaluate(trimmed); // register function in scope
           outputLines.push(null);
         } catch (e) {
-          outputLines.push({ value: e.message, type: "error" });
+          outputLines.push({ value: e.message, type: 'error' });
         }
         continue;
       }
@@ -826,7 +967,9 @@ sum`;
       if (assignMatch) {
         const varName = assignMatch[1];
         const rhs = assignMatch[2].trim();
-        const qMatch2 = rhs.match(/^(sum|avg|min|max|count)\s+([A-Za-z_][A-Za-z0-9_]*)\s+from\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+where\s+(.+))?$/i);
+        const qMatch2 = rhs.match(
+          /^(sum|avg|min|max|count)\s+([A-Za-z_][A-Za-z0-9_]*)\s+from\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+where\s+(.+))?$/i
+        );
         if (qMatch2) {
           // run query and assign into parser scope
           try {
@@ -836,10 +979,12 @@ sum`;
             const where = qMatch2[4];
             const val = runSimpleQuery(op, col, ds, where);
             // set in parser so subsequent lines can use it
-            try { parser.set(varName, val); } catch (e) {}
-            outputLines.push({ value: String(val), type: "result" });
+            try {
+              parser.set(varName, val);
+            } catch (e) {}
+            outputLines.push({ value: String(val), type: 'result' });
           } catch (e) {
-            outputLines.push({ value: e.message, type: "error" });
+            outputLines.push({ value: e.message, type: 'error' });
           }
           continue;
         }
@@ -863,9 +1008,9 @@ sum`;
           } else {
             display = math.format(blockSum, { precision: 14 });
           }
-          outputLines.push({ value: display, type: "sum" });
+          outputLines.push({ value: display, type: 'sum' });
         } catch (e) {
-          outputLines.push({ value: e.message, type: "error" });
+          outputLines.push({ value: e.message, type: 'error' });
         }
         // Reset block sum
         blockSum = null;
@@ -876,7 +1021,9 @@ sum`;
       }
 
       // Check for simple query syntax: op col from dataset [where expr]
-      const qMatch = trimmed.match(/^(sum|avg|min|max|count)\s+([A-Za-z_][A-Za-z0-9_]*)\s+from\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+where\s+(.+))?$/i);
+      const qMatch = trimmed.match(
+        /^(sum|avg|min|max|count)\s+([A-Za-z_][A-Za-z0-9_]*)\s+from\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+where\s+(.+))?$/i
+      );
       if (qMatch) {
         const op = qMatch[1].toLowerCase();
         const col = qMatch[2];
@@ -895,32 +1042,32 @@ sum`;
       const convMatch = trimmed.match(/^(.+?)\s+in\s+([A-Za-z0-9^_\-]+)$/i);
       if (convMatch) {
         const leftExpr = convMatch[1].trim();
-          const rawTarget = convMatch[2].trim();
-          // Temperature heuristic: allow converting plain numeric temperatures even if units aren't registered
-          const tempMatch = leftExpr.match(/^\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*(°?F|F|°?C|C|K)\s*$/i);
-          if (tempMatch) {
-            try {
-              const num = Number(tempMatch[1]);
-              const src = tempMatch[2].replace('°', '').toUpperCase();
-              const tgt = rawTarget.replace('°', '').toUpperCase();
-              let celsius;
-              if (src === 'F') celsius = (num - 32) * 5/9;
-              else if (src === 'K') celsius = num - 273.15;
-              else celsius = num; // already C
-              let out;
-              if (tgt === 'C') out = celsius;
-              else if (tgt === 'F') out = celsius * 9/5 + 32;
-              else if (tgt === 'K') out = celsius + 273.15;
-              if (typeof out !== 'undefined') {
-                outputLines.push({ value: formatResult(out) + ' ' + tgt, type: 'result' });
-                continue;
-              }
-            } catch (e) {
-              // fallthrough to normal conversion logic
+        const rawTarget = convMatch[2].trim();
+        // Temperature heuristic: allow converting plain numeric temperatures even if units aren't registered
+        const tempMatch = leftExpr.match(/^\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*(°?F|F|°?C|C|K)\s*$/i);
+        if (tempMatch) {
+          try {
+            const num = Number(tempMatch[1]);
+            const src = tempMatch[2].replace('°', '').toUpperCase();
+            const tgt = rawTarget.replace('°', '').toUpperCase();
+            let celsius;
+            if (src === 'F') celsius = ((num - 32) * 5) / 9;
+            else if (src === 'K') celsius = num - 273.15;
+            else celsius = num; // already C
+            let out;
+            if (tgt === 'C') out = celsius;
+            else if (tgt === 'F') out = (celsius * 9) / 5 + 32;
+            else if (tgt === 'K') out = celsius + 273.15;
+            if (typeof out !== 'undefined') {
+              outputLines.push({ value: formatResult(out) + ' ' + tgt, type: 'result' });
+              continue;
             }
+          } catch (e) {
+            // fallthrough to normal conversion logic
           }
-          // Try sensible target candidates (user may type 'kg', 'KG', 'm^2', etc.)
-          const candidates = [rawTarget, rawTarget.toLowerCase(), rawTarget.toUpperCase()];
+        }
+        // Try sensible target candidates (user may type 'kg', 'KG', 'm^2', etc.)
+        const candidates = [rawTarget, rawTarget.toLowerCase(), rawTarget.toUpperCase()];
         try {
           let val;
           try {
@@ -971,7 +1118,10 @@ sum`;
           }
 
           if (!success) {
-            outputLines.push({ value: 'Conversion failed: incompatible or unknown unit "' + rawTarget + '"', type: 'error' });
+            outputLines.push({
+              value: 'Conversion failed: incompatible or unknown unit "' + rawTarget + '"',
+              type: 'error',
+            });
           }
         } catch (e) {
           outputLines.push({ value: 'Conversion error: ' + (e && e.message ? e.message : String(e)), type: 'error' });
@@ -987,7 +1137,7 @@ sum`;
           // Format result
           let formatted = formatResult(res);
           // Store for display
-          outputLines.push({ value: formatted, type: "result" });
+          outputLines.push({ value: formatted, type: 'result' });
 
           // Update Sums logic
           // Accumulate numbers and units while preserving correct conversions
@@ -1027,7 +1177,7 @@ sum`;
                   }
                 }
               }
-            } else if (typeof res === "number" || (res && res.isBigNumber)) {
+            } else if (typeof res === 'number' || (res && res.isBigNumber)) {
               // Numeric add
               const num = res && res.isBigNumber ? res : math.bignumber(res);
               if (blockSum === null) {
@@ -1048,7 +1198,7 @@ sum`;
           outputLines.push(null); // Valid execution but no output (e.g. assignment)
         }
       } catch (err) {
-        outputLines.push({ value: err.message, type: "error" });
+        outputLines.push({ value: err.message, type: 'error' });
       }
     }
 
@@ -1061,7 +1211,7 @@ sum`;
     const funcs = {};
 
     for (const [key, val] of Object.entries(scope)) {
-      if (typeof val === "function" && !isBuiltIn(key)) {
+      if (typeof val === 'function' && !isBuiltIn(key)) {
         // Prefer the RHS string we parsed earlier for plotting
         if (functionDefs[key]) {
           funcs[key] = functionDefs[key];
@@ -1083,7 +1233,7 @@ sum`;
   }
 
   function renderBackdrop(code, evalData) {
-    const lines = code.split("\n");
+    const lines = code.split('\n');
     // Build DOM fragment to avoid HTML-entity rendering issues for result text
     const frag = document.createDocumentFragment();
 
@@ -1122,9 +1272,9 @@ sum`;
   }
 
   function highlightSyntax(line) {
-    if (!line) return "";
+    if (!line) return '';
     // Comments
-    if (line.trim().startsWith("#") || line.trim().startsWith("//")) {
+    if (line.trim().startsWith('#') || line.trim().startsWith('//')) {
       return `<span class="token-comment">${escapeHtml(line)}</span>`;
     }
 
@@ -1132,11 +1282,10 @@ sum`;
 
     // Tokenize the line to avoid replacing inside injected HTML
     // Token types: whitespace, identifiers, numbers, operators, punctuation
-    const tokenRE =
-      /(\s+|[A-Za-z_][A-Za-z0-9_]*|\d+\.\d+|\d+|==|!=|<=|>=|\+|\-|\*|\/|\^|=|\(|\)|\[|\]|,|;|\.|%)/g;
+    const tokenRE = /(\s+|[A-Za-z_][A-Za-z0-9_]*|\d+\.\d+|\d+|==|!=|<=|>=|\+|\-|\*|\/|\^|=|\(|\)|\[|\]|,|;|\.|%)/g;
     const tokens = escaped.match(tokenRE) || [escaped];
 
-    let out = "";
+    let out = '';
     for (let i = 0; i < tokens.length; i++) {
       const tok = tokens[i];
       if (/^\s+$/.test(tok)) {
@@ -1163,7 +1312,7 @@ sum`;
         let k = i + 1;
         // skip whitespace tokens between identifier and '=' (tokens array already separates whitespace)
         while (k < tokens.length && /^\s+$/.test(tokens[k])) k++;
-        if (k < tokens.length && tokens[k] === "=") {
+        if (k < tokens.length && tokens[k] === '=') {
           const prettyId = toPrettyUnits(tok);
           out += `<span class="token-variable">${prettyId}</span>`;
         } else {
@@ -1179,8 +1328,8 @@ sum`;
   }
 
   function renderLineNumbers(code) {
-    const count = code.split("\n").length;
-    let html = "";
+    const count = code.split('\n').length;
+    let html = '';
     for (let i = 1; i <= count; i++) {
       html += `<div>${i}</div>`;
     }
@@ -1190,7 +1339,7 @@ sum`;
   function updateVariables(vars, funcs) {
     const keys = Object.keys(vars).sort();
     const funcKeys = Object.keys(funcs).sort();
-    varCount.textContent = keys.length + funcKeys.length + " defined";
+    varCount.textContent = keys.length + funcKeys.length + ' defined';
 
     if (keys.length === 0 && funcKeys.length === 0) {
       variablesList.innerHTML =
@@ -1198,7 +1347,7 @@ sum`;
       return;
     }
 
-    let html = "";
+    let html = '';
 
     // Variables
     keys.forEach((key) => {
@@ -1312,7 +1461,7 @@ sum`;
     }
 
     // Determine rounding: explicit setting takes priority; null = use auto-detection.
-    const explicitRd = (settings && typeof settings.roundDecimals === 'number') ? settings.roundDecimals : null;
+    const explicitRd = settings && typeof settings.roundDecimals === 'number' ? settings.roundDecimals : null;
     const rd = explicitRd; // null means "auto"
 
     // BigNumber
@@ -1351,10 +1500,14 @@ sum`;
     // Objects/arrays/matrices -> try math.format for readable output (handles matrices)
     if (typeof res === 'object') {
       try {
-        const fmt = (rd !== null) ? math.format(res, { precision: rd }) : math.format(res);
+        const fmt = rd !== null ? math.format(res, { precision: rd }) : math.format(res);
         return toPrettyUnits(String(fmt));
       } catch (e) {
-        try { return JSON.stringify(res).replace(/"/g,''); } catch (e2) { return String(res); }
+        try {
+          return JSON.stringify(res).replace(/"/g, '');
+        } catch (e2) {
+          return String(res);
+        }
       }
     }
 
@@ -1366,37 +1519,37 @@ sum`;
   }
 
   function syncSidebarToggleUi() {
-    const toggleBtn = document.getElementById("sidebarToggle");
-    const toggleIcon = document.getElementById("sidebarToggleIcon");
-    const overlay = document.getElementById("sidebarOverlay");
-    const desktopCollapsed = !!(gridLayout && gridLayout.classList.contains("sidebar-collapsed"));
-    const mobileOpen = sidebar.classList.contains("open");
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const toggleIcon = document.getElementById('sidebarToggleIcon');
+    const overlay = document.getElementById('sidebarOverlay');
+    const desktopCollapsed = !!(gridLayout && gridLayout.classList.contains('sidebar-collapsed'));
+    const mobileOpen = sidebar.classList.contains('open');
     const visible = isDesktopViewport() ? !desktopCollapsed : mobileOpen;
 
-    sidebar.setAttribute("aria-hidden", visible ? "false" : "true");
+    sidebar.setAttribute('aria-hidden', visible ? 'false' : 'true');
 
     if (toggleBtn) {
-      toggleBtn.setAttribute("aria-expanded", visible ? "true" : "false");
-      toggleBtn.setAttribute("aria-label", visible ? "Hide sidebar" : "Show sidebar");
-      toggleBtn.title = visible ? "Hide sidebar" : "Show sidebar";
+      toggleBtn.setAttribute('aria-expanded', visible ? 'true' : 'false');
+      toggleBtn.setAttribute('aria-label', visible ? 'Hide sidebar' : 'Show sidebar');
+      toggleBtn.title = visible ? 'Hide sidebar' : 'Show sidebar';
     }
 
     if (toggleIcon) {
-      toggleIcon.textContent = visible ? "right_panel_close" : "right_panel_open";
+      toggleIcon.textContent = visible ? 'right_panel_close' : 'right_panel_open';
     }
 
     if (overlay) {
-      overlay.classList.toggle("hidden", isDesktopViewport() || !mobileOpen);
+      overlay.classList.toggle('hidden', isDesktopViewport() || !mobileOpen);
     }
   }
 
   function restoreSidebarState() {
     if (gridLayout) {
-      const desktopCollapsed = localStorage.getItem("livecalc:sidebarCollapsed") === "true";
-      gridLayout.classList.toggle("sidebar-collapsed", desktopCollapsed);
+      const desktopCollapsed = localStorage.getItem('livecalc:sidebarCollapsed') === 'true';
+      gridLayout.classList.toggle('sidebar-collapsed', desktopCollapsed);
     }
 
-    sidebar.classList.remove("open");
+    sidebar.classList.remove('open');
     syncSidebarToggleUi();
   }
 
@@ -1421,7 +1574,7 @@ sum`;
     const targets = [];
     for (const [name, fn] of Object.entries(funcs)) {
       // fn may be a string expression (preferred) or a function object (fallback)
-      const expr = typeof fn === "string" ? fn : `${name}(x)`;
+      const expr = typeof fn === 'string' ? fn : `${name}(x)`;
       targets.push({ fn: expr, color: getRandomColor(name) });
     }
 
@@ -1434,7 +1587,7 @@ sum`;
     // Debounce or check diff? FunctionPlot is fast enough for small counts.
     try {
       functionPlot({
-        target: "#plot",
+        target: '#plot',
         width: containerWidth,
         height: containerHeight,
         grid: true,
@@ -1459,9 +1612,9 @@ sum`;
     const emptyState = document.getElementById('datasetEmptyState');
     const head = document.getElementById('datasetPreviewHead');
     const body = document.getElementById('datasetPreviewBody');
-    
+
     if (!table || !head || !body || !emptyState) return;
-    
+
     const data = datasets[name];
     if (!data || !Array.isArray(data)) {
       table.classList.add('hidden');
@@ -1469,18 +1622,38 @@ sum`;
       emptyState.textContent = 'Dataset not found';
       return;
     }
-    
+
     const n = Math.max(0, Number(rowsCount) || 10);
     const rows = data.slice(0, n);
-    
+
     // Build header from keys of first row
-    const keys = rows.length ? Object.keys(rows[0]) : (data.length ? Object.keys(data[0]) : []);
-    head.innerHTML = '<tr>' + keys.map(k => `<th class="text-left px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">${escapeHtml(k)}</th>`).join('') + '</tr>';
-    body.innerHTML = rows.map(r => '<tr class="hover:bg-gray-50 dark:hover:bg-gray-800">' + keys.map(k => `<td class="px-2 py-1 text-xs text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800">${escapeHtml(String(r[k] === undefined ? '' : r[k]))}</td>`).join('') + '</tr>').join('');
-    
+    const keys = rows.length ? Object.keys(rows[0]) : data.length ? Object.keys(data[0]) : [];
+    head.innerHTML =
+      '<tr>' +
+      keys
+        .map(
+          (k) =>
+            `<th class="text-left px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">${escapeHtml(k)}</th>`
+        )
+        .join('') +
+      '</tr>';
+    body.innerHTML = rows
+      .map(
+        (r) =>
+          '<tr class="hover:bg-gray-50 dark:hover:bg-gray-800">' +
+          keys
+            .map(
+              (k) =>
+                `<td class="px-2 py-1 text-xs text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800">${escapeHtml(String(r[k] === undefined ? '' : r[k]))}</td>`
+            )
+            .join('') +
+          '</tr>'
+      )
+      .join('');
+
     table.classList.remove('hidden');
     emptyState.classList.add('hidden');
-    
+
     // Expand the dataset section if collapsed
     const datasetContent = document.getElementById('datasetContent');
     if (datasetContent && datasetContent.classList.contains('collapsed')) {
@@ -1493,7 +1666,7 @@ sum`;
   function clearDatasetPreview() {
     const table = document.getElementById('datasetPreviewTable');
     const emptyState = document.getElementById('datasetEmptyState');
-    
+
     if (table) table.classList.add('hidden');
     if (emptyState) {
       emptyState.classList.remove('hidden');
@@ -1509,13 +1682,19 @@ sum`;
     const keys = Object.keys(datasets || {});
     // remember current value
     const cur = sel.value;
-    sel.innerHTML = '<option value="">Select dataset</option>' + keys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+    sel.innerHTML =
+      '<option value="">Select dataset</option>' +
+      keys.map((k) => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
     // restore previous selection if possible
-    let chosen = cur && keys.includes(cur) ? cur : (localStorage.getItem('livecalc:lastDataset') || (keys.length ? keys[0] : ''));
+    let chosen =
+      cur && keys.includes(cur) ? cur : localStorage.getItem('livecalc:lastDataset') || (keys.length ? keys[0] : '');
     if (chosen && keys.includes(chosen)) {
       sel.value = chosen;
       // render preview for chosen
-      renderDatasetPreview(chosen, document.getElementById('previewRowsSelect') ? document.getElementById('previewRowsSelect').value : 10);
+      renderDatasetPreview(
+        chosen,
+        document.getElementById('previewRowsSelect') ? document.getElementById('previewRowsSelect').value : 10
+      );
     }
     // change handler attached during init to avoid duplicates
   }
@@ -1525,18 +1704,24 @@ sum`;
   // ------------------------------------------------------------
   function toPrettyUnits(str) {
     if (!str || typeof str !== 'string') return str;
-    return str
-      // superscript 2/3 after unit letters (optionally with caret)
-      .replace(/\b([A-Za-z]{1,5})\^?2\b/g, '$1²')
-      .replace(/\b([A-Za-z]{1,5})\^?3\b/g, '$1³');
+    return (
+      str
+        // superscript 2/3 after unit letters (optionally with caret)
+        .replace(/\b([A-Za-z]{1,5})\^?2\b/g, '$1²')
+        .replace(/\b([A-Za-z]{1,5})\^?3\b/g, '$1³')
+    );
   }
 
   function prettyOperator(op) {
     switch (op) {
-      case '<=': return '≤';
-      case '>=': return '≥';
-      case '!=': return '≠';
-      default: return op;
+      case '<=':
+        return '≤';
+      case '>=':
+        return '≥';
+      case '!=':
+        return '≠';
+      default:
+        return op;
     }
   }
 
@@ -1557,26 +1742,26 @@ sum`;
 
   function updateHash(content) {
     if (suppressHashUpdate) return;
-    const hash = content ? utf8_to_b64(content) : "";
-    history.replaceState(null, null, "#" + hash);
+    const hash = content ? utf8_to_b64(content) : '';
+    history.replaceState(null, null, '#' + hash);
   }
 
   // -- Actions --
   function toggleTheme() {
     isDark = !isDark;
     applyTheme();
-    localStorage.setItem("theme", isDark ? "dark" : "light");
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
   }
 
   function applyTheme() {
     const html = document.documentElement;
-    const icon = document.querySelector(".theme-icon");
+    const icon = document.querySelector('.theme-icon');
     if (isDark) {
-      html.classList.add("dark");
-      icon.textContent = "light_mode";
+      html.classList.add('dark');
+      icon.textContent = 'light_mode';
     } else {
-      html.classList.remove("dark");
-      icon.textContent = "dark_mode";
+      html.classList.remove('dark');
+      icon.textContent = 'dark_mode';
     }
     // Re-render graph in next tick for style updates (grid colors)
     setTimeout(() => handleInput(), 50);
@@ -1593,8 +1778,8 @@ sum`;
   }
 
   function clear() {
-    if (confirm("Clear all text?")) {
-      editor.value = "";
+    if (confirm('Clear all text?')) {
+      editor.value = '';
       handleInput();
     }
   }
@@ -1603,11 +1788,11 @@ sum`;
     // Create text file
     let text = editor.value;
     // Append results? Maybe. Let's just download source for now.
-    const blob = new Blob([text], { type: "text/plain" });
+    const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = "calculation.txt";
+    a.download = 'calculation.txt';
     a.click();
   }
 
@@ -1616,33 +1801,33 @@ sum`;
 
     if (isDesktopViewport()) {
       if (gridLayout) {
-        const collapsed = gridLayout.classList.toggle("sidebar-collapsed");
-        localStorage.setItem("livecalc:sidebarCollapsed", collapsed ? "true" : "false");
+        const collapsed = gridLayout.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('livecalc:sidebarCollapsed', collapsed ? 'true' : 'false');
         open = !collapsed;
       }
     } else {
-      open = sidebar.classList.toggle("open");
+      open = sidebar.classList.toggle('open');
     }
 
     syncSidebarToggleUi();
 
     if (open) {
-      const first = sidebar.querySelector("button, [tabindex]");
+      const first = sidebar.querySelector('button, [tabindex]');
       if (first) first.focus();
     }
   }
 
   function closeSidebar() {
-    sidebar.classList.remove("open");
+    sidebar.classList.remove('open');
     syncSidebarToggleUi();
-    const toggleBtn = document.getElementById("sidebarToggle");
+    const toggleBtn = document.getElementById('sidebarToggle');
     if (toggleBtn) toggleBtn.focus();
   }
 
   // Close sidebar on Escape for accessibility
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      if (sidebar.classList.contains("open")) {
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (sidebar.classList.contains('open')) {
         closeSidebar();
       }
     }
@@ -1689,8 +1874,12 @@ f(x) = x^2 - 5*x`;
     toggleSidebar,
     closeSidebar,
     resetGraph,
-      previewDataset: (name, n) => { renderDatasetPreview(name, n); },
-      clearDatasetPreview: () => { clearDatasetPreview(); },
+    previewDataset: (name, n) => {
+      renderDatasetPreview(name, n);
+    },
+    clearDatasetPreview: () => {
+      clearDatasetPreview();
+    },
     renameDataset: (oldName, newName) => {
       if (!datasets[oldName] || !newName) return false;
       const clean = newName.trim().replace(/[^A-Za-z0-9_]/g, '_');
@@ -1706,184 +1895,195 @@ f(x) = x^2 - 5*x`;
       if (results.functions && results.functions[name]) {
         plotFunctions({ [name]: results.functions[name] });
       } else {
-        alert(
-          "Function '" + name + "' not found or not in a plot-able format.",
-        );
+        alert("Function '" + name + "' not found or not in a plot-able format.");
       }
     },
-      // Settings API
-      setSettings: (s) => setSettings(s),
-      getSettings: () => getSettings(),
-      openSettings: () => {
-        const modal = document.getElementById('settingsModal');
-        if (!modal) return;
-        // populate fields
-        const roundInput = document.getElementById('settingsRound');
-        const colorSelect = document.getElementById('settingsColor');
-        const fontSelect = document.getElementById('settingsFont');
-        const largeChk = document.getElementById('settingsLargeText');
-        const highChk = document.getElementById('settingsHighContrast');
-        const llmEndpoint = document.getElementById('settingsLlmEndpoint');
-        const llmModel = document.getElementById('settingsLlmModel');
-        const llmApiKey = document.getElementById('settingsLlmApiKey');
-        // null/undefined → empty string (auto-detect mode)
-        if (roundInput) roundInput.value = (settings && typeof settings.roundDecimals === 'number') ? settings.roundDecimals : '';
-        if (colorSelect) colorSelect.value = settings.colorScheme || 'default';
-        if (fontSelect) fontSelect.value = settings.font || defaultSettings.font;
-        if (largeChk && settings && settings.accessibility) largeChk.checked = !!settings.accessibility.largeText;
-        if (highChk && settings && settings.accessibility) highChk.checked = !!settings.accessibility.highContrast;
-        if (llmEndpoint) llmEndpoint.value = (settings && settings.llm && settings.llm.endpoint) || '';
-        if (llmModel) llmModel.value = (settings && settings.llm && settings.llm.model) || '';
-        if (llmApiKey) llmApiKey.value = (settings && settings.llm && settings.llm.apiKey) || '';
-        modal.classList.remove('hidden');
-      },
-      closeSettings: () => {
-        const modal = document.getElementById('settingsModal');
-        if (modal) modal.classList.add('hidden');
-      },
-      saveSettingsFromModal: () => {
-        const roundInput = document.getElementById('settingsRound');
-        const colorSelect = document.getElementById('settingsColor');
-        const fontSelect = document.getElementById('settingsFont');
-        const largeChk = document.getElementById('settingsLargeText');
-        const highChk = document.getElementById('settingsHighContrast');
-        const llmEndpoint = document.getElementById('settingsLlmEndpoint');
-        const llmModel = document.getElementById('settingsLlmModel');
-        const llmApiKey = document.getElementById('settingsLlmApiKey');
-        const next = {};
-        if (roundInput) {
-          const v = roundInput.value.trim();
-          next.roundDecimals = v === '' ? null : (isNaN(parseInt(v, 10)) ? null : Math.max(0, Math.min(MAX_DECIMAL_PLACES, parseInt(v, 10))));
-        }
-        if (colorSelect) next.colorScheme = colorSelect.value;
-        if (fontSelect) next.font = fontSelect.value;
-        next.accessibility = {
-          largeText: largeChk ? largeChk.checked : false,
-          highContrast: highChk ? highChk.checked : false
-        };
-        next.llm = {
-          endpoint: llmEndpoint ? llmEndpoint.value.trim() : '',
-          model: llmModel ? llmModel.value.trim() : '',
-          apiKey: llmApiKey ? llmApiKey.value.trim() : ''
-        };
-        setSettings(next);
-        const modal = document.getElementById('settingsModal');
-        if (modal) modal.classList.add('hidden');
-        // update AI chat visibility
-        try { if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility(); } catch (e) {}
-        showToast('Settings saved');
-      },
-      
-      // Section toggle functionality with state persistence
-      toggleSection: (sectionName) => {
-        const contentId = sectionName + 'Content';
-        const iconId = sectionName + 'ToggleIcon';
-        const content = document.getElementById(contentId);
-        const icon = document.getElementById(iconId);
-        const header = icon?.closest('.section-header');
-        
-        if (!content || !icon) return;
-        
-        const isCollapsed = content.classList.contains('collapsed');
-        
-        if (isCollapsed) {
-          // Expand
-          content.classList.remove('collapsed');
-          content.style.maxHeight = content.scrollHeight + 'px';
-          icon.textContent = 'expand_less';
-          if (header) header.setAttribute('aria-expanded', 'true');
-          // Remove max-height after animation completes for flexible sizing
-          setTimeout(() => {
-            if (!content.classList.contains('collapsed')) {
-              content.style.maxHeight = 'none';
-            }
-          }, 300);
-          // Store state
-          try {
-            localStorage.setItem('livecalc:section:' + sectionName, 'expanded');
-          } catch (e) {}
-        } else {
-          // Collapse
-          content.style.maxHeight = content.scrollHeight + 'px';
-          // Force reflow
-          content.offsetHeight;
-          content.classList.add('collapsed');
-          content.style.maxHeight = '0px';
-          icon.textContent = 'expand_more';
-          if (header) header.setAttribute('aria-expanded', 'false');
-          // Store state
-          try {
-            localStorage.setItem('livecalc:section:' + sectionName, 'collapsed');
-          } catch (e) {}
-        }
-      },
-      
-      // Initialize section states from localStorage
-      initSectionStates: initSectionStates,
-      
-      // History management
-      saveToHistory: () => {
-        const editorContent = editor.value;
-        if (!editorContent.trim()) {
-          showToast('Nothing to save');
-          return;
-        }
-        
-        const history = getHistory();
-        const timestamp = new Date().toLocaleString();
-        const entry = {
-          id: Date.now(),
-          timestamp: timestamp,
-          content: editorContent
-        };
-        
-        history.unshift(entry);
-        // Keep only last 20 entries
-        if (history.length > 20) {
-          history.splice(20);
-        }
-        
-        saveHistory(history);
-        renderHistory();
-        showToast('Saved to history');
-      },
-      
-      loadFromHistory: (id) => {
-        const history = getHistory();
-        const entry = history.find(e => e.id === id);
-        if (entry) {
-          editor.value = entry.content;
-          handleInput();
-          showToast('Loaded from history');
-        }
-      },
-      
-      deleteFromHistory: (id) => {
-        const history = getHistory();
-        const filtered = history.filter(e => e.id !== id);
-        saveHistory(filtered);
-        renderHistory();
-        showToast('Deleted from history');
-      },
-      // Examples API
-      loadExample: (id) => loadExample(id),
-      insertExampleToEditor: (id) => insertExampleToEditor(id),
-      // LLM API
-      getEditorContent: () => editor ? editor.value : '',
-      insertIntoEditor: (text) => {
-        if (!editor) return;
-        const pos = editor.selectionEnd;
-        const val = editor.value;
-        const before = val.slice(0, pos);
-        const after = val.slice(pos);
-        const insert = (before.length > 0 && !before.endsWith('\n') ? '\n' : '') + text;
-        editor.value = before + insert + after;
-        editor.selectionStart = editor.selectionEnd = pos + insert.length;
-        editor.dispatchEvent(new Event('input'));
-      },
-      getLlmSettings: () => (settings && settings.llm) ? Object.assign({}, settings.llm) : { endpoint: '', model: '', apiKey: '' },
+    // Settings API
+    setSettings: (s) => setSettings(s),
+    getSettings: () => getSettings(),
+    openSettings: () => {
+      const modal = document.getElementById('settingsModal');
+      if (!modal) return;
+      // populate fields
+      const roundInput = document.getElementById('settingsRound');
+      const colorSelect = document.getElementById('settingsColor');
+      const fontSelect = document.getElementById('settingsFont');
+      const largeChk = document.getElementById('settingsLargeText');
+      const highChk = document.getElementById('settingsHighContrast');
+      const llmEndpoint = document.getElementById('settingsLlmEndpoint');
+      const llmModel = document.getElementById('settingsLlmModel');
+      const llmApiKey = document.getElementById('settingsLlmApiKey');
+      // null/undefined → empty string (auto-detect mode)
+      if (roundInput)
+        roundInput.value = settings && typeof settings.roundDecimals === 'number' ? settings.roundDecimals : '';
+      if (colorSelect) colorSelect.value = settings.colorScheme || 'default';
+      if (fontSelect) fontSelect.value = settings.font || defaultSettings.font;
+      if (largeChk && settings && settings.accessibility) largeChk.checked = !!settings.accessibility.largeText;
+      if (highChk && settings && settings.accessibility) highChk.checked = !!settings.accessibility.highContrast;
+      if (llmEndpoint) llmEndpoint.value = (settings && settings.llm && settings.llm.endpoint) || '';
+      if (llmModel) llmModel.value = (settings && settings.llm && settings.llm.model) || '';
+      if (llmApiKey) llmApiKey.value = (settings && settings.llm && settings.llm.apiKey) || '';
+      const decSepSel = document.getElementById('settingsDecimalSeparator');
+      const csvDelimSel = document.getElementById('settingsCsvDelimiter');
+      if (decSepSel) decSepSel.value = (settings && settings.decimalSeparator) || '.';
+      if (csvDelimSel) csvDelimSel.value = (settings && settings.csvDelimiter) || 'auto';
+      modal.classList.remove('hidden');
+    },
+    closeSettings: () => {
+      const modal = document.getElementById('settingsModal');
+      if (modal) modal.classList.add('hidden');
+    },
+    saveSettingsFromModal: () => {
+      const roundInput = document.getElementById('settingsRound');
+      const colorSelect = document.getElementById('settingsColor');
+      const fontSelect = document.getElementById('settingsFont');
+      const largeChk = document.getElementById('settingsLargeText');
+      const highChk = document.getElementById('settingsHighContrast');
+      const llmEndpoint = document.getElementById('settingsLlmEndpoint');
+      const llmModel = document.getElementById('settingsLlmModel');
+      const llmApiKey = document.getElementById('settingsLlmApiKey');
+      const next = {};
+      if (roundInput) {
+        const v = roundInput.value.trim();
+        next.roundDecimals =
+          v === '' ? null : isNaN(parseInt(v, 10)) ? null : Math.max(0, Math.min(MAX_DECIMAL_PLACES, parseInt(v, 10)));
+      }
+      if (colorSelect) next.colorScheme = colorSelect.value;
+      if (fontSelect) next.font = fontSelect.value;
+      next.accessibility = {
+        largeText: largeChk ? largeChk.checked : false,
+        highContrast: highChk ? highChk.checked : false,
+      };
+      next.llm = {
+        endpoint: llmEndpoint ? llmEndpoint.value.trim() : '',
+        model: llmModel ? llmModel.value.trim() : '',
+        apiKey: llmApiKey ? llmApiKey.value.trim() : '',
+      };
+      const decSepSel = document.getElementById('settingsDecimalSeparator');
+      const csvDelimSel = document.getElementById('settingsCsvDelimiter');
+      if (decSepSel) next.decimalSeparator = decSepSel.value || '.';
+      if (csvDelimSel) next.csvDelimiter = csvDelimSel.value || 'auto';
+      setSettings(next);
+      const modal = document.getElementById('settingsModal');
+      if (modal) modal.classList.add('hidden');
+      // update AI chat visibility
+      try {
+        if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility();
+      } catch (e) {}
+      showToast('Settings saved');
+    },
+
+    // Section toggle functionality with state persistence
+    toggleSection: (sectionName) => {
+      const contentId = sectionName + 'Content';
+      const iconId = sectionName + 'ToggleIcon';
+      const content = document.getElementById(contentId);
+      const icon = document.getElementById(iconId);
+      const header = icon?.closest('.section-header');
+
+      if (!content || !icon) return;
+
+      const isCollapsed = content.classList.contains('collapsed');
+
+      if (isCollapsed) {
+        // Expand
+        content.classList.remove('collapsed');
+        content.style.maxHeight = content.scrollHeight + 'px';
+        icon.textContent = 'expand_less';
+        if (header) header.setAttribute('aria-expanded', 'true');
+        // Remove max-height after animation completes for flexible sizing
+        setTimeout(() => {
+          if (!content.classList.contains('collapsed')) {
+            content.style.maxHeight = 'none';
+          }
+        }, 300);
+        // Store state
+        try {
+          localStorage.setItem('livecalc:section:' + sectionName, 'expanded');
+        } catch (e) {}
+      } else {
+        // Collapse
+        content.style.maxHeight = content.scrollHeight + 'px';
+        // Force reflow
+        content.offsetHeight;
+        content.classList.add('collapsed');
+        content.style.maxHeight = '0px';
+        icon.textContent = 'expand_more';
+        if (header) header.setAttribute('aria-expanded', 'false');
+        // Store state
+        try {
+          localStorage.setItem('livecalc:section:' + sectionName, 'collapsed');
+        } catch (e) {}
+      }
+    },
+
+    // Initialize section states from localStorage
+    initSectionStates: initSectionStates,
+
+    // History management
+    saveToHistory: () => {
+      const editorContent = editor.value;
+      if (!editorContent.trim()) {
+        showToast('Nothing to save');
+        return;
+      }
+
+      const history = getHistory();
+      const timestamp = new Date().toLocaleString();
+      const entry = {
+        id: Date.now(),
+        timestamp: timestamp,
+        content: editorContent,
+      };
+
+      history.unshift(entry);
+      // Keep only last 20 entries
+      if (history.length > 20) {
+        history.splice(20);
+      }
+
+      saveHistory(history);
+      renderHistory();
+      showToast('Saved to history');
+    },
+
+    loadFromHistory: (id) => {
+      const history = getHistory();
+      const entry = history.find((e) => e.id === id);
+      if (entry) {
+        editor.value = entry.content;
+        handleInput();
+        showToast('Loaded from history');
+      }
+    },
+
+    deleteFromHistory: (id) => {
+      const history = getHistory();
+      const filtered = history.filter((e) => e.id !== id);
+      saveHistory(filtered);
+      renderHistory();
+      showToast('Deleted from history');
+    },
+    // Examples API
+    loadExample: (id) => loadExample(id),
+    insertExampleToEditor: (id) => insertExampleToEditor(id),
+    // LLM API
+    getEditorContent: () => (editor ? editor.value : ''),
+    insertIntoEditor: (text) => {
+      if (!editor) return;
+      const pos = editor.selectionEnd;
+      const val = editor.value;
+      const before = val.slice(0, pos);
+      const after = val.slice(pos);
+      const insert = (before.length > 0 && !before.endsWith('\n') ? '\n' : '') + text;
+      editor.value = before + insert + after;
+      editor.selectionStart = editor.selectionEnd = pos + insert.length;
+      editor.dispatchEvent(new Event('input'));
+    },
+    getLlmSettings: () =>
+      settings && settings.llm ? Object.assign({}, settings.llm) : { endpoint: '', model: '', apiKey: '' },
   };
-  
+
   // History helper functions
   function getHistory() {
     try {
@@ -1893,7 +2093,7 @@ f(x) = x^2 - 5*x`;
       return [];
     }
   }
-  
+
   function saveHistory(history) {
     try {
       localStorage.setItem('livecalc:history', JSON.stringify(history));
@@ -1901,19 +2101,21 @@ f(x) = x^2 - 5*x`;
       console.error('Failed to save history', e);
     }
   }
-  
+
   function renderHistory() {
     const historyContent = document.getElementById('historyContent');
     if (!historyContent) return;
-    
+
     const history = getHistory();
-    
+
     if (history.length === 0) {
       historyContent.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">No history saved yet</div>';
       return;
     }
-    
-    historyContent.innerHTML = history.map(entry => `
+
+    historyContent.innerHTML = history
+      .map(
+        (entry) => `
       <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700">
         <div class="flex-1 overflow-hidden mr-2">
           <div class="text-[10px] text-gray-400 mb-1">${entry.timestamp}</div>
@@ -1924,12 +2126,16 @@ f(x) = x^2 - 5*x`;
           <button onclick="app.deleteFromHistory(${entry.id})" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300">Delete</button>
         </div>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
   }
-  
+
   return api;
 })();
 
 // Expose `app` on the window so other inline scripts can call `window.app.*` safely.
-try { window.app = app; } catch (e) {}
+try {
+  window.app = app;
+} catch (e) {}
 window.onload = app.init;

@@ -1,0 +1,4 @@
+tailwind.css
+node_modules/
+-trash/
+coverage-summary.json

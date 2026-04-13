@@ -113,7 +113,7 @@
         
         <!-- Backdrop (Results & Syntax Highlighting) -->
         <div class="absolute inset-0 w-full h-full p-4 overflow-hidden z-0 bg-white dark:bg-gray-950">
-          <div id="backdrop" class="backdrop-layer editor-font w-full text-transparent"><div class="line min-h-[1.6em]"><span class="token-comment"># Welcome to LiveCalc Pro!</span></div><div class="line min-h-[1.6em]"><span class="token-comment"># Variables, Units, and Functions are supported.</span></div><div class="line min-h-[1.6em]">&nbsp;</div><div class="line min-h-[1.6em]">radius <span class="token-operator">=</span> <span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;5&lt;<span class="token-operator">/</span>span&gt; cm<span class="token-result"> = 5 cm</span></div><div class="line min-h-[1.6em]">area <span class="token-operator">=</span> <span class="token-keyword">pi</span> <span class="token-operator">*</span> radius<span class="token-operator">^</span><span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;2&lt;<span class="token-operator">/</span>span&gt;<span class="token-result"> = 78.5398163397448309615660845819875721049292349843776455243736148 cm^2</span></div><div class="line min-h-[1.6em]">&nbsp;</div><div class="line min-h-[1.6em]"><span class="token-comment"># Currency &amp; Conversions</span></div><div class="line min-h-[1.6em]">price <span class="token-operator">=</span> <span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;12.50&lt;<span class="token-operator">/</span>span&gt;<span class="token-result"> = 12.5</span></div><div class="line min-h-[1.6em]">qty <span class="token-operator">=</span> <span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;4&lt;<span class="token-operator">/</span>span&gt;<span class="token-result"> = 4</span></div><div class="line min-h-[1.6em]"><span class="token-keyword">total</span> <span class="token-operator">=</span> price <span class="token-operator">*</span> qty<span class="token-result"> = 50</span></div><div class="line min-h-[1.6em]">&nbsp;</div><div class="line min-h-[1.6em]"><span class="token-comment"># Define functions to graph them (look right -&gt;)</span></div><div class="line min-h-[1.6em]">f(x) <span class="token-operator">=</span> <span class="token-keyword">sin</span>(x) <span class="token-operator">*</span> x<span class="token-result"> = function I(e,t){return(arguments.length===H&amp;&amp;E(e)&amp;&amp;O(t)?q:arguments.length===G&amp;&amp;A(e)&amp;&amp;T(t)?j:arguments.length===V&amp;&amp;S(e)&amp;&amp;B(t)?P:arguments.length===Z&amp;&amp;C(e)&amp;&amp;_(t)?L:arguments.length===W&amp;&amp;M(e)&amp;&amp;R(t)?U:arguments.length===J&amp;&amp;F(e)&amp;&amp;z(t)?$:ee).apply(this,arguments)}</span></div><div class="line min-h-[1.6em]">g(x) <span class="token-operator">=</span> x<span class="token-operator">^</span><span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;2&lt;<span class="token-operator">/</span>span&gt; <span class="token-operator">/</span> <span class<span="" class="token-operator">=</span>"token<span class="token-operator">-</span>number"&gt;10&lt;<span class="token-operator">/</span>span&gt;<span class="token-result"> = function I(e,t){return(arguments.length===H&amp;&amp;E(e)&amp;&amp;O(t)?q:arguments.length===G&amp;&amp;A(e)&amp;&amp;T(t)?j:arguments.length===V&amp;&amp;S(e)&amp;&amp;B(t)?P:arguments.length===Z&amp;&amp;C(e)&amp;&amp;_(t)?L:arguments.length===W&amp;&amp;M(e)&amp;&amp;R(t)?U:arguments.length===J&amp;&amp;F(e)&amp;&amp;z(t)?$:ee).apply(this,arguments)}</span></div><div class="line min-h-[1.6em]">&nbsp;</div><div class="line min-h-[1.6em]"><span class="token-comment"># Use 'sum' to total previous blocks</span></div><div class="line min-h-[1.6em]"><span class="token-keyword">sum</span><span class="token-result font-bold text-blue-600 dark:text-blue-400"> = 66.5</span></div></div>
+          <div id="backdrop" class="backdrop-layer editor-font w-full text-transparent"></div>
         </div>
 
         <!-- Input (Textarea) -->
@@ -558,6 +558,25 @@
             placeholder="Auto (leave empty for auto-detect)" />
           <p class="text-[10px] text-gray-400 mt-0.5">Leave empty to auto-detect precision from your input numbers.</p>
         </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500">Decimal separator</label>
+            <select id="settingsDecimalSeparator" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
+              <option value=".">Dot (1.23)</option>
+              <option value=",">Comma (1,23)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500">CSV delimiter</label>
+            <select id="settingsCsvDelimiter" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
+              <option value="auto">Auto-detect</option>
+              <option value="comma">Comma (,)</option>
+              <option value="semicolon">Semicolon (;)</option>
+              <option value="tab">Tab</option>
+              <option value="pipe">Pipe (|)</option>
+            </select>
+          </div>
+        </div>
         <div>
           <label class="block text-xs font-medium text-gray-500">Color scheme</label>
           <select id="settingsColor" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
@@ -774,6 +793,10 @@
         model: llmModel ? llmModel.value.trim() : '',
         apiKey: llmApiKey ? llmApiKey.value.trim() : ''
       };
+      const decSepSel = document.getElementById('settingsDecimalSeparator');
+      const csvDelimSel = document.getElementById('settingsCsvDelimiter');
+      cfg.decimalSeparator = decSepSel ? decSepSel.value : '.';
+      cfg.csvDelimiter = csvDelimSel ? csvDelimSel.value : 'auto';
       if (window.app && typeof window.app.setSettings === 'function') {
         window.app.setSettings(cfg);
         try { if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility(); } catch (e) {}
@@ -803,50 +826,5 @@
     document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) hide(); });
   })();
 </script>
-    const color = document.getElementById('settingsColor');
-    const font = document.getElementById('settingsFont');
-    const largeText = document.getElementById('settingsLargeText');
-    const highContrast = document.getElementById('settingsHighContrast');
-    const preview = document.getElementById('settingsPalettePreview');
-    const llmEndpoint = document.getElementById('settingsLlmEndpoint');
-    const llmModel = document.getElementById('settingsLlmModel');
-    const llmApiKey = document.getElementById('settingsLlmApiKey');
-    const llmDetectBtn = document.getElementById('settingsLlmDetect');
-    const llmDetectLabel = document.getElementById('settingsLlmDetectLabel');
-    const llmModelList = document.getElementById('llmModelList');
-    const llmModelHint = document.getElementById('settingsLlmModelHint');
 
-    if (llmDetectBtn) {
-      llmDetectBtn.addEventListener('click', async function() {
-        const url = llmEndpoint ? llmEndpoint.value.trim() : '';
-        const apiKey = llmApiKey ? llmApiKey.value.trim() : '';
-        if (!url) { if (llmModelHint) { llmModelHint.textContent = '⚠️ Enter an endpoint URL first.'; llmModelHint.className = 'text-[10px] text-red-500 mt-0.5'; } return; }
-        llmDetectBtn.disabled = true;
-        if (llmDetectLabel) llmDetectLabel.textContent = '…';
-        if (llmModelHint) { llmModelHint.textContent = 'Fetching models…'; llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5'; }
-        try {
-          const models = await (window.lcAI && window.lcAI.fetchModels ? window.lcAI.fetchModels(url, apiKey) : Promise.reject(new Error('lcAI not ready')));
-          if (llmModelList) {
-            llmModelList.innerHTML = '';
-            models.forEach(m => {
-              const opt = document.createElement('option');
-              opt.value = m;
-              llmModelList.appendChild(opt);
-            });
-          }
-          if (models.length === 0) {
-            if (llmModelHint) { llmModelHint.textContent = 'No models returned by server.'; llmModelHint.className = 'text-[10px] text-yellow-500 mt-0.5'; }
-          } else {
-            if (!llmModel.value && models.length >= 1) llmModel.value = models[0];
-            if (llmModelHint) { llmModelHint.textContent = `✓ ${models.length} model(s) found. Select from the list or type a name.`; llmModelHint.className = 'text-[10px] text-green-600 mt-0.5'; }
-          }
-        } catch (err) {
-          if (llmModelHint) { llmModelHint.textContent = '⚠️ ' + err.message; llmModelHint.className = 'text-[10px] text-red-500 mt-0.5'; }
-        } finally {
-          llmDetectBtn.disabled = false;
-          if (llmDetectLabel) llmDetectLabel.textContent = 'Detect';
-        }
-      });
-    }
-
-    const palettes = {
+</html>

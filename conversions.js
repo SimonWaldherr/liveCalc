@@ -1,6 +1,6 @@
 // Centralized conversions and unit registry for LiveCalc
 // Edit this file to update FX rates or add/remove unit definitions.
-(function(){
+(function () {
   window.LC_CONVERSIONS = window.LC_CONVERSIONS || {};
 
   // FX rates expressed relative to USD (1 USD = 1)
@@ -11,11 +11,11 @@
     JPY: 0.0072,
     CHF: 1.09,
     AUD: 0.66,
-    CAD: 0.74
+    CAD: 0.74,
   };
 
   // List of recognized currency unit codes
-  window.LC_CONVERSIONS.currencyUnits = ["USD","EUR","GBP","JPY","CHF","AUD","CAD"];
+  window.LC_CONVERSIONS.currencyUnits = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD'];
 
   // Common units to register: [name, definition-for-mathjs]
   window.LC_CONVERSIONS.commonUnits = [

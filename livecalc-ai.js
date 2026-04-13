@@ -66,11 +66,7 @@
   }
 
   function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   // ------------------------------------------------------------------ UI
@@ -135,14 +131,13 @@
     if (placeholder) placeholder.remove();
 
     const wrapper = document.createElement('div');
-    wrapper.className = role === 'user'
-      ? 'flex justify-end'
-      : 'flex justify-start';
+    wrapper.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
 
     const bubble = document.createElement('div');
-    bubble.className = role === 'user'
-      ? 'max-w-[85%] bg-blue-600 text-white rounded-lg px-2 py-1.5 text-xs whitespace-pre-wrap break-words'
-      : 'max-w-[90%] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs space-y-1';
+    bubble.className =
+      role === 'user'
+        ? 'max-w-[85%] bg-blue-600 text-white rounded-lg px-2 py-1.5 text-xs whitespace-pre-wrap break-words'
+        : 'max-w-[90%] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs space-y-1';
 
     if (role === 'user') {
       bubble.textContent = content;
@@ -248,32 +243,54 @@
     // Candidates to try in order
     const candidates = isOllamaNative
       ? [
-          { url: base + '/api/tags', extract: d => (d.models || []).map(m => m.name || m.model).filter(Boolean) },
-          { url: base + '/api/ps',   extract: d => (d.models || []).map(m => m.name || m.model).filter(Boolean) },
-          { url: base + '/v1/models', extract: d => (d.data || []).map(m => m.id).filter(Boolean) }
+          { url: base + '/api/tags', extract: (d) => (d.models || []).map((m) => m.name || m.model).filter(Boolean) },
+          { url: base + '/api/ps', extract: (d) => (d.models || []).map((m) => m.name || m.model).filter(Boolean) },
+          { url: base + '/v1/models', extract: (d) => (d.data || []).map((m) => m.id).filter(Boolean) },
         ]
       : [
-          { url: base + '/v1/models', extract: d => (d.data || []).map(m => m.id).filter(Boolean) },
-          { url: base + '/api/tags',  extract: d => (d.models || []).map(m => m.name || m.model).filter(Boolean) }
+          { url: base + '/v1/models', extract: (d) => (d.data || []).map((m) => m.id).filter(Boolean) },
+          { url: base + '/api/tags', extract: (d) => (d.models || []).map((m) => m.name || m.model).filter(Boolean) },
         ];
 
     let lastErr = null;
     for (const candidate of candidates) {
       try {
         const resp = await fetch(candidate.url, { method: 'GET', headers });
-        if (!resp.ok) { lastErr = new Error(`Server returned ${resp.status} for ${candidate.url}`); continue; }
+        if (!resp.ok) {
+          lastErr = new Error(`Server returned ${resp.status} for ${candidate.url}`);
+          continue;
+        }
         const data = await resp.json();
         const models = candidate.extract(data);
         if (models.length > 0) return models.slice().sort((a, b) => a.localeCompare(b));
         // empty list — try next candidate
       } catch (e) {
-        lastErr = e;
+        lastErr = friendlyFetchError(e, candidate.url);
       }
     }
     throw lastErr || new Error('Could not retrieve models from server.');
   }
 
   // ------------------------------------------------------------------ API
+
+  /**
+   * Translate raw fetch() errors into user-friendly messages.
+   * "Failed to fetch" typically means CORS blocked or server unreachable.
+   */
+  function friendlyFetchError(err, url) {
+    const msg = err && err.message ? err.message : String(err);
+    if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
+      return new Error(
+        `Cannot reach server at ${url}. ` +
+          'Make sure the server is running and allows cross-origin requests (CORS). ' +
+          'LM-Studio: enable CORS in settings. Ollama: set OLLAMA_ORIGINS=* env var.'
+      );
+    }
+    if (/cors/i.test(msg)) {
+      return new Error(`CORS blocked: the server at ${url} rejected the request. Enable CORS on the server.`);
+    }
+    return err;
+  }
 
   async function callLlm(messages) {
     const cfg = getLlmSettings();
@@ -294,22 +311,27 @@
       body = {
         model: cfg.model || 'llama3',
         messages: messages,
-        stream: false
+        stream: false,
       };
     } else {
       // OpenAI-compatible format (LM-Studio, llmster, Ollama openai-compat, etc.)
       body = {
         messages: messages,
-        stream: false
+        stream: false,
       };
       if (cfg.model && cfg.model.trim()) body.model = cfg.model.trim();
     }
 
-    const resp = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    });
+    let resp;
+    try {
+      resp = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      throw friendlyFetchError(e, endpoint);
+    }
 
     if (!resp.ok) {
       const errText = await resp.text().catch(() => resp.statusText);
@@ -375,7 +397,7 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
     const messages = [
       { role: 'system', content: systemPrompt },
       ...chatHistory.slice(-HISTORY_LIMIT),
-      { role: 'user', content: userText }
+      { role: 'user', content: userText },
     ];
 
     chatHistory.push({ role: 'user', content: userText });
@@ -414,7 +436,7 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
     togglePanel,
     updateVisibility,
     insertBlock,
-    fetchModels
+    fetchModels,
   };
 
   // Init after DOM ready

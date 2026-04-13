@@ -251,6 +251,14 @@
           </div>
         </div>
         <div id="datasetContent" class="overflow-hidden transition-all duration-300">
+          <div class="p-2 border-b border-gray-200 dark:border-gray-800 space-y-1">
+            <div class="flex items-center gap-2">
+              <input id="datasetUrlInput" type="url" placeholder="https://example.com/data.csv" class="flex-1 text-[11px] rounded border border-gray-300 dark:border-gray-600 px-2 py-1 bg-white dark:bg-gray-800" />
+              <button id="datasetLoadUrlBtn" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Load URL</button>
+            </div>
+            <div id="datasetStatus" class="text-[10px] text-gray-400">No dataset loaded</div>
+            <div id="datasetInfo" class="text-[10px] text-gray-400"></div>
+          </div>
           <div id="datasetPreviewInner" class="overflow-auto p-2" style="max-height: 300px;">
             <div id="datasetEmptyState" class="text-xs text-gray-400 text-center py-4">No dataset loaded</div>
             <table id="datasetPreviewTable" class="min-w-full text-xs hidden">
@@ -492,6 +500,35 @@
         <input id="settingsRound" type="number" min="0" step="1" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" placeholder="Auto (leave empty for auto-detect)" />
         <p class="text-[10px] text-gray-400 mt-0.5">Leave empty to auto-detect precision from your input numbers.</p>
       </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs text-gray-500">Decimal separator</label>
+          <select id="settingsDecimalSeparator" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800">
+            <option value=".">Dot (1.23)</option>
+            <option value=",">Comma (1,23)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500">CSV delimiter</label>
+          <select id="settingsCsvDelimiter" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800">
+            <option value="auto">Auto-detect</option>
+            <option value="comma">Comma (,)</option>
+            <option value="semicolon">Semicolon (;)</option>
+            <option value="tab">Tab</option>
+            <option value="pipe">Pipe (|)</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs text-gray-500">URL cache (minutes)</label>
+          <input id="settingsExternalCacheMinutes" type="number" min="0" step="1" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500">Request timeout (ms)</label>
+          <input id="settingsExternalTimeoutMs" type="number" min="1000" step="500" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" />
+        </div>
+      </div>
       <div>
         <label class="block text-xs text-gray-500">Color scheme</label>
         <select id="settingsColor" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800">
@@ -536,6 +573,10 @@
     const round = document.getElementById('settingsRound');
     const color = document.getElementById('settingsColor');
     const font = document.getElementById('settingsFont');
+    const decimalSep = document.getElementById('settingsDecimalSeparator');
+    const csvDelim = document.getElementById('settingsCsvDelimiter');
+    const cacheMins = document.getElementById('settingsExternalCacheMinutes');
+    const timeoutMs = document.getElementById('settingsExternalTimeoutMs');
     const largeText = document.getElementById('settingsLargeText');
     const highContrast = document.getElementById('settingsHighContrast');
     const preview = document.getElementById('settingsPalettePreview');
@@ -577,6 +618,10 @@
       cfg.roundDecimals = (!isNaN(rd) && rd !== null) ? Math.max(0, Math.min(20, rd)) : null;
       cfg.colorScheme = (color && color.value) ? color.value : 'default';
       cfg.font = (font && font.value) ? font.value : "'Fira Code', 'Menlo', monospace";
+      cfg.decimalSeparator = (decimalSep && decimalSep.value === ',') ? ',' : '.';
+      cfg.csvDelimiter = (csvDelim && csvDelim.value) ? csvDelim.value : 'auto';
+      cfg.externalCacheMinutes = cacheMins ? Math.max(0, parseInt(cacheMins.value || '30', 10) || 30) : 30;
+      cfg.externalRequestTimeoutMs = timeoutMs ? Math.max(1000, parseInt(timeoutMs.value || '12000', 10) || 12000) : 12000;
       cfg.accessibility = { largeText: !!(largeText && largeText.checked), highContrast: !!(highContrast && highContrast.checked) };
       if (window.app && typeof window.app.setSettings === 'function') {
         window.app.setSettings(cfg);
@@ -587,13 +632,26 @@
 
     if (resetBtn) resetBtn.addEventListener('click', function() {
       // Default: auto-detect decimal places (null), default color scheme and font
-      const def = { roundDecimals: null, colorScheme: 'default', font: "'Fira Code', 'Menlo', 'Monaco', monospace", accessibility: { largeText: false, highContrast: false } };
+      const def = {
+        roundDecimals: null,
+        colorScheme: 'default',
+        font: "'Fira Code', 'Menlo', 'Monaco', monospace",
+        decimalSeparator: '.',
+        csvDelimiter: 'auto',
+        externalCacheMinutes: 30,
+        externalRequestTimeoutMs: 12000,
+        accessibility: { largeText: false, highContrast: false }
+      };
       if (window.app && typeof window.app.setSettings === 'function') {
         window.app.setSettings(def);
         // update fields
         if (round) round.value = '';
         if (color) color.value = def.colorScheme;
         if (font) font.value = def.font;
+        if (decimalSep) decimalSep.value = def.decimalSeparator;
+        if (csvDelim) csvDelim.value = def.csvDelimiter;
+        if (cacheMins) cacheMins.value = String(def.externalCacheMinutes);
+        if (timeoutMs) timeoutMs.value = String(def.externalRequestTimeoutMs);
         if (largeText) largeText.checked = def.accessibility.largeText;
         if (highContrast) highContrast.checked = def.accessibility.highContrast;
         renderPreview(def.colorScheme);

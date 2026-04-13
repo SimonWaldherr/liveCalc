@@ -1,830 +1,1614 @@
-<html lang="en" class="light"><head>
+<html lang="en" class="light">
+  <head>
+    <script src="./livecalc.js" defer></script>
 
-<script src="./livecalc.js" defer></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LiveCalc Pro - Interactive Math Studio</title>
 
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LiveCalc Pro - Interactive Math Studio</title>
-  
-  <!-- Tailwind CSS (built locally) -->
-  <link rel="stylesheet" href="./tailwind.css">
+    <!-- Tailwind CSS (built locally) -->
+    <link rel="stylesheet" href="./tailwind.css" />
 
-  <!-- Google Material Symbols -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+    <!-- Google Material Symbols -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
 
-  <!-- Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/14.8.1/math.min.js"></script>
-  <script src="https://unpkg.com/function-plot/dist/function-plot.js"></script>
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/14.8.1/math.min.js"></script>
+    <script src="https://unpkg.com/function-plot/dist/function-plot.js"></script>
 
-  <style></style>
-  <link rel="stylesheet" href="./style.css">
-</head>
-<body class="bg-gray-50 text-slate-800 dark:bg-gray-950 dark:text-gray-100 transition-colors duration-200">
+    <style></style>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="bg-gray-50 text-slate-800 dark:bg-gray-950 dark:text-gray-100 transition-colors duration-200">
+    <!-- Header -->
+    <header
+      class="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-20 relative"
+    >
+      <a
+        href="https://github.com/SimonWaldherr/liveCalc/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-3 no-underline"
+        aria-label="Open project on GitHub"
+      >
+        <div class="bg-blue-600 p-1.5 rounded-lg text-white">
+          <span class="material-symbols-outlined text-2xl block">calculate</span>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg tracking-tight leading-none">
+            LiveCalc
+            <span class="text-blue-600">Pro</span>
+          </h1>
+          <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide uppercase">
+            Interactive Math Studio
+          </span>
+        </div>
+      </a>
 
-  <!-- Header -->
-  <header class="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-20 relative">
-    <a href="https://github.com/SimonWaldherr/liveCalc/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 no-underline" aria-label="Open project on GitHub">
-      <div class="bg-blue-600 p-1.5 rounded-lg text-white">
-        <span class="material-symbols-outlined text-2xl block">calculate</span>
-      </div>
-      <div>
-        <h1 class="font-bold text-lg tracking-tight leading-none">LiveCalc <span class="text-blue-600">Pro</span></h1>
-        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide uppercase">Interactive Math Studio</span>
-      </div>
-    </a>
+      <!-- Toolbar -->
+      <div class="flex items-center gap-2">
+        <!-- Helper Toolbar (Desktop) -->
+        <div
+          class="hidden md:flex items-center gap-1 mr-4 border-r border-gray-200 dark:border-gray-700 pr-4"
+          style="display: none"
+        >
+          <button
+            onclick="app.insert('√(')"
+            aria-label="Insert square root"
+            class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
+            title="Square Root"
+          >
+            √
+          </button>
+          <button
+            onclick="app.insert('^')"
+            aria-label="Insert power"
+            class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
+            title="Power"
+          >
+            xʸ
+          </button>
+          <button
+            onclick="app.insert('pi')"
+            aria-label="Insert pi"
+            class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
+            title="Pi"
+          >
+            π
+          </button>
+          <button
+            onclick="app.insert('sin(')"
+            aria-label="Insert sine function"
+            class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
+            title="Sine"
+          >
+            sin
+          </button>
+          <button
+            onclick="app.insert('cos(')"
+            aria-label="Insert cosine function"
+            class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
+            title="Cosine"
+          >
+            cos
+          </button>
+        </div>
 
-    <!-- Toolbar -->
-    <div class="flex items-center gap-2">
-      <!-- Helper Toolbar (Desktop) -->
-      <div class="hidden md:flex items-center gap-1 mr-4 border-r border-gray-200 dark:border-gray-700 pr-4" style="display: none;">
-        <button onclick="app.insert('√(')" aria-label="Insert square root" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Square Root">√</button>
-        <button onclick="app.insert('^')" aria-label="Insert power" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Power">xʸ</button>
-        <button onclick="app.insert('pi')" aria-label="Insert pi" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Pi">π</button>
-        <button onclick="app.insert('sin(')" aria-label="Insert sine function" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Sine">sin</button>
-        <button onclick="app.insert('cos(')" aria-label="Insert cosine function" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300" title="Cosine">cos</button>
-      </div>
-
-      <!-- Actions -->
-      <button onclick="app.toggleTheme()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Toggle Dark Mode">
-        <span class="material-symbols-outlined theme-icon">dark_mode</span>
-      </button>
-      <button id="aiChatToggleBtn" onclick="lcAI && lcAI.togglePanel()" class="hidden p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors" title="AI Chat" aria-label="Toggle AI Chat">
-        <span class="material-symbols-outlined">smart_toy</span>
-      </button>
-      <button id="sidebarToggle" onclick="app.toggleSidebar()" aria-controls="sidebar" aria-expanded="true" aria-label="Hide sidebar" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-        <span id="sidebarToggleIcon" class="material-symbols-outlined">right_panel_close</span>
-      </button>
-      <!-- Examples toolbar item (icon + label) -->
-      <div class="relative hidden sm:inline-flex items-center mr-2" id="examplesMenuWrapper">
-        <button id="examplesToggle" aria-haspopup="true" aria-expanded="false" aria-controls="examplesMenu" onclick="toggleExamplesMenu(); return false;" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-md transition-colors" title="Examples" aria-label="Open examples menu">
-          <span class="material-symbols-outlined text-[18px]">lightbulb</span>
-          <span>Examples</span>
+        <!-- Actions -->
+        <button
+          onclick="app.toggleTheme()"
+          class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          title="Toggle Dark Mode"
+        >
+          <span class="material-symbols-outlined theme-icon">dark_mode</span>
         </button>
-        <div id="examplesMenu" role="menu" aria-hidden="true" class="hidden absolute mt-2 right-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded shadow-md z-40" style="min-width:220px;">
-          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleGeometry(); toggleExamplesMenu(false);">Geometry — circle area</button>
-          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleFinance(); toggleExamplesMenu(false);">Finance — compound interest</button>
-          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleSum(); toggleExamplesMenu(false);">Sum — mixed units</button>
-          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleRandom(); toggleExamplesMenu(false);">Random example</button>
-          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleTableDemo(); toggleExamplesMenu(false);">Table — CSV import & query</button>
-          <button role="menuitem" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onclick="insertExampleDataPlotDemo(); toggleExamplesMenu(false);">Data Plot — avg price per region</button>
+        <button
+          id="aiChatToggleBtn"
+          onclick="lcAI && lcAI.togglePanel()"
+          class="hidden p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+          title="AI Chat"
+          aria-label="Toggle AI Chat"
+        >
+          <span class="material-symbols-outlined">smart_toy</span>
+        </button>
+        <button
+          id="sidebarToggle"
+          onclick="app.toggleSidebar()"
+          aria-controls="sidebar"
+          aria-expanded="true"
+          aria-label="Hide sidebar"
+          class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+        >
+          <span id="sidebarToggleIcon" class="material-symbols-outlined">right_panel_close</span>
+        </button>
+        <!-- Examples toolbar item (icon + label) -->
+        <div class="relative hidden sm:inline-flex items-center mr-2" id="examplesMenuWrapper">
+          <button
+            id="examplesToggle"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="examplesMenu"
+            onclick="
+              toggleExamplesMenu();
+              return false;
+            "
+            class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-md transition-colors"
+            title="Examples"
+            aria-label="Open examples menu"
+          >
+            <span class="material-symbols-outlined text-[18px]">lightbulb</span>
+            <span>Examples</span>
+          </button>
+          <div
+            id="examplesMenu"
+            role="menu"
+            aria-hidden="true"
+            class="hidden absolute mt-2 right-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded shadow-md z-40"
+            style="min-width: 220px"
+          >
+            <button
+              role="menuitem"
+              class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
+                insertExampleGeometry();
+                toggleExamplesMenu(false);
+              "
+            >
+              Geometry — circle area
+            </button>
+            <button
+              role="menuitem"
+              class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
+                insertExampleFinance();
+                toggleExamplesMenu(false);
+              "
+            >
+              Finance — compound interest
+            </button>
+            <button
+              role="menuitem"
+              class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
+                insertExampleSum();
+                toggleExamplesMenu(false);
+              "
+            >
+              Sum — mixed units
+            </button>
+            <button
+              role="menuitem"
+              class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
+                insertExampleRandom();
+                toggleExamplesMenu(false);
+              "
+            >
+              Random example
+            </button>
+            <button
+              role="menuitem"
+              class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
+                insertExampleTableDemo();
+                toggleExamplesMenu(false);
+              "
+            >
+              Table — CSV import & query
+            </button>
+            <button
+              role="menuitem"
+              class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
+                insertExampleDataPlotDemo();
+                toggleExamplesMenu(false);
+              "
+            >
+              Data Plot — avg price per region
+            </button>
+          </div>
+        </div>
+        <button
+          onclick="downloadMath()"
+          class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          title="Download"
+          aria-label="Download math as text"
+        >
+          <span class="material-symbols-outlined">download</span>
+        </button>
+        <button
+          onclick="app.openSettings && app.openSettings()"
+          class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          title="Settings"
+          aria-label="Settings"
+        >
+          <span class="material-symbols-outlined">settings</span>
+        </button>
+        <button
+          onclick="copyURLtoClipboard()"
+          class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          title="Copy link"
+          aria-label="Copy link to clipboard"
+        >
+          <span class="material-symbols-outlined">content_copy</span>
+        </button>
+        <label
+          for="dataFileInput"
+          class="ml-2 p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          title="Upload data file"
+          aria-label="Upload data file"
+        >
+          <input
+            id="dataFileInput"
+            type="file"
+            accept=".csv,.tsv,.json,.xml,text/csv,text/tab-separated-values,text/xml"
+            style="display: none"
+          />
+          <span class="material-symbols-outlined">upload_file</span>
+        </label>
+        <button
+          onclick="app.clear()"
+          class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+          title="Clear All"
+        >
+          <span class="material-symbols-outlined">delete</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Links / Actions bar (trimmed: badges removed, actions remain) -->
+    <div
+      class="links px-4 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-sm flex items-center gap-2 flex-wrap"
+      style="display: none"
+    >
+      <!-- compact action area (download & copy moved to header) -->
+    </div>
+
+    <!-- Main Layout -->
+    <div class="grid-layout relative">
+      <!-- Mobile sidebar backdrop (tap to close) -->
+      <div
+        id="sidebarOverlay"
+        onclick="app.closeSidebar && app.closeSidebar()"
+        onkeydown="
+          if (event.key === 'Enter' || event.key === ' ') {
+            app.closeSidebar && app.closeSidebar();
+          }
+        "
+        role="button"
+        tabindex="0"
+        class="hidden fixed inset-0 bg-black/40 z-40 lg:hidden"
+        aria-label="Close sidebar"
+      ></div>
+
+      <!-- Left: Line Numbers -->
+      <div class="bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+        <div
+          id="lineNumbers"
+          class="line-numbers flex-1 py-4 pr-2 overflow-hidden bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600"
+        >
+          <div>1</div>
+          <div>2</div>
+          <div>3</div>
+          <div>4</div>
+          <div>5</div>
+          <div>6</div>
+          <div>7</div>
+          <div>8</div>
+          <div>9</div>
+          <div>10</div>
+          <div>11</div>
+          <div>12</div>
+          <div>13</div>
+          <div>14</div>
+          <div>15</div>
+          <div>16</div>
+          <div>17</div>
         </div>
       </div>
-      <button onclick="downloadMath()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Download" aria-label="Download math as text">
-        <span class="material-symbols-outlined">download</span>
-      </button>
-      <button onclick="app.openSettings && app.openSettings()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Settings" aria-label="Settings">
-        <span class="material-symbols-outlined">settings</span>
-      </button>
-      <button onclick="copyURLtoClipboard()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Copy link" aria-label="Copy link to clipboard">
-        <span class="material-symbols-outlined">content_copy</span>
-      </button>
-      <label for="dataFileInput" class="ml-2 p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" title="Upload data file" aria-label="Upload data file">
-        <input id="dataFileInput" type="file" accept=".csv,.tsv,.json,.xml,text/csv,text/tab-separated-values,text/xml" style="display:none" />
-        <span class="material-symbols-outlined">upload_file</span>
-      </label>
-      <button onclick="app.clear()" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors" title="Clear All">
-        <span class="material-symbols-outlined">delete</span>
-      </button>
-    </div>
-  </header>
 
-  <!-- Links / Actions bar (trimmed: badges removed, actions remain) -->
-  <div class="links px-4 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-sm flex items-center gap-2 flex-wrap" style="display: none;">
-    <!-- compact action area (download & copy moved to header) -->
-  </div>
-
-  <!-- Main Layout -->
-  <div class="grid-layout relative">
-    <!-- Mobile sidebar backdrop (tap to close) -->
-    <div id="sidebarOverlay" onclick="app.closeSidebar && app.closeSidebar()" onkeydown="if(event.key==='Enter'||event.key===' '){app.closeSidebar && app.closeSidebar();}" role="button" tabindex="0" class="hidden fixed inset-0 bg-black/40 z-40 lg:hidden" aria-label="Close sidebar"></div>
-    
-    <!-- Left: Line Numbers -->
-    <div class="bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
-      <div id="lineNumbers" class="line-numbers flex-1 py-4 pr-2 overflow-hidden bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div><div>15</div><div>16</div><div>17</div></div>
-    </div>
-
-    <!-- Center: Editor -->
-    <main class="relative bg-white dark:bg-gray-950 overflow-hidden flex flex-col group">
-      <!-- 
+      <!-- Center: Editor -->
+      <main class="relative bg-white dark:bg-gray-950 overflow-hidden flex flex-col group">
+        <!-- 
            The Container for Editor Layers.
            Relative positioning used to stack textarea over backdrop.
       -->
-      <div class="relative flex-1 w-full h-full overflow-hidden">
-        
-        <!-- Backdrop (Results & Syntax Highlighting) -->
-        <div class="absolute inset-0 w-full h-full p-4 overflow-hidden z-0 bg-white dark:bg-gray-950">
-          <div id="backdrop" class="backdrop-layer editor-font w-full text-transparent"></div>
+        <div class="relative flex-1 w-full h-full overflow-hidden">
+          <!-- Backdrop (Results & Syntax Highlighting) -->
+          <div class="absolute inset-0 w-full h-full p-4 overflow-hidden z-0 bg-white dark:bg-gray-950">
+            <div id="backdrop" class="backdrop-layer editor-font w-full text-transparent"></div>
+          </div>
+
+          <!-- Input (Textarea) -->
+          <textarea
+            id="editor"
+            class="absolute inset-0 w-full h-full p-4 editor-font transparent-input outline-none z-10 text-slate-800 dark:text-gray-100 caret-blue-600 dark:caret-blue-400"
+            spellcheck="false"
+            autocapitalize="off"
+            placeholder="Type math here... e.g. a = 10 + 5"
+          ></textarea>
+        </div>
+      </main>
+
+      <!-- Right: Sidebar (Variables & Graph) -->
+      <aside
+        id="sidebar"
+        role="complementary"
+        aria-hidden="false"
+        class="sidebar flex flex-col bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 lg:relative lg:flex transition-transform duration-300"
+      >
+        <!-- Graph Section -->
+        <div
+          class="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex flex-col relative group"
+        >
+          <div
+            class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
+            onclick="app.toggleSection('graph')"
+            onkeydown="
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                app.toggleSection('graph');
+              }
+            "
+            tabindex="0"
+            role="button"
+            aria-expanded="true"
+            aria-controls="graphContent"
+          >
+            <span>Graph</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-gray-400">f(x), g(x)</span>
+              <span id="graphToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
+                expand_less
+              </span>
+            </div>
+          </div>
+          <div id="graphContent" class="h-[250px] flex flex-col transition-all duration-300 overflow-hidden">
+            <div class="absolute top-10 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onclick="app.resetGraph()"
+                class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 p-1 rounded text-xs hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Reset
+              </button>
+            </div>
+            <div
+              id="plot"
+              class="flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-white dark:bg-gray-950"
+            >
+              <div class="text-gray-400 text-sm" style="display: none">
+                <!-- Define a function like f(x)=x^2 to plot -->
+              </div>
+              <svg class="function-plot" font-size="8" width="299" height="217">
+                <text class="top-right-legend" text-anchor="end" y="10" x="279"></text>
+                <g class="canvas" transform="translate(40,20)">
+                  <defs>
+                    <clipPath id="function-plot-clip-sb992d5f2f61c6">
+                      <rect class="clip static-clip" width="239" height="177"></rect>
+                    </clipPath>
+                    <clipPath>
+                      <marker
+                        id="sb992d5f2f61c6-marker"
+                        viewBox="0 -5 10 10"
+                        refX="10"
+                        markerWidth="5"
+                        markerHeight="5"
+                        orient="auto"
+                      >
+                        <path d="M0,-5L10,0L0,5L0,0" stroke-width="0px" fill-opacity="1" fill="#777"></path>
+                      </marker>
+                    </clipPath>
+                  </defs>
+                  <g
+                    class="x axis"
+                    transform="translate(0,177)"
+                    fill="none"
+                    font-size="10"
+                    font-family="sans-serif"
+                    text-anchor="middle"
+                  >
+                    <path
+                      class="domain"
+                      stroke="black"
+                      d="M0,-177V0H239V-177"
+                      fill="none"
+                      shape-rendering="crispedges"
+                      opacity="0.1"
+                    ></path>
+                    <g class="tick" opacity="1" transform="translate(0,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">−6</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(19.916666666666664,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">−5</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(39.83333333333333,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">−4</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(59.75,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">−3</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(79.66666666666666,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">−2</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(99.58333333333334,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">−1</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(119.5,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">0</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(139.41666666666669,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">1</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(159.33333333333331,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">2</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(179.25,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">3</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(199.16666666666669,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">4</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(219.08333333333331,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">5</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(239,0)">
+                      <line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" y="3" dy="0.71em">6</text>
+                    </g>
+                  </g>
+                  <g class="y axis" fill="none" font-size="10" font-family="sans-serif" text-anchor="end">
+                    <path
+                      class="domain"
+                      stroke="black"
+                      d="M239,177H0V0H239"
+                      fill="none"
+                      shape-rendering="crispedges"
+                      opacity="0.1"
+                    ></path>
+                    <g class="tick" opacity="1" transform="translate(0,168.16666666666669)">
+                      <line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" x="-3" dy="0.32em">−4</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(0,148.25)">
+                      <line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" x="-3" dy="0.32em">−3</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(0,128.33333333333334)">
+                      <line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" x="-3" dy="0.32em">−2</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(0,108.41666666666667)">
+                      <line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" x="-3" dy="0.32em">−1</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(0,88.5)">
+                      <line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" x="-3" dy="0.32em">0</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(0,68.58333333333333)">
+                      <line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" x="-3" dy="0.32em">1</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(0,48.666666666666664)">
+                      <line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" x="-3" dy="0.32em">2</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(0,28.749999999999996)">
+                      <line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" x="-3" dy="0.32em">3</text>
+                    </g>
+                    <g class="tick" opacity="1" transform="translate(0,8.833333333333346)">
+                      <line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line>
+                      <text fill="currentColor" x="-3" dy="0.32em">4</text>
+                    </g>
+                  </g>
+                  <g class="tip" clip-path="url(#function-plot-clip-sb992d5f2f61c6)">
+                    <g class="inner-tip" style="display: none">
+                      <path
+                        stroke="grey"
+                        stroke-dasharray="5,5"
+                        opacity="0.5"
+                        d="M0,-197L0,197"
+                        class="tip-x-line"
+                        style=""
+                      ></path>
+                      <path
+                        stroke="grey"
+                        stroke-dasharray="5,5"
+                        opacity="0.5"
+                        d="M-259,0L259,0"
+                        class="tip-y-line"
+                        style=""
+                      ></path>
+                      <circle r="3"></circle>
+                      <text transform="translate(5,-5)"></text>
+                    </g>
+                  </g>
+                  <g clip-path="url(#function-plot-clip-sb992d5f2f61c6)" class="content">
+                    <path class="y origin" stroke="black" opacity="0.2" d="M119.5,177L119.5,0"></path>
+                    <path class="x origin" stroke="black" opacity="0.2" d="M0,88.5L239,88.5"></path>
+                    <g class="graph"></g>
+                    <g class="graph"></g>
+                  </g>
+                </g>
+              </svg>
+            </div>
+          </div>
         </div>
 
-        <!-- Input (Textarea) -->
-        <textarea id="editor" class="absolute inset-0 w-full h-full p-4 editor-font transparent-input outline-none z-10 text-slate-800 dark:text-gray-100 caret-blue-600 dark:caret-blue-400" spellcheck="false" autocapitalize="off" placeholder="Type math here... e.g. a = 10 + 5"></textarea>
-        
-      </div>
-    </main>
+        <!-- Variables Section -->
+        <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
+          <div
+            class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
+            onclick="app.toggleSection('variables')"
+            onkeydown="
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                app.toggleSection('variables');
+              }
+            "
+            tabindex="0"
+            role="button"
+            aria-expanded="true"
+            aria-controls="variablesContent"
+          >
+            <span>Variables</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-gray-400" id="varCount">7 defined</span>
+              <span id="variablesToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
+                expand_less
+              </span>
+            </div>
+          </div>
+          <div id="variablesContent" class="flex flex-col overflow-hidden transition-all duration-300">
+            <div class="overflow-y-auto p-2 space-y-1" id="variablesList" style="max-height: 400px">
+              <div
+                class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer"
+                onclick="app.insert('area')"
+                title="Click to insert"
+              >
+                <div class="flex items-center gap-2 overflow-hidden">
+                  <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">area</span>
+                  <span class="text-xs text-gray-400">=</span>
+                  <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">
+                    78.5398163397448309615660845819875721049292349843776455243736148 cm^2
+                  </span>
+                </div>
+                <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">
+                  data_array
+                </span>
+              </div>
 
-    <!-- Right: Sidebar (Variables & Graph) -->
-    <aside id="sidebar" role="complementary" aria-hidden="false" class="sidebar flex flex-col bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 lg:relative lg:flex transition-transform duration-300">
-      
-      <!-- Graph Section -->
-      <div class="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex flex-col relative group">
-        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
-             onclick="app.toggleSection('graph')" 
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('graph');}" 
-             tabindex="0" 
-             role="button" 
-             aria-expanded="true" 
-             aria-controls="graphContent">
-          <span>Graph</span>
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-gray-400">f(x), g(x)</span>
-            <span id="graphToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
-          </div>
-        </div>
-        <div id="graphContent" class="h-[250px] flex flex-col transition-all duration-300 overflow-hidden">
-          <div class="absolute top-10 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-             <button onclick="app.resetGraph()" class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 p-1 rounded text-xs hover:bg-gray-50 dark:hover:bg-gray-700">Reset</button>
-          </div>
-          <div id="plot" class="flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-white dark:bg-gray-950">
-            <div class="text-gray-400 text-sm" style="display: none;"><!-- Define a function like f(x)=x^2 to plot --></div>
-          <svg class="function-plot" font-size="8" width="299" height="217"><text class="top-right-legend" text-anchor="end" y="10" x="279"></text><g class="canvas" transform="translate(40,20)"><defs><clipPath id="function-plot-clip-sb992d5f2f61c6"><rect class="clip static-clip" width="239" height="177"></rect></clipPath><clipPath><marker id="sb992d5f2f61c6-marker" viewBox="0 -5 10 10" refX="10" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,-5L10,0L0,5L0,0" stroke-width="0px" fill-opacity="1" fill="#777"></path></marker></clipPath></defs><g class="x axis" transform="translate(0,177)" fill="none" font-size="10" font-family="sans-serif" text-anchor="middle"><path class="domain" stroke="black" d="M0,-177V0H239V-177" fill="none" shape-rendering="crispedges" opacity="0.1"></path><g class="tick" opacity="1" transform="translate(0,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−6</text></g><g class="tick" opacity="1" transform="translate(19.916666666666664,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−5</text></g><g class="tick" opacity="1" transform="translate(39.83333333333333,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−4</text></g><g class="tick" opacity="1" transform="translate(59.75,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−3</text></g><g class="tick" opacity="1" transform="translate(79.66666666666666,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−2</text></g><g class="tick" opacity="1" transform="translate(99.58333333333334,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">−1</text></g><g class="tick" opacity="1" transform="translate(119.5,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">0</text></g><g class="tick" opacity="1" transform="translate(139.41666666666669,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">1</text></g><g class="tick" opacity="1" transform="translate(159.33333333333331,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">2</text></g><g class="tick" opacity="1" transform="translate(179.25,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">3</text></g><g class="tick" opacity="1" transform="translate(199.16666666666669,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">4</text></g><g class="tick" opacity="1" transform="translate(219.08333333333331,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">5</text></g><g class="tick" opacity="1" transform="translate(239,0)"><line stroke="black" y2="-177" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" y="3" dy="0.71em">6</text></g></g><g class="y axis" fill="none" font-size="10" font-family="sans-serif" text-anchor="end"><path class="domain" stroke="black" d="M239,177H0V0H239" fill="none" shape-rendering="crispedges" opacity="0.1"></path><g class="tick" opacity="1" transform="translate(0,168.16666666666669)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−4</text></g><g class="tick" opacity="1" transform="translate(0,148.25)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−3</text></g><g class="tick" opacity="1" transform="translate(0,128.33333333333334)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−2</text></g><g class="tick" opacity="1" transform="translate(0,108.41666666666667)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">−1</text></g><g class="tick" opacity="1" transform="translate(0,88.5)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">0</text></g><g class="tick" opacity="1" transform="translate(0,68.58333333333333)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">1</text></g><g class="tick" opacity="1" transform="translate(0,48.666666666666664)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">2</text></g><g class="tick" opacity="1" transform="translate(0,28.749999999999996)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">3</text></g><g class="tick" opacity="1" transform="translate(0,8.833333333333346)"><line stroke="black" x2="239" fill="none" shape-rendering="crispedges" opacity="0.1"></line><text fill="currentColor" x="-3" dy="0.32em">4</text></g></g><g class="tip" clip-path="url(#function-plot-clip-sb992d5f2f61c6)"><g class="inner-tip" style="display: none;"><path stroke="grey" stroke-dasharray="5,5" opacity="0.5" d="M0,-197L0,197" class="tip-x-line" style=""></path><path stroke="grey" stroke-dasharray="5,5" opacity="0.5" d="M-259,0L259,0" class="tip-y-line" style=""></path><circle r="3"></circle><text transform="translate(5,-5)"></text></g></g><g clip-path="url(#function-plot-clip-sb992d5f2f61c6)" class="content"><path class="y origin" stroke="black" opacity="0.2" d="M119.5,177L119.5,0"></path><path class="x origin" stroke="black" opacity="0.2" d="M0,88.5L239,88.5"></path><g class="graph"></g><g class="graph"></g></g></g></svg>
-          </div>
-        </div>
-      </div>
+              <div
+                class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer"
+                onclick="app.insert('price')"
+                title="Click to insert"
+              >
+                <div class="flex items-center gap-2 overflow-hidden">
+                  <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">price</span>
+                  <span class="text-xs text-gray-400">=</span>
+                  <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">12.5</span>
+                </div>
+                <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">
+                  data_array
+                </span>
+              </div>
 
-      <!-- Variables Section -->
-      <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
-        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
-             onclick="app.toggleSection('variables')" 
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('variables');}"
-             tabindex="0" 
-             role="button" 
-             aria-expanded="true" 
-             aria-controls="variablesContent">
-          <span>Variables</span>
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-gray-400" id="varCount">7 defined</span>
-            <span id="variablesToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
-          </div>
-        </div>
-        <div id="variablesContent" class="flex flex-col overflow-hidden transition-all duration-300">
-        <div class="overflow-y-auto p-2 space-y-1" id="variablesList" style="max-height: 400px;">
-            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('area')" title="Click to insert">
-              <div class="flex items-center gap-2 overflow-hidden">
-                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">area</span>
-                <span class="text-xs text-gray-400">=</span>
-                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">78.5398163397448309615660845819875721049292349843776455243736148 cm^2</span>
+              <div
+                class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer"
+                onclick="app.insert('qty')"
+                title="Click to insert"
+              >
+                <div class="flex items-center gap-2 overflow-hidden">
+                  <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">qty</span>
+                  <span class="text-xs text-gray-400">=</span>
+                  <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">4</span>
+                </div>
+                <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">
+                  data_array
+                </span>
               </div>
-              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
-            </div>
-          
-            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('price')" title="Click to insert">
-              <div class="flex items-center gap-2 overflow-hidden">
-                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">price</span>
-                <span class="text-xs text-gray-400">=</span>
-                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">12.5</span>
+
+              <div
+                class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer"
+                onclick="app.insert('radius')"
+                title="Click to insert"
+              >
+                <div class="flex items-center gap-2 overflow-hidden">
+                  <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">radius</span>
+                  <span class="text-xs text-gray-400">=</span>
+                  <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">5 cm</span>
+                </div>
+                <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">
+                  data_array
+                </span>
               </div>
-              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
-            </div>
-          
-            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('qty')" title="Click to insert">
-              <div class="flex items-center gap-2 overflow-hidden">
-                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">qty</span>
-                <span class="text-xs text-gray-400">=</span>
-                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">4</span>
+
+              <div
+                class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer"
+                onclick="app.insert('total')"
+                title="Click to insert"
+              >
+                <div class="flex items-center gap-2 overflow-hidden">
+                  <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">total</span>
+                  <span class="text-xs text-gray-400">=</span>
+                  <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">50</span>
+                </div>
+                <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">
+                  data_array
+                </span>
               </div>
-              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
-            </div>
-          
-            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('radius')" title="Click to insert">
-              <div class="flex items-center gap-2 overflow-hidden">
-                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">radius</span>
-                <span class="text-xs text-gray-400">=</span>
-                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">5 cm</span>
-              </div>
-              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
-            </div>
-          
-            <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('total')" title="Click to insert">
-              <div class="flex items-center gap-2 overflow-hidden">
-                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">total</span>
-                <span class="text-xs text-gray-400">=</span>
-                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">50</span>
-              </div>
-              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
-            </div>
-          <div class="mt-2 mb-1 text-[10px] font-bold text-gray-400 uppercase">Functions</div>
-              <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+              <div class="mt-2 mb-1 text-[10px] font-bold text-gray-400 uppercase">Functions</div>
+              <div
+                class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700"
+              >
                 <div class="flex items-center gap-2">
                   <span class="text-xs font-bold text-pink-600 dark:text-pink-400 font-mono">f(x)</span>
                 </div>
-                <button onclick="app.forcePlot('f')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Plot</button>
+                <button
+                  onclick="app.forcePlot('f')"
+                  class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300"
+                >
+                  Plot
+                </button>
               </div>
-             
-              <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+
+              <div
+                class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700"
+              >
                 <div class="flex items-center gap-2">
                   <span class="text-xs font-bold text-pink-600 dark:text-pink-400 font-mono">g(x)</span>
                 </div>
-                <button onclick="app.forcePlot('g')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Plot</button>
+                <button
+                  onclick="app.forcePlot('g')"
+                  class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300"
+                >
+                  Plot
+                </button>
               </div>
-             </div>
+            </div>
           </div>
         </div>
 
-      <!-- Datasets Section -->
-      <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
-        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
-             onclick="app.toggleSection('dataset')" 
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('dataset');}"
-             tabindex="0" 
-             role="button" 
-             aria-expanded="true" 
-             aria-controls="datasetContent">
-          <span>Datasets</span>
-          <div class="flex items-center gap-2">
-            <select id="datasetSelect" onclick="event.stopPropagation();" class="text-[10px] bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 px-2 py-0.5 hover:border-blue-400 transition-colors">
-              <option value="">Select dataset</option>
-            </select>
-            <select id="previewRowsSelect" onclick="event.stopPropagation();" class="text-[10px] bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 px-2 py-0.5 hover:border-blue-400 transition-colors">
-              <option value="5">5 rows</option>
-              <option value="10" selected>10 rows</option>
-              <option value="25">25 rows</option>
-            </select>
-            <button id="datasetUploadBtn" onclick="event.stopPropagation(); document.getElementById('dataFileInput').click();" class="text-[10px] bg-white dark:bg-gray-800 rounded border px-2 py-0.5">Upload</button>
-            <span id="datasetToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+        <!-- Datasets Section -->
+        <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
+          <div
+            class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
+            onclick="app.toggleSection('dataset')"
+            onkeydown="
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                app.toggleSection('dataset');
+              }
+            "
+            tabindex="0"
+            role="button"
+            aria-expanded="true"
+            aria-controls="datasetContent"
+          >
+            <span>Datasets</span>
+            <div class="flex items-center gap-2">
+              <select
+                id="datasetSelect"
+                onclick="event.stopPropagation()"
+                class="text-[10px] bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 px-2 py-0.5 hover:border-blue-400 transition-colors"
+              >
+                <option value="">Select dataset</option>
+              </select>
+              <select
+                id="previewRowsSelect"
+                onclick="event.stopPropagation()"
+                class="text-[10px] bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 px-2 py-0.5 hover:border-blue-400 transition-colors"
+              >
+                <option value="5">5 rows</option>
+                <option value="10" selected>10 rows</option>
+                <option value="25">25 rows</option>
+              </select>
+              <button
+                id="datasetUploadBtn"
+                onclick="
+                  event.stopPropagation();
+                  document.getElementById('dataFileInput').click();
+                "
+                class="text-[10px] bg-white dark:bg-gray-800 rounded border px-2 py-0.5"
+              >
+                Upload
+              </button>
+              <span id="datasetToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
+                expand_less
+              </span>
+            </div>
+          </div>
+          <div id="datasetContent" class="overflow-hidden transition-all duration-300">
+            <div id="datasetPreviewInner" class="overflow-auto p-2" style="max-height: 300px">
+              <div id="datasetEmptyState" class="text-xs text-gray-400 text-center py-4">No dataset loaded</div>
+              <table id="datasetPreviewTable" class="min-w-full text-xs hidden">
+                <thead id="datasetPreviewHead"></thead>
+                <tbody id="datasetPreviewBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <div id="datasetContent" class="overflow-hidden transition-all duration-300">
-          <div id="datasetPreviewInner" class="overflow-auto p-2" style="max-height: 300px;">
-            <div id="datasetEmptyState" class="text-xs text-gray-400 text-center py-4">No dataset loaded</div>
-            <table id="datasetPreviewTable" class="min-w-full text-xs hidden">
-              <thead id="datasetPreviewHead"></thead>
-              <tbody id="datasetPreviewBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
 
-      <!-- Examples Section -->
-      <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
-        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
-             onclick="app.toggleSection('examples')" 
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('examples');}"
-             tabindex="0" 
-             role="button" 
-             aria-expanded="true" 
-             aria-controls="examplesContent">
-          <span>Examples</span>
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-gray-400">Load example snippets</span>
-            <span id="examplesToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+        <!-- Examples Section -->
+        <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
+          <div
+            class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
+            onclick="app.toggleSection('examples')"
+            onkeydown="
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                app.toggleSection('examples');
+              }
+            "
+            tabindex="0"
+            role="button"
+            aria-expanded="true"
+            aria-controls="examplesContent"
+          >
+            <span>Examples</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-gray-400">Load example snippets</span>
+              <span id="examplesToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
+                expand_less
+              </span>
+            </div>
+          </div>
+          <div
+            id="examplesContent"
+            class="overflow-y-auto p-2 space-y-2 transition-all duration-300"
+            style="max-height: 300px"
+          >
+            <div id="examplesList" class="space-y-2 text-xs text-gray-700 dark:text-gray-300">
+              <!-- Filled by JS: example rows with Load buttons -->
+            </div>
           </div>
         </div>
-        <div id="examplesContent" class="overflow-y-auto p-2 space-y-2 transition-all duration-300" style="max-height: 300px;">
-          <div id="examplesList" class="space-y-2 text-xs text-gray-700 dark:text-gray-300">
-            <!-- Filled by JS: example rows with Load buttons -->
-          </div>
-        </div>
-      </div>
 
-      <!-- History Section -->
-      <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
-        <div class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors" 
-             onclick="app.toggleSection('history')" 
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('history');}"
-             tabindex="0" 
-             role="button" 
-             aria-expanded="true" 
-             aria-controls="historyContent">
-          <span>History</span>
-          <div class="flex items-center gap-2">
-            <button onclick="app.saveToHistory(); event.stopPropagation();" class="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 flex items-center gap-1 transition-colors">
-              <span class="material-symbols-outlined text-[14px]">save</span>
-              Save
-            </button>
-            <span id="historyToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+        <!-- History Section -->
+        <div class="flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-800">
+          <div
+            class="section-header px-4 py-2 bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
+            onclick="app.toggleSection('history')"
+            onkeydown="
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                app.toggleSection('history');
+              }
+            "
+            tabindex="0"
+            role="button"
+            aria-expanded="true"
+            aria-controls="historyContent"
+          >
+            <span>History</span>
+            <div class="flex items-center gap-2">
+              <button
+                onclick="
+                  app.saveToHistory();
+                  event.stopPropagation();
+                "
+                class="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 flex items-center gap-1 transition-colors"
+              >
+                <span class="material-symbols-outlined text-[14px]">save</span>
+                Save
+              </button>
+              <span id="historyToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
+                expand_less
+              </span>
+            </div>
+          </div>
+          <div
+            id="historyContent"
+            class="overflow-y-auto p-2 space-y-1 transition-all duration-300"
+            style="max-height: 400px"
+          >
+            <div class="text-xs text-gray-400 text-center py-4">No history saved yet</div>
           </div>
         </div>
-        <div id="historyContent" class="overflow-y-auto p-2 space-y-1 transition-all duration-300" style="max-height: 400px;">
-          <div class="text-xs text-gray-400 text-center py-4">No history saved yet</div>
-        </div>
-      </div>
 
-      <!-- AI Chat Section -->
-      <div id="aiChatSection" class="hidden flex flex-col border-b border-gray-200 dark:border-gray-800">
-        <div class="section-header px-4 py-2 bg-blue-50 dark:bg-blue-950/40 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
-             onclick="app.toggleSection('aiChat')"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.toggleSection('aiChat');}"
-             tabindex="0"
-             role="button"
-             aria-expanded="true"
-             aria-controls="aiChatContent">
-          <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">smart_toy</span> AI Assistant</span>
-          <div class="flex items-center gap-2">
-            <span id="aiChatStatus" class="text-[10px] text-green-500">Connected</span>
-            <span id="aiChatToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">expand_less</span>
+        <!-- AI Chat Section -->
+        <div id="aiChatSection" class="hidden flex flex-col border-b border-gray-200 dark:border-gray-800">
+          <div
+            class="section-header px-4 py-2 bg-blue-50 dark:bg-blue-950/40 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
+            onclick="app.toggleSection('aiChat')"
+            onkeydown="
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                app.toggleSection('aiChat');
+              }
+            "
+            tabindex="0"
+            role="button"
+            aria-expanded="true"
+            aria-controls="aiChatContent"
+          >
+            <span class="flex items-center gap-1">
+              <span class="material-symbols-outlined text-[16px]">smart_toy</span>
+              AI Assistant
+            </span>
+            <div class="flex items-center gap-2">
+              <span id="aiChatStatus" class="text-[10px] text-green-500">Connected</span>
+              <span id="aiChatToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
+                expand_less
+              </span>
+            </div>
+          </div>
+          <div
+            id="aiChatContent"
+            class="flex flex-col transition-all duration-300 overflow-hidden"
+            style="max-height: 480px"
+          >
+            <!-- Chat messages -->
+            <div
+              id="aiChatMessages"
+              class="flex-1 overflow-y-auto p-2 space-y-2 text-xs"
+              style="min-height: 120px; max-height: 300px"
+            >
+              <div class="text-gray-400 text-center py-2 text-[11px]" id="aiChatPlaceholder">
+                Ask the AI about your calculation…
+              </div>
+            </div>
+            <!-- Input area -->
+            <div class="border-t border-gray-200 dark:border-gray-700 p-2 flex gap-2 items-end">
+              <textarea
+                id="aiChatInput"
+                rows="2"
+                placeholder="Ask a question or describe what to calculate…"
+                class="flex-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 resize-none focus:outline-none focus:border-blue-400"
+                onkeydown="
+                  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                    event.preventDefault();
+                    lcAI.send();
+                  }
+                "
+              ></textarea>
+              <button
+                onclick="lcAI.send()"
+                title="Send (Ctrl+Enter)"
+                class="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center flex-shrink-0"
+              >
+                <span class="material-symbols-outlined text-[18px]">send</span>
+              </button>
+            </div>
+            <div class="px-2 pb-1 text-[10px] text-gray-400">
+              Ctrl+Enter to send &bull; The AI sees your current calculation
+            </div>
           </div>
         </div>
-        <div id="aiChatContent" class="flex flex-col transition-all duration-300 overflow-hidden" style="max-height: 480px;">
-          <!-- Chat messages -->
-          <div id="aiChatMessages" class="flex-1 overflow-y-auto p-2 space-y-2 text-xs" style="min-height:120px;max-height:300px;">
-            <div class="text-gray-400 text-center py-2 text-[11px]" id="aiChatPlaceholder">Ask the AI about your calculation…</div>
-          </div>
-          <!-- Input area -->
-          <div class="border-t border-gray-200 dark:border-gray-700 p-2 flex gap-2 items-end">
-            <textarea id="aiChatInput" rows="2" placeholder="Ask a question or describe what to calculate…"
-              class="flex-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 resize-none focus:outline-none focus:border-blue-400"
-              onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();lcAI.send();}"></textarea>
-            <button onclick="lcAI.send()" title="Send (Ctrl+Enter)"
-              class="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[18px]">send</span>
-            </button>
-          </div>
-          <div class="px-2 pb-1 text-[10px] text-gray-400">Ctrl+Enter to send &bull; The AI sees your current calculation</div>
+
+        <!-- Footer / Info -->
+        <div class="p-3 border-t border-gray-200 dark:border-gray-800 text-[10px] text-gray-400 text-center">
+          Powered by Math.js &amp; Function Plot
+          <br />
+          <!--<a href="#" onclick="app.download(); return false;" class="hover:underline text-blue-500">Export Text</a>-->
         </div>
-      </div>
+      </aside>
+    </div>
 
-      <!-- Footer / Info -->
-      <div class="p-3 border-t border-gray-200 dark:border-gray-800 text-[10px] text-gray-400 text-center">
-        Powered by Math.js &amp; Function Plot<br>
-        <!--<a href="#" onclick="app.download(); return false;" class="hover:underline text-blue-500">Export Text</a>-->
-      </div>
-    </aside>
+    <script src="./conversions.js"></script>
+    <script src="./livecalc-app.js"></script>
+    <script src="./livecalc-ai.js"></script>
+  </body>
 
+  <!-- Small helper wrappers for the badges (use app API where available) -->
+  <div id="toast" aria-live="polite" style="position: fixed; right: 12px; bottom: 16px; z-index: 60; display: none">
+    <div id="toastInner" class="px-3 py-2 bg-gray-800 text-white rounded shadow">&nbsp;</div>
   </div>
-
-  <script src="./conversions.js"></script>
-  <script src="./livecalc-app.js"></script>
-  <script src="./livecalc-ai.js"></script>
-</body>
-
-<!-- Small helper wrappers for the badges (use app API where available) -->
-<div id="toast" aria-live="polite" style="position:fixed;right:12px;bottom:16px;z-index:60;display:none;">
-  <div id="toastInner" class="px-3 py-2 bg-gray-800 text-white rounded shadow">&nbsp;</div>
-</div>
-<!-- Early decode for shared hash to avoid timing/scope issues with app bundle -->
-<script>
-  (function() {
-    try {
-      const raw = window.location.hash ? window.location.hash.substring(1) : '';
-      if (!raw) return;
-      // try percent-decode first
-      let candidate = raw;
-      try { candidate = decodeURIComponent(raw); } catch (e) {}
-      // try base64 decode then UTF-8 decode
+  <!-- Early decode for shared hash to avoid timing/scope issues with app bundle -->
+  <script>
+    (function () {
       try {
-        const bin = atob(candidate);
-        let esc = '';
-        for (let i = 0; i < bin.length; i++) {
-          const code = bin.charCodeAt(i).toString(16).toUpperCase();
-          esc += '%' + ('00' + code).slice(-2);
-        }
-        const decoded = decodeURIComponent(esc);
-        if (decoded && decoded.trim()) {
-          window.__livecalc_shared = decoded;
-          return;
-        }
-      } catch (e) {}
-      // fallback: try atob on raw
-      try {
-        const decoded = atob(raw);
-        if (decoded && decoded.trim()) window.__livecalc_shared = decoded;
-      } catch (e) {}
-    } catch (e) { /* ignore */ }
-  })();
-</script>
-<script>
-  // Toast helper
-  function showToast(msg, timeout = 1400) {
-    const toast = document.getElementById('toast');
-    const inner = document.getElementById('toastInner');
-    if (!toast || !inner) return;
-    inner.textContent = msg;
-    toast.style.display = 'block';
-    toast.style.opacity = '1';
-    setTimeout(() => {
-      toast.style.transition = 'opacity 220ms ease';
-      toast.style.opacity = '0';
-      setTimeout(() => { toast.style.display = 'none'; toast.style.transition = ''; }, 260);
-    }, timeout);
-  }
-
-  function clearTextarea() {
-    if (window.app && typeof window.app.clear === 'function') { window.app.clear(); showToast('Editor cleared'); return; }
-    const editor = document.getElementById('editor'); if (editor) { editor.value=''; editor.dispatchEvent(new Event('input')); showToast('Editor cleared'); }
-  }
-
-  function insertExampleRandom() {
-    const examples = [
-      `radius = 5 cm\narea = pi * radius^2`,
-      `# Compound Interest\nP = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t`,
-      `# Sum example\nval1 = 10 m\nval2 = 20 cm\nsum`
-    ];
-    const pick = examples[Math.floor(Math.random() * examples.length)];
-    const editor = document.getElementById('editor');
-    if (editor) { editor.value = pick; editor.dispatchEvent(new Event('input')); showToast('Example inserted'); }
-  }
-
-  function insertExampleGeometry() {
-    const editor = document.getElementById('editor');
-    const txt = `# Geometry example\nradius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius`;
-    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Geometry example inserted'); }
-  }
-  function insertExampleFinance() {
-    const editor = document.getElementById('editor');
-    const txt = `# Finance example\nprice = 12.50\nqty = 4\ntotal = price * qty\nmonthly_rate = 0.035/12`;
-    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Finance example inserted'); }
-  }
-
-  function insertExampleTableDemo() {
-    const editor = document.getElementById('editor');
-    const txt = `# Table demo\n# Upload a CSV (or use demo.csv). After import try:\n# sum price from demo where qty > 2\n# count order_id from demo where region == 'North'\n\n# Example query usage when dataset named 'demo' is loaded:\nsum price from demo where qty > 2\ncount order_id from demo where region == 'North'`;
-    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Table demo inserted'); }
-  }
-
-  function insertExampleSum() {
-    const editor = document.getElementById('editor');
-    const txt = `# Sum example\nval1 = 10 m\nval2 = 20 cm\nval3 = 50 cm\nsum`;
-    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Sum example inserted'); }
-  }
-
-  function insertExampleDataPlotDemo() {
-    const editor = document.getElementById('editor');
-    const txt = `# Data Plot demo\n# Import 'demo.csv' (provided) or your own dataset named 'demo'.\n# Use query() to compute aggregates inside expressions.\n# Example: average price in North region\navgPriceNorth = query('demo', 'avg price where region == "North"')\n# Then define a simple function to plot\nf(x) = avgPriceNorth + sin(x)\n# Call forcePlot('f') to plot the function on the right`;
-    if (editor) { editor.value = txt; editor.dispatchEvent(new Event('input')); showToast('Data plot demo inserted'); }
-  }
-
-  function downloadMath() {
-    if (window.app && typeof window.app.download === 'function') { window.app.download(); showToast('Downloaded'); return; }
-    const editor = document.getElementById('editor');
-    if (!editor) return;
-    const blob = new Blob([editor.value], { type: 'text/plain' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'calculation.txt'; a.click();
-    showToast('Downloaded');
-  }
-
-  function copyURLtoClipboard() {
-    const url = location.href;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(() => {
-        showToast('Link copied');
-      }).catch(() => { showToast('Copy failed'); });
-    } else {
-      prompt('Copy this link', url);
+        const raw = window.location.hash ? window.location.hash.substring(1) : '';
+        if (!raw) return;
+        // try percent-decode first
+        let candidate = raw;
+        try {
+          candidate = decodeURIComponent(raw);
+        } catch (e) {}
+        // try base64 decode then UTF-8 decode
+        try {
+          const bin = atob(candidate);
+          let esc = '';
+          for (let i = 0; i < bin.length; i++) {
+            const code = bin.charCodeAt(i).toString(16).toUpperCase();
+            esc += '%' + ('00' + code).slice(-2);
+          }
+          const decoded = decodeURIComponent(esc);
+          if (decoded && decoded.trim()) {
+            window.__livecalc_shared = decoded;
+            return;
+          }
+        } catch (e) {}
+        // fallback: try atob on raw
+        try {
+          const decoded = atob(raw);
+          if (decoded && decoded.trim()) window.__livecalc_shared = decoded;
+        } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
+    })();
+  </script>
+  <script>
+    // Toast helper
+    function showToast(msg, timeout = 1400) {
+      const toast = document.getElementById('toast');
+      const inner = document.getElementById('toastInner');
+      if (!toast || !inner) return;
+      inner.textContent = msg;
+      toast.style.display = 'block';
+      toast.style.opacity = '1';
+      setTimeout(() => {
+        toast.style.transition = 'opacity 220ms ease';
+        toast.style.opacity = '0';
+        setTimeout(() => {
+          toast.style.display = 'none';
+          toast.style.transition = '';
+        }, 260);
+      }, timeout);
     }
-  }
 
-  // Examples menu toggle & accessibility
-  function toggleExamplesMenu(force) {
-    const wrap = document.getElementById('examplesMenuWrapper');
-    const menu = document.getElementById('examplesMenu');
-    const toggle = document.getElementById('examplesToggle');
-    if (!menu || !toggle) return;
-    const isOpen = !menu.classList.contains('hidden');
-    const open = typeof force === 'boolean' ? force : !isOpen;
-    if (open) {
-      menu.classList.remove('hidden');
-      menu.setAttribute('aria-hidden', 'false');
-      toggle.setAttribute('aria-expanded', 'true');
-      // focus first item
-      const first = menu.querySelector('[role="menuitem"]'); if (first) first.focus();
-      // click outside to close
-      setTimeout(() => { document.addEventListener('click', outsideExampleMenu); }, 10);
-    } else {
-      menu.classList.add('hidden');
-      menu.setAttribute('aria-hidden', 'true');
-      toggle.setAttribute('aria-expanded', 'false');
-      document.removeEventListener('click', outsideExampleMenu);
-      toggle.focus();
+    function clearTextarea() {
+      if (window.app && typeof window.app.clear === 'function') {
+        window.app.clear();
+        showToast('Editor cleared');
+        return;
+      }
+      const editor = document.getElementById('editor');
+      if (editor) {
+        editor.value = '';
+        editor.dispatchEvent(new Event('input'));
+        showToast('Editor cleared');
+      }
     }
-  }
 
-  function outsideExampleMenu(e) {
-    const wrap = document.getElementById('examplesMenuWrapper');
-    if (!wrap) return;
-    if (!wrap.contains(e.target)) toggleExamplesMenu(false);
-  }
+    function insertExampleRandom() {
+      const examples = [
+        `radius = 5 cm\narea = pi * radius^2`,
+        `# Compound Interest\nP = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t`,
+        `# Sum example\nval1 = 10 m\nval2 = 20 cm\nsum`,
+      ];
+      const pick = examples[Math.floor(Math.random() * examples.length)];
+      const editor = document.getElementById('editor');
+      if (editor) {
+        editor.value = pick;
+        editor.dispatchEvent(new Event('input'));
+        showToast('Example inserted');
+      }
+    }
 
-  // Close examples menu on Escape
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
+    function insertExampleGeometry() {
+      const editor = document.getElementById('editor');
+      const txt = `# Geometry example\nradius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius`;
+      if (editor) {
+        editor.value = txt;
+        editor.dispatchEvent(new Event('input'));
+        showToast('Geometry example inserted');
+      }
+    }
+    function insertExampleFinance() {
+      const editor = document.getElementById('editor');
+      const txt = `# Finance example\nprice = 12.50\nqty = 4\ntotal = price * qty\nmonthly_rate = 0.035/12`;
+      if (editor) {
+        editor.value = txt;
+        editor.dispatchEvent(new Event('input'));
+        showToast('Finance example inserted');
+      }
+    }
+
+    function insertExampleTableDemo() {
+      const editor = document.getElementById('editor');
+      const txt = `# Table demo\n# Upload a CSV (or use demo.csv). After import try:\n# sum price from demo where qty > 2\n# count order_id from demo where region == 'North'\n\n# Example query usage when dataset named 'demo' is loaded:\nsum price from demo where qty > 2\ncount order_id from demo where region == 'North'`;
+      if (editor) {
+        editor.value = txt;
+        editor.dispatchEvent(new Event('input'));
+        showToast('Table demo inserted');
+      }
+    }
+
+    function insertExampleSum() {
+      const editor = document.getElementById('editor');
+      const txt = `# Sum example\nval1 = 10 m\nval2 = 20 cm\nval3 = 50 cm\nsum`;
+      if (editor) {
+        editor.value = txt;
+        editor.dispatchEvent(new Event('input'));
+        showToast('Sum example inserted');
+      }
+    }
+
+    function insertExampleDataPlotDemo() {
+      const editor = document.getElementById('editor');
+      const txt = `# Data Plot demo\n# Import 'demo.csv' (provided) or your own dataset named 'demo'.\n# Use query() to compute aggregates inside expressions.\n# Example: average price in North region\navgPriceNorth = query('demo', 'avg price where region == "North"')\n# Then define a simple function to plot\nf(x) = avgPriceNorth + sin(x)\n# Call forcePlot('f') to plot the function on the right`;
+      if (editor) {
+        editor.value = txt;
+        editor.dispatchEvent(new Event('input'));
+        showToast('Data plot demo inserted');
+      }
+    }
+
+    function downloadMath() {
+      if (window.app && typeof window.app.download === 'function') {
+        window.app.download();
+        showToast('Downloaded');
+        return;
+      }
+      const editor = document.getElementById('editor');
+      if (!editor) return;
+      const blob = new Blob([editor.value], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'calculation.txt';
+      a.click();
+      showToast('Downloaded');
+    }
+
+    function copyURLtoClipboard() {
+      const url = location.href;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard
+          .writeText(url)
+          .then(() => {
+            showToast('Link copied');
+          })
+          .catch(() => {
+            showToast('Copy failed');
+          });
+      } else {
+        prompt('Copy this link', url);
+      }
+    }
+
+    // Examples menu toggle & accessibility
+    function toggleExamplesMenu(force) {
+      const wrap = document.getElementById('examplesMenuWrapper');
       const menu = document.getElementById('examplesMenu');
-      if (menu && !menu.classList.contains('hidden')) toggleExamplesMenu(false);
+      const toggle = document.getElementById('examplesToggle');
+      if (!menu || !toggle) return;
+      const isOpen = !menu.classList.contains('hidden');
+      const open = typeof force === 'boolean' ? force : !isOpen;
+      if (open) {
+        menu.classList.remove('hidden');
+        menu.setAttribute('aria-hidden', 'false');
+        toggle.setAttribute('aria-expanded', 'true');
+        // focus first item
+        const first = menu.querySelector('[role="menuitem"]');
+        if (first) first.focus();
+        // click outside to close
+        setTimeout(() => {
+          document.addEventListener('click', outsideExampleMenu);
+        }, 10);
+      } else {
+        menu.classList.add('hidden');
+        menu.setAttribute('aria-hidden', 'true');
+        toggle.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('click', outsideExampleMenu);
+        toggle.focus();
+      }
     }
-  });
-</script>
-<!-- Settings Modal -->
-<style>
-  /* High-contrast override used by accessibility setting */
-  .lc-high-contrast body, .lc-high-contrast .backdrop-layer { background: #000 !important; color: #fff !important; }
-  .lc-high-contrast .token-number, .lc-high-contrast .token-result { color: #ffea00 !important; }
-  .settings-palette { display:flex; gap:6px; margin-top:6px; }
-  .settings-swatch { width:28px; height:18px; border-radius:4px; box-shadow:0 1px 1px rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.06); }
-  .settings-tab { padding:6px 14px; font-size:12px; font-weight:500; border-bottom:2px solid transparent; cursor:pointer; color:#6b7280; transition:color .15s,border-color .15s; white-space:nowrap; }
-  .settings-tab.active { color:#2563eb; border-bottom-color:#2563eb; }
-  .settings-tab:hover:not(.active) { color:#374151; }
-  .dark .settings-tab:hover:not(.active) { color:#d1d5db; }
-  .dark .settings-tab.active { color:#60a5fa; border-bottom-color:#60a5fa; }
-  .settings-panel { display:none; }
-  .settings-panel.active { display:block; }
-</style>
-<div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
-  <div class="absolute inset-0 bg-black opacity-40" onclick="document.getElementById('settingsModal').classList.add('hidden')"></div>
-  <div class="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-[500px] max-w-[95vw] z-60 max-h-[90vh] flex flex-col overflow-hidden">
-    <!-- Header -->
-    <div class="flex items-center justify-between px-4 pt-4 pb-0 flex-shrink-0">
-      <h3 class="text-base font-semibold text-slate-800 dark:text-gray-100">Settings</h3>
-      <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded">
-        <span class="material-symbols-outlined text-[18px]">close</span>
-      </button>
-    </div>
-    <!-- Tabs -->
-    <div class="flex border-b border-gray-200 dark:border-gray-700 px-4 mt-2 flex-shrink-0" id="settingsTabs">
-      <button class="settings-tab active" data-tab="appearance" onclick="switchSettingsTab('appearance')">
-        <span class="material-symbols-outlined text-[14px] align-text-bottom mr-0.5">palette</span> Appearance
-      </button>
-      <button class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')">
-        <span class="material-symbols-outlined text-[14px] align-text-bottom mr-0.5">smart_toy</span> AI / LLM
-      </button>
-    </div>
-    <!-- Tab content -->
-    <div class="overflow-y-auto p-4 flex-1 text-sm text-gray-700 dark:text-gray-300">
 
-      <!-- ====== Appearance tab ====== -->
-      <div id="settingsPanel-appearance" class="settings-panel active space-y-4">
-        <div>
-          <label class="block text-xs font-medium text-gray-500">Decimal places</label>
-          <input id="settingsRound" type="number" min="0" step="1"
-            class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
-            placeholder="Auto (leave empty for auto-detect)" />
-          <p class="text-[10px] text-gray-400 mt-0.5">Leave empty to auto-detect precision from your input numbers.</p>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-gray-500">Decimal separator</label>
-            <select id="settingsDecimalSeparator" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
-              <option value=".">Dot (1.23)</option>
-              <option value=",">Comma (1,23)</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-500">CSV delimiter</label>
-            <select id="settingsCsvDelimiter" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
-              <option value="auto">Auto-detect</option>
-              <option value="comma">Comma (,)</option>
-              <option value="semicolon">Semicolon (;)</option>
-              <option value="tab">Tab</option>
-              <option value="pipe">Pipe (|)</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500">Color scheme</label>
-          <select id="settingsColor" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
-            <option value="default">Default</option>
-            <option value="warm">Warm</option>
-            <option value="midnight">Midnight</option>
-            <option value="solarized">Solarized</option>
-            <option value="ocean">Ocean</option>
-            <option value="monochrome">Monochrome</option>
-          </select>
-          <div id="settingsPalettePreview" class="settings-palette" aria-hidden="true"></div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500">Editor font</label>
-          <select id="settingsFont" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
-            <option value="'Fira Code', 'Menlo', 'Monaco', monospace">Fira Code</option>
-            <option value="'Menlo', 'Monaco', 'Consolas', monospace">Menlo / Mono</option>
-            <option value="'Courier New', monospace">Courier New</option>
-            <option value="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">System UI</option>
-          </select>
-        </div>
-        <div class="flex items-center gap-4 pt-1">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input id="settingsLargeText" type="checkbox" class="form-checkbox" />
-            <span class="text-xs text-gray-600 dark:text-gray-400">Large text</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input id="settingsHighContrast" type="checkbox" class="form-checkbox" />
-            <span class="text-xs text-gray-600 dark:text-gray-400">High contrast</span>
-          </label>
-        </div>
-      </div>
+    function outsideExampleMenu(e) {
+      const wrap = document.getElementById('examplesMenuWrapper');
+      if (!wrap) return;
+      if (!wrap.contains(e.target)) toggleExamplesMenu(false);
+    }
 
-      <!-- ====== AI / LLM tab ====== -->
-      <div id="settingsPanel-ai" class="settings-panel space-y-4">
-        <div>
-          <label class="block text-xs font-medium text-gray-500">Endpoint URL</label>
-          <input id="settingsLlmEndpoint" type="url"
-            class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
-            placeholder="http://localhost:1234/v1/chat/completions" autocomplete="off" />
-          <p class="text-[10px] text-gray-400 mt-1 leading-relaxed">
-            Supports <strong>LM-Studio</strong>, <strong>llmster</strong>, <strong>Ollama</strong> and any OpenAI-compatible server.<br>
-            Examples: <code class="bg-gray-100 dark:bg-gray-800 px-0.5 rounded">http://localhost:1234/v1/chat/completions</code><br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code class="bg-gray-100 dark:bg-gray-800 px-0.5 rounded">http://localhost:11434/api/chat</code>
-          </p>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500">Model <span class="font-normal text-gray-400">(optional — auto-selected if blank)</span></label>
-          <div class="flex gap-1.5 mt-1">
-            <input id="settingsLlmModel" type="text" list="llmModelList"
-              class="flex-1 rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono min-w-0"
-              placeholder="e.g. llama3, mistral, gpt-4o" autocomplete="off" />
-            <datalist id="llmModelList"></datalist>
-            <button id="settingsLlmDetect" type="button" title="Auto-detect available models from server"
-              class="px-2.5 py-1 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-1 whitespace-nowrap transition-colors flex-shrink-0">
-              <span class="material-symbols-outlined text-[14px]">refresh</span>
-              <span id="settingsLlmDetectLabel">Detect</span>
-            </button>
-          </div>
-          <p id="settingsLlmModelHint" class="text-[10px] text-gray-400 mt-0.5">Click Detect to load available models from the server.</p>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500">API key <span class="font-normal text-gray-400">(optional — leave blank for local servers)</span></label>
-          <input id="settingsLlmApiKey" type="password"
-            class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
-            placeholder="sk-…" autocomplete="new-password" />
-        </div>
-        <div id="settingsLlmTestResult" class="hidden rounded border px-3 py-2 text-xs"></div>
-        <button id="settingsLlmTestBtn" type="button"
-          class="w-full py-1.5 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center gap-1 transition-colors">
-          <span class="material-symbols-outlined text-[14px]">network_check</span>
-          Test connection
+    // Close examples menu on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const menu = document.getElementById('examplesMenu');
+        if (menu && !menu.classList.contains('hidden')) toggleExamplesMenu(false);
+      }
+    });
+  </script>
+  <!-- Settings Modal -->
+  <style>
+    /* High-contrast override used by accessibility setting */
+    .lc-high-contrast body,
+    .lc-high-contrast .backdrop-layer {
+      background: #000 !important;
+      color: #fff !important;
+    }
+    .lc-high-contrast .token-number,
+    .lc-high-contrast .token-result {
+      color: #ffea00 !important;
+    }
+    .settings-palette {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .settings-swatch {
+      width: 28px;
+      height: 18px;
+      border-radius: 4px;
+      box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    .settings-tab {
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      color: #6b7280;
+      transition:
+        color 0.15s,
+        border-color 0.15s;
+      white-space: nowrap;
+    }
+    .settings-tab.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+    .settings-tab:hover:not(.active) {
+      color: #374151;
+    }
+    .dark .settings-tab:hover:not(.active) {
+      color: #d1d5db;
+    }
+    .dark .settings-tab.active {
+      color: #60a5fa;
+      border-bottom-color: #60a5fa;
+    }
+    .settings-panel {
+      display: none;
+    }
+    .settings-panel.active {
+      display: block;
+    }
+  </style>
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      class="absolute inset-0 bg-black opacity-40"
+      onclick="document.getElementById('settingsModal').classList.add('hidden')"
+    ></div>
+    <div
+      class="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-[500px] max-w-[95vw] z-60 max-h-[90vh] flex flex-col overflow-hidden"
+    >
+      <!-- Header -->
+      <div class="flex items-center justify-between px-4 pt-4 pb-0 flex-shrink-0">
+        <h3 class="text-base font-semibold text-slate-800 dark:text-gray-100">Settings</h3>
+        <button
+          onclick="document.getElementById('settingsModal').classList.add('hidden')"
+          class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded"
+        >
+          <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
+      <!-- Tabs -->
+      <div class="flex border-b border-gray-200 dark:border-gray-700 px-4 mt-2 flex-shrink-0" id="settingsTabs">
+        <button class="settings-tab active" data-tab="appearance" onclick="switchSettingsTab('appearance')">
+          <span class="material-symbols-outlined text-[14px] align-text-bottom mr-0.5">palette</span>
+          Appearance
+        </button>
+        <button class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')">
+          <span class="material-symbols-outlined text-[14px] align-text-bottom mr-0.5">smart_toy</span>
+          AI / LLM
+        </button>
+      </div>
+      <!-- Tab content -->
+      <div class="overflow-y-auto p-4 flex-1 text-sm text-gray-700 dark:text-gray-300">
+        <!-- ====== Appearance tab ====== -->
+        <div id="settingsPanel-appearance" class="settings-panel active space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-500">Decimal places</label>
+            <input
+              id="settingsRound"
+              type="number"
+              min="0"
+              step="1"
+              class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
+              placeholder="Auto (leave empty for auto-detect)"
+            />
+            <p class="text-[10px] text-gray-400 mt-0.5">
+              Leave empty to auto-detect precision from your input numbers.
+            </p>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500">Decimal separator</label>
+              <select
+                id="settingsDecimalSeparator"
+                class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
+              >
+                <option value=".">Dot (1.23)</option>
+                <option value=",">Comma (1,23)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500">CSV delimiter</label>
+              <select
+                id="settingsCsvDelimiter"
+                class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
+              >
+                <option value="auto">Auto-detect</option>
+                <option value="comma">Comma (,)</option>
+                <option value="semicolon">Semicolon (;)</option>
+                <option value="tab">Tab</option>
+                <option value="pipe">Pipe (|)</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500">Color scheme</label>
+            <select id="settingsColor" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
+              <option value="default">Default</option>
+              <option value="warm">Warm</option>
+              <option value="midnight">Midnight</option>
+              <option value="solarized">Solarized</option>
+              <option value="ocean">Ocean</option>
+              <option value="monochrome">Monochrome</option>
+            </select>
+            <div id="settingsPalettePreview" class="settings-palette" aria-hidden="true"></div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500">Editor font</label>
+            <select id="settingsFont" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
+              <option value="'Fira Code', 'Menlo', 'Monaco', monospace">Fira Code</option>
+              <option value="'Menlo', 'Monaco', 'Consolas', monospace">Menlo / Mono</option>
+              <option value="'Courier New', monospace">Courier New</option>
+              <option value="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">System UI</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-4 pt-1">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input id="settingsLargeText" type="checkbox" class="form-checkbox" />
+              <span class="text-xs text-gray-600 dark:text-gray-400">Large text</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input id="settingsHighContrast" type="checkbox" class="form-checkbox" />
+              <span class="text-xs text-gray-600 dark:text-gray-400">High contrast</span>
+            </label>
+          </div>
+        </div>
 
-    </div>
-    <!-- Footer -->
-    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
-      <button id="settingsReset" class="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Reset defaults</button>
-      <div class="flex gap-2">
-        <button id="settingsCancel" class="px-3 py-1.5 text-xs bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onclick="document.getElementById('settingsModal').classList.add('hidden')">Cancel</button>
-        <button id="settingsSave" class="px-4 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium">Save</button>
+        <!-- ====== AI / LLM tab ====== -->
+        <div id="settingsPanel-ai" class="settings-panel space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-500">Endpoint URL</label>
+            <input
+              id="settingsLlmEndpoint"
+              type="url"
+              class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
+              placeholder="http://localhost:1234/v1/chat/completions"
+              autocomplete="off"
+            />
+            <p class="text-[10px] text-gray-400 mt-1 leading-relaxed">
+              Supports
+              <strong>LM-Studio</strong>
+              ,
+              <strong>llmster</strong>
+              ,
+              <strong>Ollama</strong>
+              and any OpenAI-compatible server.
+              <br />
+              Examples:
+              <code class="bg-gray-100 dark:bg-gray-800 px-0.5 rounded">http://localhost:1234/v1/chat/completions</code>
+              <br />
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              <code class="bg-gray-100 dark:bg-gray-800 px-0.5 rounded">http://localhost:11434/api/chat</code>
+            </p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500">
+              Model
+              <span class="font-normal text-gray-400">(optional — auto-selected if blank)</span>
+            </label>
+            <div class="flex gap-1.5 mt-1">
+              <input
+                id="settingsLlmModel"
+                type="text"
+                list="llmModelList"
+                class="flex-1 rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono min-w-0"
+                placeholder="e.g. llama3, mistral, gpt-4o"
+                autocomplete="off"
+              />
+              <datalist id="llmModelList"></datalist>
+              <button
+                id="settingsLlmDetect"
+                type="button"
+                title="Auto-detect available models from server"
+                class="px-2.5 py-1 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-1 whitespace-nowrap transition-colors flex-shrink-0"
+              >
+                <span class="material-symbols-outlined text-[14px]">refresh</span>
+                <span id="settingsLlmDetectLabel">Detect</span>
+              </button>
+            </div>
+            <p id="settingsLlmModelHint" class="text-[10px] text-gray-400 mt-0.5">
+              Click Detect to load available models from the server.
+            </p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500">
+              API key
+              <span class="font-normal text-gray-400">(optional — leave blank for local servers)</span>
+            </label>
+            <input
+              id="settingsLlmApiKey"
+              type="password"
+              class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
+              placeholder="sk-…"
+              autocomplete="new-password"
+            />
+          </div>
+          <div id="settingsLlmTestResult" class="hidden rounded border px-3 py-2 text-xs"></div>
+          <button
+            id="settingsLlmTestBtn"
+            type="button"
+            class="w-full py-1.5 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center gap-1 transition-colors"
+          >
+            <span class="material-symbols-outlined text-[14px]">network_check</span>
+            Test connection
+          </button>
+        </div>
+      </div>
+      <!-- Footer -->
+      <div
+        class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0"
+      >
+        <button
+          id="settingsReset"
+          class="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        >
+          Reset defaults
+        </button>
+        <div class="flex gap-2">
+          <button
+            id="settingsCancel"
+            class="px-3 py-1.5 text-xs bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            onclick="document.getElementById('settingsModal').classList.add('hidden')"
+          >
+            Cancel
+          </button>
+          <button
+            id="settingsSave"
+            class="px-4 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
+          >
+            Save
+          </button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<script>
-  // Settings tab switching
-  function switchSettingsTab(name) {
-    document.querySelectorAll('.settings-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-    document.querySelectorAll('.settings-panel').forEach(p => p.classList.toggle('active', p.id === 'settingsPanel-' + name));
-  }
+  <script>
+    // Settings tab switching
+    function switchSettingsTab(name) {
+      document.querySelectorAll('.settings-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      document
+        .querySelectorAll('.settings-panel')
+        .forEach((p) => p.classList.toggle('active', p.id === 'settingsPanel-' + name));
+    }
 
-  // Settings modal wiring with live palette preview
-  (function() {
-    const saveBtn = document.getElementById('settingsSave');
-    const cancelBtn = document.getElementById('settingsCancel');
-    const resetBtn = document.getElementById('settingsReset');
-    const modal = document.getElementById('settingsModal');
-    const round = document.getElementById('settingsRound');
-    const color = document.getElementById('settingsColor');
-    const font = document.getElementById('settingsFont');
-    const largeText = document.getElementById('settingsLargeText');
-    const highContrast = document.getElementById('settingsHighContrast');
-    const preview = document.getElementById('settingsPalettePreview');
-    const llmEndpoint = document.getElementById('settingsLlmEndpoint');
-    const llmModel = document.getElementById('settingsLlmModel');
-    const llmApiKey = document.getElementById('settingsLlmApiKey');
-    const llmDetectBtn = document.getElementById('settingsLlmDetect');
-    const llmDetectLabel = document.getElementById('settingsLlmDetectLabel');
-    const llmModelList = document.getElementById('llmModelList');
-    const llmModelHint = document.getElementById('settingsLlmModelHint');
-    const llmTestBtn = document.getElementById('settingsLlmTestBtn');
-    const llmTestResult = document.getElementById('settingsLlmTestResult');
+    // Settings modal wiring with live palette preview
+    (function () {
+      const saveBtn = document.getElementById('settingsSave');
+      const cancelBtn = document.getElementById('settingsCancel');
+      const resetBtn = document.getElementById('settingsReset');
+      const modal = document.getElementById('settingsModal');
+      const round = document.getElementById('settingsRound');
+      const color = document.getElementById('settingsColor');
+      const font = document.getElementById('settingsFont');
+      const largeText = document.getElementById('settingsLargeText');
+      const highContrast = document.getElementById('settingsHighContrast');
+      const preview = document.getElementById('settingsPalettePreview');
+      const llmEndpoint = document.getElementById('settingsLlmEndpoint');
+      const llmModel = document.getElementById('settingsLlmModel');
+      const llmApiKey = document.getElementById('settingsLlmApiKey');
+      const llmDetectBtn = document.getElementById('settingsLlmDetect');
+      const llmDetectLabel = document.getElementById('settingsLlmDetectLabel');
+      const llmModelList = document.getElementById('llmModelList');
+      const llmModelHint = document.getElementById('settingsLlmModelHint');
+      const llmTestBtn = document.getElementById('settingsLlmTestBtn');
+      const llmTestResult = document.getElementById('settingsLlmTestResult');
 
-    // Detect available models
-    if (llmDetectBtn) {
-      llmDetectBtn.addEventListener('click', async function() {
-        const url = llmEndpoint ? llmEndpoint.value.trim() : '';
-        const apiKey = llmApiKey ? llmApiKey.value.trim() : '';
-        if (!url) { if (llmModelHint) { llmModelHint.textContent = '⚠️ Enter an endpoint URL first.'; llmModelHint.className = 'text-[10px] text-red-500 mt-0.5'; } return; }
-        llmDetectBtn.disabled = true;
-        if (llmDetectLabel) llmDetectLabel.textContent = '…';
-        if (llmModelHint) { llmModelHint.textContent = 'Fetching models…'; llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5'; }
-        try {
-          const models = await (window.lcAI && window.lcAI.fetchModels ? window.lcAI.fetchModels(url, apiKey) : Promise.reject(new Error('lcAI not ready')));
-          if (llmModelList) {
-            llmModelList.innerHTML = '';
-            models.forEach(m => { const opt = document.createElement('option'); opt.value = m; llmModelList.appendChild(opt); });
+      // Detect available models
+      if (llmDetectBtn) {
+        llmDetectBtn.addEventListener('click', async function () {
+          const url = llmEndpoint ? llmEndpoint.value.trim() : '';
+          const apiKey = llmApiKey ? llmApiKey.value.trim() : '';
+          if (!url) {
+            if (llmModelHint) {
+              llmModelHint.textContent = '⚠️ Enter an endpoint URL first.';
+              llmModelHint.className = 'text-[10px] text-red-500 mt-0.5';
+            }
+            return;
           }
-          if (models.length === 0) {
-            if (llmModelHint) { llmModelHint.textContent = 'No models returned by server.'; llmModelHint.className = 'text-[10px] text-yellow-500 mt-0.5'; }
-          } else {
-            if (!llmModel.value && models.length >= 1) llmModel.value = models[0];
-            if (llmModelHint) { llmModelHint.textContent = `✓ ${models.length} model(s) found. Select from the list or type a name.`; llmModelHint.className = 'text-[10px] text-green-600 mt-0.5'; }
+          llmDetectBtn.disabled = true;
+          if (llmDetectLabel) llmDetectLabel.textContent = '…';
+          if (llmModelHint) {
+            llmModelHint.textContent = 'Fetching models…';
+            llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5';
           }
-        } catch (err) {
-          if (llmModelHint) { llmModelHint.textContent = '⚠️ ' + err.message; llmModelHint.className = 'text-[10px] text-red-500 mt-0.5'; }
-        } finally {
-          llmDetectBtn.disabled = false;
-          if (llmDetectLabel) llmDetectLabel.textContent = 'Detect';
-        }
-      });
-    }
+          try {
+            const models = await (window.lcAI && window.lcAI.fetchModels
+              ? window.lcAI.fetchModels(url, apiKey)
+              : Promise.reject(new Error('lcAI not ready')));
+            if (llmModelList) {
+              llmModelList.innerHTML = '';
+              models.forEach((m) => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                llmModelList.appendChild(opt);
+              });
+            }
+            if (models.length === 0) {
+              if (llmModelHint) {
+                llmModelHint.textContent = 'No models returned by server.';
+                llmModelHint.className = 'text-[10px] text-yellow-500 mt-0.5';
+              }
+            } else {
+              if (!llmModel.value && models.length >= 1) llmModel.value = models[0];
+              if (llmModelHint) {
+                llmModelHint.textContent = `✓ ${models.length} model(s) found. Select from the list or type a name.`;
+                llmModelHint.className = 'text-[10px] text-green-600 mt-0.5';
+              }
+            }
+          } catch (err) {
+            if (llmModelHint) {
+              llmModelHint.textContent = '⚠️ ' + err.message;
+              llmModelHint.className = 'text-[10px] text-red-500 mt-0.5';
+            }
+          } finally {
+            llmDetectBtn.disabled = false;
+            if (llmDetectLabel) llmDetectLabel.textContent = 'Detect';
+          }
+        });
+      }
 
-    // Test connection
-    if (llmTestBtn) {
-      llmTestBtn.addEventListener('click', async function() {
-        const url = llmEndpoint ? llmEndpoint.value.trim() : '';
-        const apiKey = llmApiKey ? llmApiKey.value.trim() : '';
-        const model = llmModel ? llmModel.value.trim() : '';
-        if (!url) { showResult('⚠️ Enter an endpoint URL first.', 'warn'); return; }
-        llmTestBtn.disabled = true;
-        llmTestBtn.querySelector('span.material-symbols-outlined').textContent = 'hourglass_empty';
-        showResult('Testing connection…', 'info');
-        try {
-          const models = await (window.lcAI && window.lcAI.fetchModels ? window.lcAI.fetchModels(url, apiKey) : Promise.reject(new Error('lcAI not ready')));
-          showResult(`✓ Server reachable. ${models.length} model(s) available.${models.length ? ' First: ' + models[0] : ''}`, 'ok');
-        } catch (err) {
-          showResult('✗ ' + err.message, 'err');
-        } finally {
-          llmTestBtn.disabled = false;
-          llmTestBtn.querySelector('span.material-symbols-outlined').textContent = 'network_check';
-        }
-        function showResult(msg, type) {
-          if (!llmTestResult) return;
-          llmTestResult.classList.remove('hidden');
-          const cls = { ok: 'text-green-700 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-950/30 dark:border-green-800', err: 'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-950/30 dark:border-red-800', warn: 'text-yellow-700 bg-yellow-50 border-yellow-200', info: 'text-gray-600 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700' };
-          llmTestResult.className = 'rounded border px-3 py-2 text-xs ' + (cls[type] || cls.info);
-          llmTestResult.textContent = msg;
-        }
-      });
-    }
+      // Test connection
+      if (llmTestBtn) {
+        llmTestBtn.addEventListener('click', async function () {
+          const url = llmEndpoint ? llmEndpoint.value.trim() : '';
+          const apiKey = llmApiKey ? llmApiKey.value.trim() : '';
+          const model = llmModel ? llmModel.value.trim() : '';
+          if (!url) {
+            showResult('⚠️ Enter an endpoint URL first.', 'warn');
+            return;
+          }
+          llmTestBtn.disabled = true;
+          llmTestBtn.querySelector('span.material-symbols-outlined').textContent = 'hourglass_empty';
+          showResult('Testing connection…', 'info');
+          try {
+            const models = await (window.lcAI && window.lcAI.fetchModels
+              ? window.lcAI.fetchModels(url, apiKey)
+              : Promise.reject(new Error('lcAI not ready')));
+            showResult(
+              `✓ Server reachable. ${models.length} model(s) available.${models.length ? ' First: ' + models[0] : ''}`,
+              'ok'
+            );
+          } catch (err) {
+            showResult('✗ ' + err.message, 'err');
+          } finally {
+            llmTestBtn.disabled = false;
+            llmTestBtn.querySelector('span.material-symbols-outlined').textContent = 'network_check';
+          }
+          function showResult(msg, type) {
+            if (!llmTestResult) return;
+            llmTestResult.classList.remove('hidden');
+            const cls = {
+              ok: 'text-green-700 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-950/30 dark:border-green-800',
+              err: 'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-950/30 dark:border-red-800',
+              warn: 'text-yellow-700 bg-yellow-50 border-yellow-200',
+              info: 'text-gray-600 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700',
+            };
+            llmTestResult.className = 'rounded border px-3 py-2 text-xs ' + (cls[type] || cls.info);
+            llmTestResult.textContent = msg;
+          }
+        });
+      }
 
-    const palettes = {
-      default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
-      warm: ['#c2410c', '#b45309', '#92400e', '#78350f', '#4b2e05'],
-      midnight: ['#0ea5e9', '#7c3aed', '#60a5fa', '#94a3b8', '#111827'],
-      solarized: ['#268bd2', '#2aa198', '#b58900', '#cb4b16', '#6c71c4'],
-      ocean: ['#2b6cb0', '#38b2ac', '#2c7a7b', '#2a4365', '#81e6d9'],
-      monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db']
-    };
-
-    function hide() { modal.classList.add('hidden'); }
-
-    function renderPreview(s) {
-      if (!preview) return;
-      preview.innerHTML = '';
-      const p = palettes[s] || palettes.default;
-      p.forEach(c => {
-        const d = document.createElement('div');
-        d.className = 'settings-swatch';
-        d.style.background = c;
-        preview.appendChild(d);
-      });
-    }
-
-    if (color) {
-      color.addEventListener('change', function() { renderPreview(color.value); });
-      renderPreview(color ? color.value : 'default');
-    }
-
-    if (saveBtn) saveBtn.addEventListener('click', function() {
-      const rdVal = round ? round.value.trim() : '';
-      const rd = rdVal === '' ? null : parseInt(rdVal, 10);
-      const cfg = {};
-      cfg.roundDecimals = (!isNaN(rd) && rd !== null) ? Math.max(0, Math.min(20, rd)) : null;
-      cfg.colorScheme = (color && color.value) ? color.value : 'default';
-      cfg.font = (font && font.value) ? font.value : "'Fira Code', 'Menlo', monospace";
-      cfg.accessibility = { largeText: !!(largeText && largeText.checked), highContrast: !!(highContrast && highContrast.checked) };
-      cfg.llm = {
-        endpoint: llmEndpoint ? llmEndpoint.value.trim() : '',
-        model: llmModel ? llmModel.value.trim() : '',
-        apiKey: llmApiKey ? llmApiKey.value.trim() : ''
+      const palettes = {
+        default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
+        warm: ['#c2410c', '#b45309', '#92400e', '#78350f', '#4b2e05'],
+        midnight: ['#0ea5e9', '#7c3aed', '#60a5fa', '#94a3b8', '#111827'],
+        solarized: ['#268bd2', '#2aa198', '#b58900', '#cb4b16', '#6c71c4'],
+        ocean: ['#2b6cb0', '#38b2ac', '#2c7a7b', '#2a4365', '#81e6d9'],
+        monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db'],
       };
-      const decSepSel = document.getElementById('settingsDecimalSeparator');
-      const csvDelimSel = document.getElementById('settingsCsvDelimiter');
-      cfg.decimalSeparator = decSepSel ? decSepSel.value : '.';
-      cfg.csvDelimiter = csvDelimSel ? csvDelimSel.value : 'auto';
-      if (window.app && typeof window.app.setSettings === 'function') {
-        window.app.setSettings(cfg);
-        try { if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility(); } catch (e) {}
-        showToast('Settings saved');
+
+      function hide() {
+        modal.classList.add('hidden');
       }
-      hide();
-    });
 
-    if (resetBtn) resetBtn.addEventListener('click', function() {
-      const currentLlm = (window.app && window.app.getLlmSettings && window.app.getLlmSettings()) || { endpoint: '', model: '', apiKey: '' };
-      const def = { roundDecimals: null, colorScheme: 'default', font: "'Fira Code', 'Menlo', 'Monaco', monospace", accessibility: { largeText: false, highContrast: false }, llm: currentLlm };
-      if (window.app && typeof window.app.setSettings === 'function') {
-        window.app.setSettings(def);
-        if (round) round.value = '';
-        if (color) color.value = def.colorScheme;
-        if (font) font.value = def.font;
-        if (largeText) largeText.checked = def.accessibility.largeText;
-        if (highContrast) highContrast.checked = def.accessibility.highContrast;
-        renderPreview(def.colorScheme);
-        showToast('Settings reset to defaults');
+      function renderPreview(s) {
+        if (!preview) return;
+        preview.innerHTML = '';
+        const p = palettes[s] || palettes.default;
+        p.forEach((c) => {
+          const d = document.createElement('div');
+          d.className = 'settings-swatch';
+          d.style.background = c;
+          preview.appendChild(d);
+        });
       }
-    });
 
-    if (cancelBtn) cancelBtn.addEventListener('click', hide);
+      if (color) {
+        color.addEventListener('change', function () {
+          renderPreview(color.value);
+        });
+        renderPreview(color ? color.value : 'default');
+      }
 
-    // Close on Escape
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) hide(); });
-  })();
-</script>
+      if (saveBtn)
+        saveBtn.addEventListener('click', function () {
+          const rdVal = round ? round.value.trim() : '';
+          const rd = rdVal === '' ? null : parseInt(rdVal, 10);
+          const cfg = {};
+          cfg.roundDecimals = !isNaN(rd) && rd !== null ? Math.max(0, Math.min(20, rd)) : null;
+          cfg.colorScheme = color && color.value ? color.value : 'default';
+          cfg.font = font && font.value ? font.value : "'Fira Code', 'Menlo', monospace";
+          cfg.accessibility = {
+            largeText: !!(largeText && largeText.checked),
+            highContrast: !!(highContrast && highContrast.checked),
+          };
+          cfg.llm = {
+            endpoint: llmEndpoint ? llmEndpoint.value.trim() : '',
+            model: llmModel ? llmModel.value.trim() : '',
+            apiKey: llmApiKey ? llmApiKey.value.trim() : '',
+          };
+          const decSepSel = document.getElementById('settingsDecimalSeparator');
+          const csvDelimSel = document.getElementById('settingsCsvDelimiter');
+          cfg.decimalSeparator = decSepSel ? decSepSel.value : '.';
+          cfg.csvDelimiter = csvDelimSel ? csvDelimSel.value : 'auto';
+          if (window.app && typeof window.app.setSettings === 'function') {
+            window.app.setSettings(cfg);
+            try {
+              if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility();
+            } catch (e) {}
+            showToast('Settings saved');
+          }
+          hide();
+        });
 
+      if (resetBtn)
+        resetBtn.addEventListener('click', function () {
+          const currentLlm = (window.app && window.app.getLlmSettings && window.app.getLlmSettings()) || {
+            endpoint: '',
+            model: '',
+            apiKey: '',
+          };
+          const def = {
+            roundDecimals: null,
+            colorScheme: 'default',
+            font: "'Fira Code', 'Menlo', 'Monaco', monospace",
+            accessibility: { largeText: false, highContrast: false },
+            llm: currentLlm,
+          };
+          if (window.app && typeof window.app.setSettings === 'function') {
+            window.app.setSettings(def);
+            if (round) round.value = '';
+            if (color) color.value = def.colorScheme;
+            if (font) font.value = def.font;
+            if (largeText) largeText.checked = def.accessibility.largeText;
+            if (highContrast) highContrast.checked = def.accessibility.highContrast;
+            renderPreview(def.colorScheme);
+            showToast('Settings reset to defaults');
+          }
+        });
+
+      if (cancelBtn) cancelBtn.addEventListener('click', hide);
+
+      // Close on Escape
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) hide();
+      });
+    })();
+  </script>
 </html>

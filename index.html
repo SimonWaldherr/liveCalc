@@ -519,78 +519,139 @@
   .lc-high-contrast .token-number, .lc-high-contrast .token-result { color: #ffea00 !important; }
   .settings-palette { display:flex; gap:6px; margin-top:6px; }
   .settings-swatch { width:28px; height:18px; border-radius:4px; box-shadow:0 1px 1px rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.06); }
+  .settings-tab { padding:6px 14px; font-size:12px; font-weight:500; border-bottom:2px solid transparent; cursor:pointer; color:#6b7280; transition:color .15s,border-color .15s; white-space:nowrap; }
+  .settings-tab.active { color:#2563eb; border-bottom-color:#2563eb; }
+  .settings-tab:hover:not(.active) { color:#374151; }
+  .dark .settings-tab:hover:not(.active) { color:#d1d5db; }
+  .dark .settings-tab.active { color:#60a5fa; border-bottom-color:#60a5fa; }
+  .settings-panel { display:none; }
+  .settings-panel.active { display:block; }
 </style>
 <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
   <div class="absolute inset-0 bg-black opacity-40" onclick="document.getElementById('settingsModal').classList.add('hidden')"></div>
-  <div class="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-[480px] max-w-[95vw] p-4 z-60 max-h-[90vh] overflow-y-auto">
-    <h3 class="text-lg font-semibold mb-2 text-slate-800 dark:text-gray-100">Settings</h3>
-    <div class="space-y-3 text-sm text-gray-700 dark:text-gray-300">
-      <div>
-        <label class="block text-xs text-gray-500">Decimal places</label>
-        <input id="settingsRound" type="number" min="0" step="1" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800" placeholder="Auto (leave empty for auto-detect)" />
-        <p class="text-[10px] text-gray-400 mt-0.5">Leave empty to auto-detect precision from your input numbers.</p>
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500">Color scheme</label>
-        <select id="settingsColor" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800">
-          <option value="default">Default</option>
-          <option value="warm">Warm</option>
-          <option value="midnight">Midnight</option>
-          <option value="solarized">Solarized</option>
-          <option value="ocean">Ocean</option>
-          <option value="monochrome">Monochrome</option>
-        </select>
-        <div id="settingsPalettePreview" class="settings-palette" aria-hidden="true"></div>
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500">Editor font</label>
-        <select id="settingsFont" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800">
-          <option value="'Fira Code', 'Menlo', 'Monaco', monospace">Fira Code</option>
-          <option value="'Menlo', 'Monaco', 'Consolas', monospace">Menlo / Mono</option>
-          <option value="'Courier New', monospace">Courier New</option>
-          <option value="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">System UI</option>
-        </select>
-      </div>
-      <div class="flex items-center gap-3">
-        <label class="flex items-center gap-2"><input id="settingsLargeText" type="checkbox" class="form-checkbox" /> <span class="text-xs text-gray-500">Large text (accessibility)</span></label>
-        <label class="flex items-center gap-2"><input id="settingsHighContrast" type="checkbox" class="form-checkbox" /> <span class="text-xs text-gray-500">High contrast</span></label>
-      </div>
-      <!-- AI / LLM Connection -->
-      <div class="border-t border-gray-200 dark:border-gray-700 pt-3 mt-1">
-        <p class="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">smart_toy</span> AI / LLM Connection</p>
+  <div class="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-[500px] max-w-[95vw] z-60 max-h-[90vh] flex flex-col overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-0 flex-shrink-0">
+      <h3 class="text-base font-semibold text-slate-800 dark:text-gray-100">Settings</h3>
+      <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded">
+        <span class="material-symbols-outlined text-[18px]">close</span>
+      </button>
+    </div>
+    <!-- Tabs -->
+    <div class="flex border-b border-gray-200 dark:border-gray-700 px-4 mt-2 flex-shrink-0" id="settingsTabs">
+      <button class="settings-tab active" data-tab="appearance" onclick="switchSettingsTab('appearance')">
+        <span class="material-symbols-outlined text-[14px] align-text-bottom mr-0.5">palette</span> Appearance
+      </button>
+      <button class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')">
+        <span class="material-symbols-outlined text-[14px] align-text-bottom mr-0.5">smart_toy</span> AI / LLM
+      </button>
+    </div>
+    <!-- Tab content -->
+    <div class="overflow-y-auto p-4 flex-1 text-sm text-gray-700 dark:text-gray-300">
+
+      <!-- ====== Appearance tab ====== -->
+      <div id="settingsPanel-appearance" class="settings-panel active space-y-4">
         <div>
-          <label class="block text-xs text-gray-500">Endpoint URL</label>
-          <input id="settingsLlmEndpoint" type="url" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800 text-xs font-mono" placeholder="http://localhost:1234/v1/chat/completions" autocomplete="off" />
-          <p class="text-[10px] text-gray-400 mt-0.5">LM-Studio, llmster, Ollama (/api/chat) or any OpenAI-compatible endpoint.</p>
+          <label class="block text-xs font-medium text-gray-500">Decimal places</label>
+          <input id="settingsRound" type="number" min="0" step="1"
+            class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
+            placeholder="Auto (leave empty for auto-detect)" />
+          <p class="text-[10px] text-gray-400 mt-0.5">Leave empty to auto-detect precision from your input numbers.</p>
         </div>
-        <div class="mt-2">
-          <label class="block text-xs text-gray-500">Model name <span class="text-gray-300">(optional)</span></label>
-          <div class="flex gap-1 mt-1">
-            <input id="settingsLlmModel" type="text" list="llmModelList" class="flex-1 rounded border px-2 py-1 bg-white dark:bg-gray-800 text-xs font-mono" placeholder="e.g. llama3, mistral, gpt-4o" autocomplete="off" />
+        <div>
+          <label class="block text-xs font-medium text-gray-500">Color scheme</label>
+          <select id="settingsColor" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
+            <option value="default">Default</option>
+            <option value="warm">Warm</option>
+            <option value="midnight">Midnight</option>
+            <option value="solarized">Solarized</option>
+            <option value="ocean">Ocean</option>
+            <option value="monochrome">Monochrome</option>
+          </select>
+          <div id="settingsPalettePreview" class="settings-palette" aria-hidden="true"></div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500">Editor font</label>
+          <select id="settingsFont" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
+            <option value="'Fira Code', 'Menlo', 'Monaco', monospace">Fira Code</option>
+            <option value="'Menlo', 'Monaco', 'Consolas', monospace">Menlo / Mono</option>
+            <option value="'Courier New', monospace">Courier New</option>
+            <option value="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">System UI</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-4 pt-1">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input id="settingsLargeText" type="checkbox" class="form-checkbox" />
+            <span class="text-xs text-gray-600 dark:text-gray-400">Large text</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input id="settingsHighContrast" type="checkbox" class="form-checkbox" />
+            <span class="text-xs text-gray-600 dark:text-gray-400">High contrast</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- ====== AI / LLM tab ====== -->
+      <div id="settingsPanel-ai" class="settings-panel space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-500">Endpoint URL</label>
+          <input id="settingsLlmEndpoint" type="url"
+            class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
+            placeholder="http://localhost:1234/v1/chat/completions" autocomplete="off" />
+          <p class="text-[10px] text-gray-400 mt-1 leading-relaxed">
+            Supports <strong>LM-Studio</strong>, <strong>llmster</strong>, <strong>Ollama</strong> and any OpenAI-compatible server.<br>
+            Examples: <code class="bg-gray-100 dark:bg-gray-800 px-0.5 rounded">http://localhost:1234/v1/chat/completions</code><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code class="bg-gray-100 dark:bg-gray-800 px-0.5 rounded">http://localhost:11434/api/chat</code>
+          </p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500">Model <span class="font-normal text-gray-400">(optional — auto-selected if blank)</span></label>
+          <div class="flex gap-1.5 mt-1">
+            <input id="settingsLlmModel" type="text" list="llmModelList"
+              class="flex-1 rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono min-w-0"
+              placeholder="e.g. llama3, mistral, gpt-4o" autocomplete="off" />
             <datalist id="llmModelList"></datalist>
-            <button id="settingsLlmDetect" type="button" title="Auto-detect models from server"
-              class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-1 whitespace-nowrap transition-colors">
+            <button id="settingsLlmDetect" type="button" title="Auto-detect available models from server"
+              class="px-2.5 py-1 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-1 whitespace-nowrap transition-colors flex-shrink-0">
               <span class="material-symbols-outlined text-[14px]">refresh</span>
               <span id="settingsLlmDetectLabel">Detect</span>
             </button>
           </div>
           <p id="settingsLlmModelHint" class="text-[10px] text-gray-400 mt-0.5">Click Detect to load available models from the server.</p>
         </div>
-        <div class="mt-2">
-          <label class="block text-xs text-gray-500">API key <span class="text-gray-300">(optional)</span></label>
-          <input id="settingsLlmApiKey" type="password" class="mt-1 w-full rounded border px-2 py-1 bg-white dark:bg-gray-800 text-xs font-mono" placeholder="sk-... (leave blank for local servers)" autocomplete="new-password" />
+        <div>
+          <label class="block text-xs font-medium text-gray-500">API key <span class="font-normal text-gray-400">(optional — leave blank for local servers)</span></label>
+          <input id="settingsLlmApiKey" type="password"
+            class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
+            placeholder="sk-…" autocomplete="new-password" />
         </div>
+        <div id="settingsLlmTestResult" class="hidden rounded border px-3 py-2 text-xs"></div>
+        <button id="settingsLlmTestBtn" type="button"
+          class="w-full py-1.5 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center gap-1 transition-colors">
+          <span class="material-symbols-outlined text-[14px]">network_check</span>
+          Test connection
+        </button>
       </div>
+
     </div>
-    <div class="mt-4 flex justify-end gap-2">
-      <button id="settingsReset" class="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 rounded">Reset</button>
-      <button id="settingsCancel" class="px-3 py-1 text-sm bg-white dark:bg-gray-800 rounded border" onclick="document.getElementById('settingsModal').classList.add('hidden')">Cancel</button>
-      <button id="settingsSave" class="px-3 py-1 text-sm bg-blue-600 text-white rounded">Save</button>
+    <!-- Footer -->
+    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+      <button id="settingsReset" class="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Reset defaults</button>
+      <div class="flex gap-2">
+        <button id="settingsCancel" class="px-3 py-1.5 text-xs bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onclick="document.getElementById('settingsModal').classList.add('hidden')">Cancel</button>
+        <button id="settingsSave" class="px-4 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium">Save</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
+  // Settings tab switching
+  function switchSettingsTab(name) {
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('.settings-panel').forEach(p => p.classList.toggle('active', p.id === 'settingsPanel-' + name));
+  }
+
   // Settings modal wiring with live palette preview
   (function() {
     const saveBtn = document.getElementById('settingsSave');
@@ -598,6 +659,150 @@
     const resetBtn = document.getElementById('settingsReset');
     const modal = document.getElementById('settingsModal');
     const round = document.getElementById('settingsRound');
+    const color = document.getElementById('settingsColor');
+    const font = document.getElementById('settingsFont');
+    const largeText = document.getElementById('settingsLargeText');
+    const highContrast = document.getElementById('settingsHighContrast');
+    const preview = document.getElementById('settingsPalettePreview');
+    const llmEndpoint = document.getElementById('settingsLlmEndpoint');
+    const llmModel = document.getElementById('settingsLlmModel');
+    const llmApiKey = document.getElementById('settingsLlmApiKey');
+    const llmDetectBtn = document.getElementById('settingsLlmDetect');
+    const llmDetectLabel = document.getElementById('settingsLlmDetectLabel');
+    const llmModelList = document.getElementById('llmModelList');
+    const llmModelHint = document.getElementById('settingsLlmModelHint');
+    const llmTestBtn = document.getElementById('settingsLlmTestBtn');
+    const llmTestResult = document.getElementById('settingsLlmTestResult');
+
+    // Detect available models
+    if (llmDetectBtn) {
+      llmDetectBtn.addEventListener('click', async function() {
+        const url = llmEndpoint ? llmEndpoint.value.trim() : '';
+        const apiKey = llmApiKey ? llmApiKey.value.trim() : '';
+        if (!url) { if (llmModelHint) { llmModelHint.textContent = '⚠️ Enter an endpoint URL first.'; llmModelHint.className = 'text-[10px] text-red-500 mt-0.5'; } return; }
+        llmDetectBtn.disabled = true;
+        if (llmDetectLabel) llmDetectLabel.textContent = '…';
+        if (llmModelHint) { llmModelHint.textContent = 'Fetching models…'; llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5'; }
+        try {
+          const models = await (window.lcAI && window.lcAI.fetchModels ? window.lcAI.fetchModels(url, apiKey) : Promise.reject(new Error('lcAI not ready')));
+          if (llmModelList) {
+            llmModelList.innerHTML = '';
+            models.forEach(m => { const opt = document.createElement('option'); opt.value = m; llmModelList.appendChild(opt); });
+          }
+          if (models.length === 0) {
+            if (llmModelHint) { llmModelHint.textContent = 'No models returned by server.'; llmModelHint.className = 'text-[10px] text-yellow-500 mt-0.5'; }
+          } else {
+            if (!llmModel.value && models.length >= 1) llmModel.value = models[0];
+            if (llmModelHint) { llmModelHint.textContent = `✓ ${models.length} model(s) found. Select from the list or type a name.`; llmModelHint.className = 'text-[10px] text-green-600 mt-0.5'; }
+          }
+        } catch (err) {
+          if (llmModelHint) { llmModelHint.textContent = '⚠️ ' + err.message; llmModelHint.className = 'text-[10px] text-red-500 mt-0.5'; }
+        } finally {
+          llmDetectBtn.disabled = false;
+          if (llmDetectLabel) llmDetectLabel.textContent = 'Detect';
+        }
+      });
+    }
+
+    // Test connection
+    if (llmTestBtn) {
+      llmTestBtn.addEventListener('click', async function() {
+        const url = llmEndpoint ? llmEndpoint.value.trim() : '';
+        const apiKey = llmApiKey ? llmApiKey.value.trim() : '';
+        const model = llmModel ? llmModel.value.trim() : '';
+        if (!url) { showResult('⚠️ Enter an endpoint URL first.', 'warn'); return; }
+        llmTestBtn.disabled = true;
+        llmTestBtn.querySelector('span.material-symbols-outlined').textContent = 'hourglass_empty';
+        showResult('Testing connection…', 'info');
+        try {
+          const models = await (window.lcAI && window.lcAI.fetchModels ? window.lcAI.fetchModels(url, apiKey) : Promise.reject(new Error('lcAI not ready')));
+          showResult(`✓ Server reachable. ${models.length} model(s) available.${models.length ? ' First: ' + models[0] : ''}`, 'ok');
+        } catch (err) {
+          showResult('✗ ' + err.message, 'err');
+        } finally {
+          llmTestBtn.disabled = false;
+          llmTestBtn.querySelector('span.material-symbols-outlined').textContent = 'network_check';
+        }
+        function showResult(msg, type) {
+          if (!llmTestResult) return;
+          llmTestResult.classList.remove('hidden');
+          const cls = { ok: 'text-green-700 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-950/30 dark:border-green-800', err: 'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-950/30 dark:border-red-800', warn: 'text-yellow-700 bg-yellow-50 border-yellow-200', info: 'text-gray-600 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700' };
+          llmTestResult.className = 'rounded border px-3 py-2 text-xs ' + (cls[type] || cls.info);
+          llmTestResult.textContent = msg;
+        }
+      });
+    }
+
+    const palettes = {
+      default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
+      warm: ['#c2410c', '#b45309', '#92400e', '#78350f', '#4b2e05'],
+      midnight: ['#0ea5e9', '#7c3aed', '#60a5fa', '#94a3b8', '#111827'],
+      solarized: ['#268bd2', '#2aa198', '#b58900', '#cb4b16', '#6c71c4'],
+      ocean: ['#2b6cb0', '#38b2ac', '#2c7a7b', '#2a4365', '#81e6d9'],
+      monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db']
+    };
+
+    function hide() { modal.classList.add('hidden'); }
+
+    function renderPreview(s) {
+      if (!preview) return;
+      preview.innerHTML = '';
+      const p = palettes[s] || palettes.default;
+      p.forEach(c => {
+        const d = document.createElement('div');
+        d.className = 'settings-swatch';
+        d.style.background = c;
+        preview.appendChild(d);
+      });
+    }
+
+    if (color) {
+      color.addEventListener('change', function() { renderPreview(color.value); });
+      renderPreview(color ? color.value : 'default');
+    }
+
+    if (saveBtn) saveBtn.addEventListener('click', function() {
+      const rdVal = round ? round.value.trim() : '';
+      const rd = rdVal === '' ? null : parseInt(rdVal, 10);
+      const cfg = {};
+      cfg.roundDecimals = (!isNaN(rd) && rd !== null) ? Math.max(0, Math.min(20, rd)) : null;
+      cfg.colorScheme = (color && color.value) ? color.value : 'default';
+      cfg.font = (font && font.value) ? font.value : "'Fira Code', 'Menlo', monospace";
+      cfg.accessibility = { largeText: !!(largeText && largeText.checked), highContrast: !!(highContrast && highContrast.checked) };
+      cfg.llm = {
+        endpoint: llmEndpoint ? llmEndpoint.value.trim() : '',
+        model: llmModel ? llmModel.value.trim() : '',
+        apiKey: llmApiKey ? llmApiKey.value.trim() : ''
+      };
+      if (window.app && typeof window.app.setSettings === 'function') {
+        window.app.setSettings(cfg);
+        try { if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility(); } catch (e) {}
+        showToast('Settings saved');
+      }
+      hide();
+    });
+
+    if (resetBtn) resetBtn.addEventListener('click', function() {
+      const currentLlm = (window.app && window.app.getLlmSettings && window.app.getLlmSettings()) || { endpoint: '', model: '', apiKey: '' };
+      const def = { roundDecimals: null, colorScheme: 'default', font: "'Fira Code', 'Menlo', 'Monaco', monospace", accessibility: { largeText: false, highContrast: false }, llm: currentLlm };
+      if (window.app && typeof window.app.setSettings === 'function') {
+        window.app.setSettings(def);
+        if (round) round.value = '';
+        if (color) color.value = def.colorScheme;
+        if (font) font.value = def.font;
+        if (largeText) largeText.checked = def.accessibility.largeText;
+        if (highContrast) highContrast.checked = def.accessibility.highContrast;
+        renderPreview(def.colorScheme);
+        showToast('Settings reset to defaults');
+      }
+    });
+
+    if (cancelBtn) cancelBtn.addEventListener('click', hide);
+
+    // Close on Escape
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) hide(); });
+  })();
+</script>
     const color = document.getElementById('settingsColor');
     const font = document.getElementById('settingsFont');
     const largeText = document.getElementById('settingsLargeText');
@@ -645,81 +850,3 @@
     }
 
     const palettes = {
-      default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
-      warm: ['#c2410c', '#b45309', '#92400e', '#78350f', '#4b2e05'],
-      midnight: ['#0ea5e9', '#7c3aed', '#60a5fa', '#94a3b8', '#111827'],
-      solarized: ['#268bd2', '#2aa198', '#b58900', '#cb4b16', '#6c71c4'],
-      ocean: ['#2b6cb0', '#38b2ac', '#2c7a7b', '#2a4365', '#81e6d9'],
-      monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db']
-    };
-
-    function hide() { modal.classList.add('hidden'); }
-
-    function renderPreview(s) {
-      if (!preview) return;
-      preview.innerHTML = '';
-      const p = palettes[s] || palettes.default;
-      p.forEach(c => {
-        const d = document.createElement('div');
-        d.className = 'settings-swatch';
-        d.style.background = c;
-        preview.appendChild(d);
-      });
-    }
-
-    if (color) {
-      color.addEventListener('change', function() { renderPreview(color.value); });
-      // initial render
-      renderPreview(color ? color.value : 'default');
-    }
-
-    if (saveBtn) saveBtn.addEventListener('click', function() {
-      const rdVal = round ? round.value.trim() : '';
-      const rd = rdVal === '' ? null : parseInt(rdVal, 10);
-      const cfg = {};
-      // null = auto-detect; number = fixed decimal places
-      cfg.roundDecimals = (!isNaN(rd) && rd !== null) ? Math.max(0, Math.min(20, rd)) : null;
-      cfg.colorScheme = (color && color.value) ? color.value : 'default';
-      cfg.font = (font && font.value) ? font.value : "'Fira Code', 'Menlo', monospace";
-      cfg.accessibility = { largeText: !!(largeText && largeText.checked), highContrast: !!(highContrast && highContrast.checked) };
-      cfg.llm = {
-        endpoint: llmEndpoint ? llmEndpoint.value.trim() : '',
-        model: llmModel ? llmModel.value.trim() : '',
-        apiKey: llmApiKey ? llmApiKey.value.trim() : ''
-      };
-      if (window.app && typeof window.app.setSettings === 'function') {
-        window.app.setSettings(cfg);
-        try { if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility(); } catch (e) {}
-        showToast('Settings saved');
-      }
-      hide();
-    });
-
-    if (resetBtn) resetBtn.addEventListener('click', function() {
-      // Default: auto-detect decimal places (null), default color scheme and font. Keep LLM settings.
-      const def = { roundDecimals: null, colorScheme: 'default', font: "'Fira Code', 'Menlo', 'Monaco', monospace", accessibility: { largeText: false, highContrast: false } };
-      if (window.app && typeof window.app.setSettings === 'function') {
-        // Preserve existing LLM settings
-        const currentLlm = (window.app.getLlmSettings && window.app.getLlmSettings()) || { endpoint: '', model: '', apiKey: '' };
-        def.llm = currentLlm;
-        window.app.setSettings(def);
-        // update fields
-        if (round) round.value = '';
-        if (color) color.value = def.colorScheme;
-        if (font) font.value = def.font;
-        if (largeText) largeText.checked = def.accessibility.largeText;
-        if (highContrast) highContrast.checked = def.accessibility.highContrast;
-        renderPreview(def.colorScheme);
-        showToast('Settings reset to defaults');
-      }
-    });
-
-    // When modal opens via app.openSettings populator will fill values; still attach hide
-    if (cancelBtn) cancelBtn.addEventListener('click', hide);
-
-    // Close on Escape
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) hide(); });
-  })();
-</script>
-</html>
-</body></html>

@@ -200,7 +200,7 @@
     el.className = 'flex justify-start';
     el.id = 'aiThinking';
     el.innerHTML =
-      '<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-400">Thinking…</div>';
+      '<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-400">Thinking...</div>';
     msgs.appendChild(el);
     msgs.scrollTop = msgs.scrollHeight;
     return el;
@@ -210,7 +210,7 @@
     if (!el) return;
     const box = el.firstElementChild;
     if (!box) return;
-    box.textContent = text || 'Thinking…';
+    box.textContent = text || 'Thinking...';
 
     const msgs = document.getElementById('aiChatMessages');
     if (msgs) msgs.scrollTop = msgs.scrollHeight;
@@ -324,7 +324,7 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
     const thinking = renderThinking();
     const streamBuffer = { text: '' };
 
-    setStatus('Thinking…', 'text-yellow-500');
+    setStatus('Thinking...', 'text-yellow-500');
     setSendBusy(true);
 
     activeAbortController = new AbortController();
@@ -338,7 +338,7 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
           if (!delta) return;
           streamBuffer.text += delta;
           updateThinkingText(thinking, streamBuffer.text);
-          setStatus('Streaming…', 'text-yellow-500');
+          setStatus('Streaming...', 'text-yellow-500');
         },
       });
 

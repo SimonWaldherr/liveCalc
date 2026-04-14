@@ -419,6 +419,8 @@ const app = (() => {
 
   function saveSettings() {
     try {
+      // UX tradeoff: user-entered LLM API keys are persisted locally in browser storage.
+      // Do not use this behavior on shared/untrusted devices.
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (e) {}
   }

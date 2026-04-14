@@ -1629,7 +1629,7 @@
         llmDetectBtn.addEventListener('click', async function () {
           if (!window.livecalcLLM || typeof window.livecalcLLM.fetchModels !== 'function') {
             if (llmModelHint) {
-              llmModelHint.textContent = '⚠️ LLM layer not loaded.';
+              llmModelHint.textContent = 'Error: LLM layer not loaded.';
               llmModelHint.className = 'text-[10px] text-red-500 mt-0.5';
             }
             return;
@@ -1640,16 +1640,16 @@
           const currentProviderCfg = llmCfg.providers[activeProvider];
           if (!currentProviderCfg || !currentProviderCfg.baseURL) {
             if (llmModelHint) {
-              llmModelHint.textContent = '⚠️ Enter a Base URL first.';
+              llmModelHint.textContent = 'Error: Enter a Base URL first.';
               llmModelHint.className = 'text-[10px] text-red-500 mt-0.5';
             }
             return;
           }
 
           llmDetectBtn.disabled = true;
-          if (llmDetectLabel) llmDetectLabel.textContent = '…';
+          if (llmDetectLabel) llmDetectLabel.textContent = '...';
           if (llmModelHint) {
-            llmModelHint.textContent = 'Fetching models…';
+            llmModelHint.textContent = 'Fetching models...';
             llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5';
           }
           try {
@@ -1670,13 +1670,13 @@
             } else {
               if (llmModel && !llmModel.value) llmModel.value = models[0];
               if (llmModelHint) {
-                llmModelHint.textContent = `✓ ${models.length} model(s) found. Select from list or type manually.`;
+                llmModelHint.textContent = `OK: ${models.length} model(s) found. Select from list or type manually.`;
                 llmModelHint.className = 'text-[10px] text-green-600 mt-0.5';
               }
             }
           } catch (err) {
             if (llmModelHint) {
-              llmModelHint.textContent = '⚠️ ' + (err.userMessage || err.message || 'Model detection failed.');
+              llmModelHint.textContent = 'Error: ' + (err.userMessage || err.message || 'Model detection failed.');
               llmModelHint.className = 'text-[10px] text-red-500 mt-0.5';
             }
           } finally {
@@ -1689,25 +1689,25 @@
       if (llmTestBtn) {
         llmTestBtn.addEventListener('click', async function () {
           if (!window.livecalcLLM || typeof window.livecalcLLM.testConnection !== 'function') {
-            showLlmResult('✗ LLM layer not loaded.', 'err');
+            showLlmResult('Error: LLM layer not loaded.', 'err');
             return;
           }
           const llmCfg = buildLlmConfigFromForm();
           const activeProvider = llmCfg.providerId;
           const currentProviderCfg = llmCfg.providers[activeProvider];
           if (!currentProviderCfg || !currentProviderCfg.baseURL) {
-            showLlmResult('⚠️ Enter a Base URL first.', 'warn');
+            showLlmResult('Warning: Enter a Base URL first.', 'warn');
             return;
           }
           llmTestBtn.disabled = true;
           llmTestBtn.querySelector('span.material-symbols-outlined').textContent = 'hourglass_empty';
-          showLlmResult('Testing connection…', 'info');
+          showLlmResult('Testing connection...', 'info');
           try {
             const result = await window.livecalcLLM.testConnection(llmCfg);
             const summary = result.models && result.models.length ? ` First model: ${result.models[0]}` : '';
-            showLlmResult(`✓ ${result.message}${summary}`, 'ok');
+            showLlmResult(`OK: ${result.message}${summary}`, 'ok');
           } catch (err) {
-            showLlmResult('✗ ' + (err.userMessage || err.message || 'Connection failed.'), 'err');
+            showLlmResult('Error: ' + (err.userMessage || err.message || 'Connection failed.'), 'err');
           } finally {
             llmTestBtn.disabled = false;
             llmTestBtn.querySelector('span.material-symbols-outlined').textContent = 'network_check';

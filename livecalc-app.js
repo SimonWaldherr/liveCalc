@@ -189,6 +189,143 @@ const app = (() => {
   const AUTO_DEFAULT_PRECISION = 6;
   // Maximum allowed value for the roundDecimals setting.
   const MAX_DECIMAL_PLACES = 20;
+  const LLM_PROVIDER_DEFAULTS = {
+    openai: {
+      baseURL: 'https://api.openai.com/v1',
+      model: 'gpt-4.1-mini',
+      apiKey: '',
+      requiresApiKey: true,
+    },
+    local: {
+      baseURL: 'http://localhost:1234/v1',
+      model: 'llama3.1',
+      apiKey: '',
+      requiresApiKey: false,
+    },
+    custom: {
+      baseURL: 'http://localhost:1234/v1',
+      model: '',
+      apiKey: '',
+      requiresApiKey: false,
+    },
+  };
+  const LLM_DEFAULT_SETTINGS = {
+    providerId: 'local',
+    streaming: true,
+    preferResponsesApi: true,
+    timeoutMs: 45000,
+    providers: LLM_PROVIDER_DEFAULTS,
+  };
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function isLocalhostHost(host) {
+    const h = String(host || '').toLowerCase();
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+  }
+
+  function sanitizeBaseURL(input, fallback) {
+    const raw = String(input || '').trim() || String(fallback || '').trim();
+    if (!raw) return '';
+    try {
+      const u = new URL(raw);
+      u.hash = '';
+      u.search = '';
+      return u.toString().replace(/\/+$/, '');
+    } catch (e) {
+      return String(fallback || '').trim().replace(/\/+$/, '');
+    }
+  }
+
+  function deriveLegacyBaseURL(endpoint) {
+    const raw = String(endpoint || '').trim();
+    if (!raw) return '';
+    try {
+      const u = new URL(raw);
+      const path = u.pathname.replace(/\/+$/, '');
+      let nextPath = path;
+      if (/\/v1\/chat\/completions$/i.test(path)) {
+        nextPath = path.replace(/\/chat\/completions$/i, '');
+      } else if (/\/v1\/responses$/i.test(path)) {
+        nextPath = path.replace(/\/responses$/i, '');
+      } else if (/\/api\/chat$/i.test(path)) {
+        nextPath = '/v1';
+      }
+      return (u.origin + nextPath).replace(/\/+$/, '');
+    } catch (e) {
+      return raw.replace(/\/(chat\/completions|responses)$/i, '').replace(/\/+$/, '');
+    }
+  }
+
+  function inferProviderFromBaseURL(baseURL) {
+    try {
+      const u = new URL(baseURL);
+      if (u.hostname === 'api.openai.com') return 'openai';
+      if (isLocalhostHost(u.hostname)) return 'local';
+    } catch (e) {}
+    return 'custom';
+  }
+
+  function normalizeLlmSettings(rawLlm) {
+    const defaults = clone(LLM_DEFAULT_SETTINGS);
+    const raw = rawLlm && typeof rawLlm === 'object' ? rawLlm : {};
+    const legacyEndpoint = typeof raw.endpoint === 'string' ? raw.endpoint.trim() : '';
+    const legacyModel = typeof raw.model === 'string' ? raw.model.trim() : '';
+    const legacyApiKey = typeof raw.apiKey === 'string' ? raw.apiKey.trim() : '';
+    const migratedBaseURL = legacyEndpoint ? deriveLegacyBaseURL(legacyEndpoint) : '';
+    const migratedProvider = legacyEndpoint ? inferProviderFromBaseURL(migratedBaseURL) : null;
+
+    const result = {
+      providerId: raw.providerId && defaults.providers[raw.providerId] ? raw.providerId : defaults.providerId,
+      streaming: raw.streaming !== undefined ? !!raw.streaming : !!defaults.streaming,
+      preferResponsesApi: raw.preferResponsesApi !== undefined ? !!raw.preferResponsesApi : !!defaults.preferResponsesApi,
+      timeoutMs:
+        typeof raw.timeoutMs === 'number' && isFinite(raw.timeoutMs)
+          ? Math.max(5000, Math.min(180000, Math.round(raw.timeoutMs)))
+          : defaults.timeoutMs,
+      providers: clone(defaults.providers),
+    };
+
+    if (raw.providers && typeof raw.providers === 'object') {
+      ['openai', 'local', 'custom'].forEach((providerId) => {
+        const next = raw.providers[providerId];
+        if (!next || typeof next !== 'object') return;
+        result.providers[providerId] = {
+          baseURL: sanitizeBaseURL(next.baseURL, defaults.providers[providerId].baseURL),
+          model: typeof next.model === 'string' ? next.model.trim() : defaults.providers[providerId].model,
+          apiKey: typeof next.apiKey === 'string' ? next.apiKey.trim() : defaults.providers[providerId].apiKey,
+          requiresApiKey:
+            providerId === 'custom'
+              ? !!next.requiresApiKey
+              : !!defaults.providers[providerId].requiresApiKey,
+        };
+      });
+    }
+
+    if (legacyEndpoint) {
+      const providerId = migratedProvider || result.providerId;
+      const target = result.providers[providerId] || result.providers.custom;
+      target.baseURL = sanitizeBaseURL(migratedBaseURL, target.baseURL);
+      if (legacyModel) target.model = legacyModel;
+      if (legacyApiKey) target.apiKey = legacyApiKey;
+      result.providerId = providerId;
+    }
+
+    ['openai', 'local', 'custom'].forEach((providerId) => {
+      const p = result.providers[providerId];
+      p.baseURL = sanitizeBaseURL(p.baseURL, defaults.providers[providerId].baseURL);
+      if (typeof p.model !== 'string') p.model = defaults.providers[providerId].model;
+      if (typeof p.apiKey !== 'string') p.apiKey = '';
+      if (providerId !== 'custom') {
+        p.requiresApiKey = !!defaults.providers[providerId].requiresApiKey;
+      }
+    });
+
+    return result;
+  }
+
   const defaultSettings = {
     roundDecimals: null, // null = auto-detect from input; number = fixed decimal places
     decimalSeparator: '.', // '.' or ','
@@ -199,11 +336,7 @@ const app = (() => {
       largeText: false,
       highContrast: false,
     },
-    llm: {
-      endpoint: '', // e.g. http://localhost:1234/v1/chat/completions
-      model: '', // e.g. llama3, mistral, or leave blank
-      apiKey: '', // optional, for servers that require it
-    },
+    llm: clone(LLM_DEFAULT_SETTINGS),
   };
   let settings = loadSettings();
 
@@ -272,11 +405,14 @@ const app = (() => {
   function loadSettings() {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return Object.assign({}, defaultSettings);
+      if (!raw) return Object.assign({}, defaultSettings, { llm: normalizeLlmSettings(defaultSettings.llm) });
       const parsed = JSON.parse(raw);
-      return Object.assign({}, defaultSettings, parsed);
+      const merged = Object.assign({}, defaultSettings, parsed || {});
+      merged.accessibility = Object.assign({}, defaultSettings.accessibility, (parsed && parsed.accessibility) || {});
+      merged.llm = normalizeLlmSettings(parsed && parsed.llm);
+      return merged;
     } catch (e) {
-      return Object.assign({}, defaultSettings);
+      return Object.assign({}, defaultSettings, { llm: normalizeLlmSettings(defaultSettings.llm) });
     }
   }
 
@@ -363,7 +499,15 @@ const app = (() => {
   }
 
   function setSettings(next) {
-    settings = Object.assign({}, settings, next || {});
+    const merged = Object.assign({}, settings, next || {});
+    const nextA11y = next && next.accessibility ? next.accessibility : {};
+    merged.accessibility = Object.assign({}, settings.accessibility || {}, nextA11y);
+    if (next && Object.prototype.hasOwnProperty.call(next, 'llm')) {
+      merged.llm = normalizeLlmSettings(next.llm);
+    } else {
+      merged.llm = normalizeLlmSettings(settings.llm);
+    }
+    settings = merged;
     applySettings();
     return settings;
   }
@@ -1910,9 +2054,16 @@ f(x) = x^2 - 5*x`;
       const fontSelect = document.getElementById('settingsFont');
       const largeChk = document.getElementById('settingsLargeText');
       const highChk = document.getElementById('settingsHighContrast');
-      const llmEndpoint = document.getElementById('settingsLlmEndpoint');
+      const llmProvider = document.getElementById('settingsLlmProvider');
+      const llmBaseURL = document.getElementById('settingsLlmBaseUrl');
       const llmModel = document.getElementById('settingsLlmModel');
       const llmApiKey = document.getElementById('settingsLlmApiKey');
+      const llmStreaming = document.getElementById('settingsLlmStreaming');
+      const llmResponses = document.getElementById('settingsLlmUseResponses');
+      const llmCustomRequiresApiKey = document.getElementById('settingsLlmCustomRequiresApiKey');
+      const llmCfg = normalizeLlmSettings(settings && settings.llm);
+      const providerId = llmCfg.providerId || 'local';
+      const providerCfg = llmCfg.providers[providerId] || llmCfg.providers.local;
       // null/undefined → empty string (auto-detect mode)
       if (roundInput)
         roundInput.value = settings && typeof settings.roundDecimals === 'number' ? settings.roundDecimals : '';
@@ -1920,14 +2071,23 @@ f(x) = x^2 - 5*x`;
       if (fontSelect) fontSelect.value = settings.font || defaultSettings.font;
       if (largeChk && settings && settings.accessibility) largeChk.checked = !!settings.accessibility.largeText;
       if (highChk && settings && settings.accessibility) highChk.checked = !!settings.accessibility.highContrast;
-      if (llmEndpoint) llmEndpoint.value = (settings && settings.llm && settings.llm.endpoint) || '';
-      if (llmModel) llmModel.value = (settings && settings.llm && settings.llm.model) || '';
-      if (llmApiKey) llmApiKey.value = (settings && settings.llm && settings.llm.apiKey) || '';
+      if (llmProvider) llmProvider.value = providerId;
+      if (llmBaseURL) llmBaseURL.value = providerCfg.baseURL || '';
+      if (llmModel) llmModel.value = providerCfg.model || '';
+      if (llmApiKey) llmApiKey.value = providerCfg.apiKey || '';
+      if (llmStreaming) llmStreaming.checked = !!llmCfg.streaming;
+      if (llmResponses) llmResponses.checked = !!llmCfg.preferResponsesApi;
+      if (llmCustomRequiresApiKey) llmCustomRequiresApiKey.checked = !!llmCfg.providers.custom.requiresApiKey;
       const decSepSel = document.getElementById('settingsDecimalSeparator');
       const csvDelimSel = document.getElementById('settingsCsvDelimiter');
       if (decSepSel) decSepSel.value = (settings && settings.decimalSeparator) || '.';
       if (csvDelimSel) csvDelimSel.value = (settings && settings.csvDelimiter) || 'auto';
       modal.classList.remove('hidden');
+      try {
+        document.dispatchEvent(
+          new CustomEvent('livecalc:settings-opened', { detail: { settings: getSettings(), llm: normalizeLlmSettings(llmCfg) } })
+        );
+      } catch (e) {}
     },
     closeSettings: () => {
       const modal = document.getElementById('settingsModal');
@@ -1939,9 +2099,13 @@ f(x) = x^2 - 5*x`;
       const fontSelect = document.getElementById('settingsFont');
       const largeChk = document.getElementById('settingsLargeText');
       const highChk = document.getElementById('settingsHighContrast');
-      const llmEndpoint = document.getElementById('settingsLlmEndpoint');
+      const llmProvider = document.getElementById('settingsLlmProvider');
+      const llmBaseURL = document.getElementById('settingsLlmBaseUrl');
       const llmModel = document.getElementById('settingsLlmModel');
       const llmApiKey = document.getElementById('settingsLlmApiKey');
+      const llmStreaming = document.getElementById('settingsLlmStreaming');
+      const llmResponses = document.getElementById('settingsLlmUseResponses');
+      const llmCustomRequiresApiKey = document.getElementById('settingsLlmCustomRequiresApiKey');
       const next = {};
       if (roundInput) {
         const v = roundInput.value.trim();
@@ -1954,11 +2118,20 @@ f(x) = x^2 - 5*x`;
         largeText: largeChk ? largeChk.checked : false,
         highContrast: highChk ? highChk.checked : false,
       };
-      next.llm = {
-        endpoint: llmEndpoint ? llmEndpoint.value.trim() : '',
-        model: llmModel ? llmModel.value.trim() : '',
-        apiKey: llmApiKey ? llmApiKey.value.trim() : '',
-      };
+      const llmNext = normalizeLlmSettings(settings && settings.llm);
+      const providerId =
+        llmProvider && llmProvider.value && llmNext.providers[llmProvider.value] ? llmProvider.value : llmNext.providerId;
+      llmNext.providerId = providerId;
+      llmNext.streaming = llmStreaming ? !!llmStreaming.checked : llmNext.streaming;
+      llmNext.preferResponsesApi = llmResponses ? !!llmResponses.checked : llmNext.preferResponsesApi;
+      const providerCfg = llmNext.providers[providerId] || llmNext.providers.local;
+      if (llmBaseURL) providerCfg.baseURL = llmBaseURL.value.trim();
+      if (llmModel) providerCfg.model = llmModel.value.trim();
+      if (llmApiKey) providerCfg.apiKey = llmApiKey.value.trim();
+      if (llmCustomRequiresApiKey) {
+        llmNext.providers.custom.requiresApiKey = !!llmCustomRequiresApiKey.checked;
+      }
+      next.llm = normalizeLlmSettings(llmNext);
       const decSepSel = document.getElementById('settingsDecimalSeparator');
       const csvDelimSel = document.getElementById('settingsCsvDelimiter');
       if (decSepSel) next.decimalSeparator = decSepSel.value || '.';
@@ -2081,7 +2254,7 @@ f(x) = x^2 - 5*x`;
       editor.dispatchEvent(new Event('input'));
     },
     getLlmSettings: () =>
-      settings && settings.llm ? Object.assign({}, settings.llm) : { endpoint: '', model: '', apiKey: '' },
+      settings && settings.llm ? normalizeLlmSettings(settings.llm) : normalizeLlmSettings(defaultSettings.llm),
   };
 
   // History helper functions

@@ -89,7 +89,9 @@
       u.search = '';
       return u.toString().replace(/\/+$/, '');
     } catch (e) {
-      return String(fallback || '').trim().replace(/\/+$/, '');
+      return String(fallback || '')
+        .trim()
+        .replace(/\/+$/, '');
     }
   }
 
@@ -149,13 +151,10 @@
         if (!incoming || typeof incoming !== 'object') return;
         result.providers[providerId] = {
           baseURL: sanitizeBaseURL(incoming.baseURL, defaults.providers[providerId].baseURL),
-          model:
-            typeof incoming.model === 'string' ? incoming.model.trim() : defaults.providers[providerId].model,
+          model: typeof incoming.model === 'string' ? incoming.model.trim() : defaults.providers[providerId].model,
           apiKey: typeof incoming.apiKey === 'string' ? incoming.apiKey.trim() : defaults.providers[providerId].apiKey,
           requiresApiKey:
-            providerId === 'custom'
-              ? !!incoming.requiresApiKey
-              : !!defaults.providers[providerId].requiresApiKey,
+            providerId === 'custom' ? !!incoming.requiresApiKey : !!defaults.providers[providerId].requiresApiKey,
         };
       });
     }
@@ -252,7 +251,10 @@
     if (!node) return '';
     if (typeof node === 'string') return node;
     if (Array.isArray(node)) {
-      return node.map((x) => extractTextFromNode(x)).filter(Boolean).join('');
+      return node
+        .map((x) => extractTextFromNode(x))
+        .filter(Boolean)
+        .join('');
     }
     if (typeof node.text === 'string') return node.text;
     if (typeof node.content === 'string') return node.content;

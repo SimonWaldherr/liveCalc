@@ -1335,9 +1335,7 @@
             </p>
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-500">
-              API key
-            </label>
+            <label class="block text-xs font-medium text-gray-500">API key</label>
             <input
               id="settingsLlmApiKey"
               type="password"
@@ -1345,9 +1343,7 @@
               placeholder="sk-…"
               autocomplete="new-password"
             />
-            <p id="settingsLlmApiKeyHint" class="text-[10px] text-gray-400 mt-1">
-              Optional for local providers.
-            </p>
+            <p id="settingsLlmApiKeyHint" class="text-[10px] text-gray-400 mt-1">Optional for local providers.</p>
           </div>
           <div id="settingsLlmCustomKeyWrap" class="hidden">
             <label class="flex items-center gap-2 cursor-pointer">
@@ -1362,7 +1358,9 @@
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="settingsLlmUseResponses" type="checkbox" class="form-checkbox" />
-              <span class="text-xs text-gray-600 dark:text-gray-400">Prefer Responses API (fallback to chat/completions)</span>
+              <span class="text-xs text-gray-600 dark:text-gray-400">
+                Prefer Responses API (fallback to chat/completions)
+              </span>
             </label>
           </div>
           <div id="settingsLlmTestResult" class="hidden rounded border px-3 py-2 text-xs"></div>
@@ -1778,7 +1776,8 @@
 
       if (resetBtn)
         resetBtn.addEventListener('click', function () {
-          const currentLlm = (window.app && window.app.getLlmSettings && window.app.getLlmSettings()) || normalizeLlmSettings(null);
+          const currentLlm =
+            (window.app && window.app.getLlmSettings && window.app.getLlmSettings()) || normalizeLlmSettings(null);
           const def = {
             roundDecimals: null,
             decimalSeparator: '.',

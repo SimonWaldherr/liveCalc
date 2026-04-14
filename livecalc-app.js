@@ -235,7 +235,9 @@ const app = (() => {
       u.search = '';
       return u.toString().replace(/\/+$/, '');
     } catch (e) {
-      return String(fallback || '').trim().replace(/\/+$/, '');
+      return String(fallback || '')
+        .trim()
+        .replace(/\/+$/, '');
     }
   }
 
@@ -280,7 +282,8 @@ const app = (() => {
     const result = {
       providerId: raw.providerId && defaults.providers[raw.providerId] ? raw.providerId : defaults.providerId,
       streaming: raw.streaming !== undefined ? !!raw.streaming : !!defaults.streaming,
-      preferResponsesApi: raw.preferResponsesApi !== undefined ? !!raw.preferResponsesApi : !!defaults.preferResponsesApi,
+      preferResponsesApi:
+        raw.preferResponsesApi !== undefined ? !!raw.preferResponsesApi : !!defaults.preferResponsesApi,
       timeoutMs:
         typeof raw.timeoutMs === 'number' && isFinite(raw.timeoutMs)
           ? Math.max(5000, Math.min(180000, Math.round(raw.timeoutMs)))
@@ -297,9 +300,7 @@ const app = (() => {
           model: typeof next.model === 'string' ? next.model.trim() : defaults.providers[providerId].model,
           apiKey: typeof next.apiKey === 'string' ? next.apiKey.trim() : defaults.providers[providerId].apiKey,
           requiresApiKey:
-            providerId === 'custom'
-              ? !!next.requiresApiKey
-              : !!defaults.providers[providerId].requiresApiKey,
+            providerId === 'custom' ? !!next.requiresApiKey : !!defaults.providers[providerId].requiresApiKey,
         };
       });
     }
@@ -2085,7 +2086,9 @@ f(x) = x^2 - 5*x`;
       modal.classList.remove('hidden');
       try {
         document.dispatchEvent(
-          new CustomEvent('livecalc:settings-opened', { detail: { settings: getSettings(), llm: normalizeLlmSettings(llmCfg) } })
+          new CustomEvent('livecalc:settings-opened', {
+            detail: { settings: getSettings(), llm: normalizeLlmSettings(llmCfg) },
+          })
         );
       } catch (e) {}
     },
@@ -2120,7 +2123,9 @@ f(x) = x^2 - 5*x`;
       };
       const llmNext = normalizeLlmSettings(settings && settings.llm);
       const providerId =
-        llmProvider && llmProvider.value && llmNext.providers[llmProvider.value] ? llmProvider.value : llmNext.providerId;
+        llmProvider && llmProvider.value && llmNext.providers[llmProvider.value]
+          ? llmProvider.value
+          : llmNext.providerId;
       llmNext.providerId = providerId;
       llmNext.streaming = llmStreaming ? !!llmStreaming.checked : llmNext.streaming;
       llmNext.preferResponsesApi = llmResponses ? !!llmResponses.checked : llmNext.preferResponsesApi;

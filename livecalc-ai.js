@@ -1,39 +1,47 @@
 /**
- * livecalc-ai.js — LLM / AI chat integration for LiveCalc Pro
+ * livecalc-ai.js — UI integration for provider-agnostic LLM chat.
  *
- * Compatible with any OpenAI-compatible endpoint:
- *   LM-Studio  → http://localhost:1234/v1/chat/completions
- *   llmster     → http://localhost:PORT/v1/chat/completions
- *   Ollama      → http://localhost:11434/api/chat  (also supports openai-compat port 11434)
- *
- * The AI receives the current editor content as context and can suggest
- * text to insert via a code fence: ```livecalc ... ``` or just ``` ... ```.
+ * Uses window.livecalcLLM as centralized transport/normalization layer.
  */
 
 (function () {
   'use strict';
 
-  const HISTORY_LIMIT = 40; // max messages kept in chat history
-
+  const HISTORY_LIMIT = 40;
   let chatHistory = []; // { role: 'user'|'assistant', content: string }
+  let activeAbortController = null;
 
-  // ------------------------------------------------------------------ helpers
+  function getLlmCore() {
+    if (!window.livecalcLLM) {
+      throw new Error('LLM layer not loaded.');
+    }
+    return window.livecalcLLM;
+  }
 
   function getLlmSettings() {
+    let raw = null;
+
     try {
       if (window.app && typeof window.app.getLlmSettings === 'function') {
-        return window.app.getLlmSettings();
+        raw = window.app.getLlmSettings();
       }
     } catch (e) {}
-    // fallback: read from localStorage directly
+
+    if (!raw) {
+      try {
+        const s = localStorage.getItem('livecalc:v9:settings');
+        if (s) {
+          const parsed = JSON.parse(s);
+          raw = parsed && parsed.llm ? parsed.llm : null;
+        }
+      } catch (e) {}
+    }
+
     try {
-      const raw = localStorage.getItem('livecalc:v9:settings');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        return parsed.llm || { endpoint: '', model: '', apiKey: '' };
-      }
-    } catch (e) {}
-    return { endpoint: '', model: '', apiKey: '' };
+      return getLlmCore().normalizeLlmSettings(raw);
+    } catch (e) {
+      return raw || {};
+    }
   }
 
   function getEditorContent() {
@@ -53,7 +61,7 @@
         return;
       }
     } catch (e) {}
-    // fallback
+
     const el = document.getElementById('editor');
     if (!el) return;
     const pos = el.selectionEnd;
@@ -69,32 +77,54 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  // ------------------------------------------------------------------ UI
+  function setSendBusy(isBusy) {
+    const btn = document.getElementById('aiChatSendBtn');
+    const icon = document.getElementById('aiChatSendIcon');
+    if (btn) {
+      btn.title = isBusy ? 'Cancel request' : 'Send (Ctrl+Enter)';
+      btn.classList.toggle('bg-red-600', isBusy);
+      btn.classList.toggle('hover:bg-red-700', isBusy);
+      btn.classList.toggle('bg-blue-600', !isBusy);
+      btn.classList.toggle('hover:bg-blue-700', !isBusy);
+    }
+    if (icon) {
+      icon.textContent = isBusy ? 'stop' : 'send';
+    }
+  }
+
+  function cancelActiveRequest() {
+    if (!activeAbortController) return false;
+    activeAbortController.abort();
+    activeAbortController = null;
+    setSendBusy(false);
+    setStatus('Cancelled', 'text-gray-400');
+    return true;
+  }
 
   function updateVisibility() {
-    const cfg = getLlmSettings();
-    const hasEndpoint = cfg && cfg.endpoint && cfg.endpoint.trim().length > 0;
+    let hasProvider = false;
+    try {
+      const runtime = getLlmCore().resolveProviderRuntime(getLlmSettings());
+      hasProvider = !!(runtime && runtime.baseURL);
+    } catch (e) {
+      hasProvider = false;
+    }
+
     const section = document.getElementById('aiChatSection');
     const headerBtn = document.getElementById('aiChatToggleBtn');
+
     if (section) {
-      if (hasEndpoint) {
-        section.classList.remove('hidden');
-      } else {
-        section.classList.add('hidden');
-      }
+      section.classList.toggle('hidden', !hasProvider);
     }
     if (headerBtn) {
-      if (hasEndpoint) {
-        headerBtn.classList.remove('hidden');
-      } else {
-        headerBtn.classList.add('hidden');
-      }
+      headerBtn.classList.toggle('hidden', !hasProvider);
     }
   }
 
   function togglePanel() {
     const section = document.getElementById('aiChatSection');
     if (!section) return;
+
     if (section.classList.contains('hidden')) {
       section.classList.remove('hidden');
     } else {
@@ -102,31 +132,17 @@
         app.toggleSection('aiChat');
       }
     }
-    // scroll into view
+
     setTimeout(() => {
       const input = document.getElementById('aiChatInput');
       if (input) input.focus();
     }, 100);
   }
 
-  // Extract insertable content from an AI reply:
-  // looks for ```livecalc ... ``` or plain ``` ... ``` blocks
-  function extractCodeBlocks(text) {
-    const blocks = [];
-    const re = /```(?:livecalc|calc|math|plaintext|text)?\n?([\s\S]*?)```/gi;
-    let m;
-    while ((m = re.exec(text)) !== null) {
-      const content = m[1].trim();
-      if (content) blocks.push(content);
-    }
-    return blocks;
-  }
-
   function renderMessage(role, content) {
     const msgs = document.getElementById('aiChatMessages');
     if (!msgs) return;
 
-    // remove placeholder
     const placeholder = document.getElementById('aiChatPlaceholder');
     if (placeholder) placeholder.remove();
 
@@ -142,19 +158,20 @@
     if (role === 'user') {
       bubble.textContent = content;
     } else {
-      // Render code blocks with insert buttons
       let html = '';
-      let remaining = content;
       const re = /```(?:livecalc|calc|math|plaintext|text)?\n?([\s\S]*?)```/gi;
       let lastIndex = 0;
       let m;
       re.lastIndex = 0;
+
       while ((m = re.exec(content)) !== null) {
         const before = content.slice(lastIndex, m.index).trim();
         if (before) html += `<p class="whitespace-pre-wrap break-words">${escapeHtml(before)}</p>`;
+
         const code = m[1].trim();
         const escaped = escapeHtml(code);
         const encoded = btoa(unescape(encodeURIComponent(code)));
+
         html += `<div class="rounded bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-1.5 my-1">
           <pre class="text-[10px] font-mono overflow-x-auto whitespace-pre-wrap break-all">${escaped}</pre>
           <button onclick="lcAI.insertBlock('${encoded}')"
@@ -164,6 +181,7 @@
         </div>`;
         lastIndex = m.index + m[0].length;
       }
+
       const tail = content.slice(lastIndex).trim();
       if (tail) html += `<p class="whitespace-pre-wrap break-words">${escapeHtml(tail)}</p>`;
       if (!html) html = `<p class="whitespace-pre-wrap break-words">${escapeHtml(content)}</p>`;
@@ -181,10 +199,21 @@
     const el = document.createElement('div');
     el.className = 'flex justify-start';
     el.id = 'aiThinking';
-    el.innerHTML = `<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-400 animate-pulse">Thinking…</div>`;
+    el.innerHTML =
+      '<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-400">Thinking…</div>';
     msgs.appendChild(el);
     msgs.scrollTop = msgs.scrollHeight;
     return el;
+  }
+
+  function updateThinkingText(el, text) {
+    if (!el) return;
+    const box = el.firstElementChild;
+    if (!box) return;
+    box.textContent = text || 'Thinking…';
+
+    const msgs = document.getElementById('aiChatMessages');
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
   }
 
   function removeThinking() {
@@ -203,169 +232,60 @@
     try {
       const text = decodeURIComponent(escape(atob(encoded)));
       insertIntoEditor(text);
-      showToast && showToast('Inserted into editor');
+      if (typeof showToast === 'function') showToast('Inserted into editor');
     } catch (e) {
       console.error('lcAI.insertBlock error', e);
     }
   }
 
-  // ------------------------------------------------------------------ model discovery
-
-  /**
-   * Fetch the list of available model names from the configured server.
-   * Supports:
-   *   OpenAI-compat  GET /v1/models          → { data: [{ id }] }
-   *   Ollama native  GET /api/tags            → { models: [{ name }] }
-   *   Ollama native  GET /api/ps (running)    → { models: [{ name }] }
-   *
-   * @param {string} endpointUrl  - the chat endpoint URL (used to derive the base)
-   * @param {string} [apiKey]     - optional Bearer token
-   * @returns {Promise<string[]>} sorted list of model names
-   */
-  async function fetchModels(endpointUrl, apiKey) {
-    const url = endpointUrl.trim();
-    if (!url) throw new Error('No endpoint URL provided.');
-
-    const headers = { 'Content-Type': 'application/json' };
-    if (apiKey && apiKey.trim()) headers['Authorization'] = 'Bearer ' + apiKey.trim();
-
-    // Derive base URL (strip path after host:port)
-    let base;
-    try {
-      const u = new URL(url);
-      base = u.origin; // e.g. http://localhost:1234
-    } catch (e) {
-      throw new Error('Invalid endpoint URL.');
-    }
-
-    const isOllamaNative = /\/api\//.test(url);
-
-    // Candidates to try in order
-    const candidates = isOllamaNative
-      ? [
-          { url: base + '/api/tags', extract: (d) => (d.models || []).map((m) => m.name || m.model).filter(Boolean) },
-          { url: base + '/api/ps', extract: (d) => (d.models || []).map((m) => m.name || m.model).filter(Boolean) },
-          { url: base + '/v1/models', extract: (d) => (d.data || []).map((m) => m.id).filter(Boolean) },
-        ]
-      : [
-          { url: base + '/v1/models', extract: (d) => (d.data || []).map((m) => m.id).filter(Boolean) },
-          { url: base + '/api/tags', extract: (d) => (d.models || []).map((m) => m.name || m.model).filter(Boolean) },
-        ];
-
-    let lastErr = null;
-    for (const candidate of candidates) {
-      try {
-        const resp = await fetch(candidate.url, { method: 'GET', headers });
-        if (!resp.ok) {
-          lastErr = new Error(`Server returned ${resp.status} for ${candidate.url}`);
-          continue;
-        }
-        const data = await resp.json();
-        const models = candidate.extract(data);
-        if (models.length > 0) return models.slice().sort((a, b) => a.localeCompare(b));
-        // empty list — try next candidate
-      } catch (e) {
-        lastErr = friendlyFetchError(e, candidate.url);
-      }
-    }
-    throw lastErr || new Error('Could not retrieve models from server.');
+  function buildLegacyLlmSettings(endpointUrl, apiKey) {
+    return {
+      endpoint: endpointUrl,
+      apiKey: apiKey || '',
+      model: '',
+    };
   }
 
-  // ------------------------------------------------------------------ API
+  async function fetchModels(settingsOrEndpoint, maybeApiKey) {
+    const core = getLlmCore();
 
-  /**
-   * Translate raw fetch() errors into user-friendly messages.
-   * "Failed to fetch" typically means CORS blocked or server unreachable.
-   */
-  function friendlyFetchError(err, url) {
-    const msg = err && err.message ? err.message : String(err);
-    if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
-      return new Error(
-        `Cannot reach server at ${url}. ` +
-          'Make sure the server is running and allows cross-origin requests (CORS). ' +
-          'LM-Studio: enable CORS in settings. Ollama: set OLLAMA_ORIGINS=* env var.'
-      );
+    if (typeof settingsOrEndpoint === 'string') {
+      return core.fetchModels(buildLegacyLlmSettings(settingsOrEndpoint, maybeApiKey));
     }
-    if (/cors/i.test(msg)) {
-      return new Error(`CORS blocked: the server at ${url} rejected the request. Enable CORS on the server.`);
-    }
-    return err;
+
+    const cfg = settingsOrEndpoint && typeof settingsOrEndpoint === 'object' ? settingsOrEndpoint : getLlmSettings();
+    return core.fetchModels(cfg);
   }
 
-  async function callLlm(messages) {
-    const cfg = getLlmSettings();
-    if (!cfg || !cfg.endpoint) throw new Error('No LLM endpoint configured.');
-
-    const endpoint = cfg.endpoint.trim();
-    const headers = { 'Content-Type': 'application/json' };
-    if (cfg.apiKey && cfg.apiKey.trim()) {
-      headers['Authorization'] = 'Bearer ' + cfg.apiKey.trim();
-    }
-
-    // Detect Ollama native API (not openai-compat)
-    const isOllamaNative = /\/api\/chat/.test(endpoint);
-
-    let body;
-    if (isOllamaNative) {
-      // Ollama native format
-      body = {
-        model: cfg.model || 'llama3',
-        messages: messages,
-        stream: false,
-      };
-    } else {
-      // OpenAI-compatible format (LM-Studio, llmster, Ollama openai-compat, etc.)
-      body = {
-        messages: messages,
-        stream: false,
-      };
-      if (cfg.model && cfg.model.trim()) body.model = cfg.model.trim();
-    }
-
-    let resp;
-    try {
-      resp = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-    } catch (e) {
-      throw friendlyFetchError(e, endpoint);
-    }
-
-    if (!resp.ok) {
-      const errText = await resp.text().catch(() => resp.statusText);
-      throw new Error(`LLM server error ${resp.status}: ${errText.slice(0, 200)}`);
-    }
-
-    const data = await resp.json();
-
-    // Extract assistant message from various response shapes
-    let reply = '';
-    if (data.message && data.message.content) {
-      // Ollama native
-      reply = data.message.content;
-    } else if (data.choices && data.choices[0]) {
-      const choice = data.choices[0];
-      reply = (choice.message && choice.message.content) || choice.text || '';
-    } else if (data.content) {
-      reply = data.content;
-    } else {
-      reply = JSON.stringify(data);
-    }
-
-    return reply;
+  async function testConnection(settingsLike) {
+    const core = getLlmCore();
+    const cfg = settingsLike && typeof settingsLike === 'object' ? settingsLike : getLlmSettings();
+    return core.testConnection(cfg);
   }
 
   async function send() {
+    if (activeAbortController) {
+      cancelActiveRequest();
+      return;
+    }
+
     const inputEl = document.getElementById('aiChatInput');
     if (!inputEl) return;
     const userText = inputEl.value.trim();
     if (!userText) return;
 
-    const cfg = getLlmSettings();
-    if (!cfg || !cfg.endpoint) {
-      alert('Please configure an LLM endpoint in Settings first.');
+    let llmSettings;
+    try {
+      llmSettings = getLlmSettings();
+      const runtime = getLlmCore().resolveProviderRuntime(llmSettings);
+      if (!runtime.baseURL) {
+        throw new Error('Please set a Base URL in Settings.');
+      }
+      if (!runtime.model) {
+        throw new Error('Please set a model name in Settings.');
+      }
+    } catch (err) {
+      alert(err.userMessage || err.message || 'Please configure LLM settings first.');
       if (window.app && typeof window.app.openSettings === 'function') app.openSettings();
       return;
     }
@@ -375,7 +295,6 @@
 
     renderMessage('user', userText);
 
-    // Build messages array with system context
     const editorContent = getEditorContent();
     const systemPrompt = `You are a helpful math and calculation assistant integrated into LiveCalc Pro — a live math notebook that evaluates expressions using math.js syntax.
 
@@ -403,43 +322,77 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
     chatHistory.push({ role: 'user', content: userText });
 
     const thinking = renderThinking();
+    const streamBuffer = { text: '' };
+
     setStatus('Thinking…', 'text-yellow-500');
+    setSendBusy(true);
+
+    activeAbortController = new AbortController();
 
     try {
-      const reply = await callLlm(messages);
+      const result = await getLlmCore().sendLLMRequest({
+        settings: llmSettings,
+        messages,
+        signal: activeAbortController.signal,
+        onDelta: (delta) => {
+          if (!delta) return;
+          streamBuffer.text += delta;
+          updateThinkingText(thinking, streamBuffer.text);
+          setStatus('Streaming…', 'text-yellow-500');
+        },
+      });
+
       removeThinking();
-      renderMessage('assistant', reply);
-      chatHistory.push({ role: 'assistant', content: reply });
+
+      const finalText = (result && result.text) || streamBuffer.text || '';
+      if (!finalText.trim()) {
+        renderMessage('assistant', 'No text content was returned by the provider.');
+      } else {
+        renderMessage('assistant', finalText);
+        chatHistory.push({ role: 'assistant', content: finalText });
+      }
+
       setStatus('Connected', 'text-green-500');
     } catch (err) {
       removeThinking();
-      setStatus('Error', 'text-red-500');
-      renderMessage('assistant', '⚠️ Error: ' + err.message);
+      if (err && err.code === 'ABORTED') {
+        setStatus('Cancelled', 'text-gray-400');
+      } else {
+        setStatus('Error', 'text-red-500');
+        const userMessage = (err && (err.userMessage || err.message)) || 'Unknown error while contacting LLM provider.';
+        renderMessage('assistant', 'Error: ' + userMessage);
+
+        try {
+          console.warn('LLM request failed', {
+            code: err && err.code,
+            status: err && err.status,
+            details: err && err.details,
+          });
+        } catch (e) {}
+      }
     } finally {
+      activeAbortController = null;
+      setSendBusy(false);
       inputEl.disabled = false;
       inputEl.focus();
     }
   }
 
-  // ------------------------------------------------------------------ init
-
   function init() {
-    // Check on page load if LLM is configured
     updateVisibility();
-    // Check again after app initializes (slight delay)
     setTimeout(updateVisibility, 800);
   }
 
-  // Expose global lcAI object
   window.lcAI = {
     send,
     togglePanel,
     updateVisibility,
     insertBlock,
     fetchModels,
+    testConnection,
+    cancel: cancelActiveRequest,
   };
 
-  // Init after DOM ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {

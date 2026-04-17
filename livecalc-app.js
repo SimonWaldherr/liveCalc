@@ -10,6 +10,11 @@ const app = (() => {
   const gridLayout = document.querySelector('.grid-layout');
 
   const DESKTOP_SIDEBAR_MEDIA = '(min-width: 1024px)';
+  const SIDEBAR_WIDTH_KEY = 'livecalc:sidebarWidth';
+  const DEFAULT_SIDEBAR_WIDTH = 300;
+  const MIN_SIDEBAR_WIDTH = 240;
+  const MAX_SIDEBAR_WIDTH = 640;
+  const MIN_EDITOR_WIDTH = 360;
 
   // -- Configuration --
   let isDark =
@@ -24,6 +29,217 @@ const app = (() => {
       .replace(/>/g, '&gt;')
       .replace(/\"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function getKnownUnitNames() {
+    const names = new Set();
+    try {
+      if (_LC && Array.isArray(_LC.commonUnits)) {
+        _LC.commonUnits.forEach((entry) => {
+          if (Array.isArray(entry) && entry[0]) names.add(String(entry[0]));
+        });
+      }
+      if (_LC && Array.isArray(_LC.currencyUnits)) {
+        _LC.currencyUnits.forEach((entry) => names.add(String(entry)));
+      }
+    } catch (e) {}
+    return Array.from(names).sort((a, b) => b.length - a.length);
+  }
+
+  function getScopeUnitCandidates(scope) {
+    const candidates = [];
+    if (!scope || typeof scope !== 'object') return candidates;
+
+    Object.keys(scope).forEach((key) => {
+      const value = scope[key];
+      if (!value || !value.isUnit) return;
+      const unitName = (value.units && value.units[0] && value.units[0].unit && value.units[0].unit.name) || '';
+      if (!unitName) return;
+      candidates.push({ token: key, unitName });
+    });
+
+    return candidates;
+  }
+
+  function getUnitDisplayTarget(unitValue) {
+    if (!unitValue || !unitValue.isUnit || !Array.isArray(unitValue.units)) return '';
+
+    const parts = [];
+    unitValue.units.forEach((part) => {
+      const name = (part && part.unit && part.unit.name) || '';
+      if (!name) return;
+      const power = typeof part.power === 'number' && isFinite(part.power) ? part.power : 1;
+      if (power === 1) {
+        parts.push(name);
+      } else {
+        parts.push(name + '^' + power);
+      }
+    });
+
+    return parts.join(' * ');
+  }
+
+  function getUnitConversionCandidates(unitName) {
+    const candidates = [];
+    const raw = String(unitName || '').trim();
+    if (!raw) return candidates;
+
+    candidates.push(raw);
+
+    const powerMatch = raw.match(/^([A-Za-z]+)\^([23])$/);
+    if (powerMatch) {
+      candidates.push(powerMatch[1] + powerMatch[2]);
+    }
+
+    return Array.from(new Set(candidates));
+  }
+
+  function detectPreferredUnit(expr, scope) {
+    const text = String(expr || '').trim();
+    if (!text) return '';
+
+    const unitNames = getKnownUnitNames();
+    const candidates = [];
+
+    unitNames.forEach((name) => candidates.push({ token: name, unitName: name }));
+    getScopeUnitCandidates(scope).forEach((item) => candidates.push(item));
+
+    if (!candidates.length) return '';
+
+    const seen = new Set();
+    const uniqueCandidates = candidates
+      .map((item) => ({ token: String(item.token || ''), unitName: String(item.unitName || '') }))
+      .filter((item) => item.token && item.unitName && !seen.has(item.token + '|' + item.unitName) && seen.add(item.token + '|' + item.unitName));
+
+    let best = null;
+
+    uniqueCandidates.forEach((candidate) => {
+      const tokenRe = new RegExp(`\\b${candidate.token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      let matchCount = 0;
+      let exponent = '';
+      let tokenMatch;
+      while ((tokenMatch = tokenRe.exec(text)) !== null) {
+        matchCount += 1;
+        const after = text.slice(tokenMatch.index + tokenMatch[0].length);
+        const exponentMatch = after.match(/^\s*(?:\)\s*)*\^\s*([+-]?\d+)/);
+        if (exponentMatch) {
+          exponent = exponentMatch[1].replace(/^\+/, '');
+          break;
+        }
+      }
+
+      if (!exponent && matchCount > 1 && /[*/]/.test(text) && !/[+-]/.test(text)) {
+        exponent = String(matchCount);
+      }
+
+      if (matchCount > 0) {
+        const candidateUnit = exponent ? candidate.unitName + '^' + exponent : candidate.unitName;
+        const score = text.indexOf(candidate.token) + (candidate.token === candidate.unitName ? 0.25 : 0);
+        if (!best || score < best.score || (score === best.score && candidateUnit.length > best.unit.length)) {
+          best = { score, unit: candidateUnit };
+        }
+      }
+    });
+
+    return best ? best.unit : '';
+  }
+
+  function getSidebarWidthLimits() {
+    if (!gridLayout) {
+      return { min: MIN_SIDEBAR_WIDTH, max: MAX_SIDEBAR_WIDTH };
+    }
+
+    const width = gridLayout.getBoundingClientRect().width || window.innerWidth || 0;
+    const maxBySpace = Math.floor(width - 40 - 8 - MIN_EDITOR_WIDTH);
+    const max = Math.max(
+      MIN_SIDEBAR_WIDTH,
+      Math.min(MAX_SIDEBAR_WIDTH, Number.isFinite(maxBySpace) ? maxBySpace : MAX_SIDEBAR_WIDTH)
+    );
+
+    return { min: MIN_SIDEBAR_WIDTH, max };
+  }
+
+  function clampSidebarWidth(value) {
+    const width = Number.isFinite(value) ? value : DEFAULT_SIDEBAR_WIDTH;
+    const limits = getSidebarWidthLimits();
+    return Math.max(limits.min, Math.min(limits.max, Math.round(width)));
+  }
+
+  function getStoredSidebarWidth() {
+    try {
+      const raw = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+      const parsed = raw ? parseInt(raw, 10) : NaN;
+      return clampSidebarWidth(parsed);
+    } catch (e) {
+      return DEFAULT_SIDEBAR_WIDTH;
+    }
+  }
+
+  function applySidebarWidth(width, persist) {
+    if (!gridLayout) return DEFAULT_SIDEBAR_WIDTH;
+    const next = clampSidebarWidth(width);
+    gridLayout.style.setProperty('--sidebar-width', next + 'px');
+    if (persist !== false) {
+      try {
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(next));
+      } catch (e) {}
+    }
+    return next;
+  }
+
+  function syncSidebarWidth() {
+    applySidebarWidth(getStoredSidebarWidth(), false);
+  }
+
+  function initSidebarResize() {
+    const handle = document.getElementById('sidebarResizeHandle');
+    if (!handle || !gridLayout) return;
+
+    let dragging = false;
+    let activePointerId = null;
+
+    const stopDragging = () => {
+      if (!dragging) return;
+      dragging = false;
+      activePointerId = null;
+      document.documentElement.classList.remove('sidebar-resizing');
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', stopDragging);
+      window.removeEventListener('pointercancel', stopDragging);
+    };
+
+    const onPointerMove = (event) => {
+      if (!dragging || !isDesktopViewport() || gridLayout.classList.contains('sidebar-collapsed')) return;
+      const rect = gridLayout.getBoundingClientRect();
+      const nextWidth = clampSidebarWidth(rect.right - event.clientX);
+      applySidebarWidth(nextWidth);
+      event.preventDefault();
+    };
+
+    handle.addEventListener('pointerdown', (event) => {
+      if (!isDesktopViewport() || gridLayout.classList.contains('sidebar-collapsed')) return;
+      dragging = true;
+      activePointerId = event.pointerId;
+      document.documentElement.classList.add('sidebar-resizing');
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      if (typeof handle.setPointerCapture === 'function') {
+        try {
+          handle.setPointerCapture(activePointerId);
+        } catch (e) {}
+      }
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', stopDragging);
+      window.addEventListener('pointercancel', stopDragging);
+      onPointerMove(event);
+      event.preventDefault();
+    });
+
+    handle.addEventListener('dblclick', () => {
+      applySidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+    });
   }
 
   // Synchronize scroll positions between the textarea, backdrop and line numbers
@@ -998,8 +1214,14 @@ sum`;
       renderExamples();
     } catch (e) {}
 
+    initSidebarResize();
     restoreSidebarState();
-    window.addEventListener('resize', syncSidebarToggleUi);
+    window.addEventListener('resize', () => {
+      syncSidebarToggleUi();
+      if (isDesktopViewport()) {
+        syncSidebarWidth();
+      }
+    });
 
     // Initial render (don't update URL during this first pass)
     handleInput();
@@ -1255,7 +1477,7 @@ sum`;
                 mathConverted = null;
               }
               if (mathConverted !== null) {
-                outputLines.push({ value: formatResult(mathConverted), type: 'result' });
+                outputLines.push({ value: formatResult(mathConverted, cand), type: 'result' });
                 success = true;
                 break;
               }
@@ -1282,7 +1504,8 @@ sum`;
 
         if (res !== undefined && res !== null) {
           // Format result
-          let formatted = formatResult(res);
+          const preferredUnit = res && res.isUnit ? detectPreferredUnit(proc, parser.getAll()) : '';
+          let formatted = formatResult(res, preferredUnit);
           // Store for display
           outputLines.push({ value: formatted, type: 'result' });
 
@@ -1501,7 +1724,7 @@ sum`;
       let val = vars[key];
       let displayVal;
       try {
-        displayVal = formatResult(val);
+        displayVal = formatResult(val, getUnitDisplayTarget(val));
       } catch (e) {
         return;
       }
@@ -1598,7 +1821,7 @@ sum`;
     return true;
   }
 
-  function formatResult(res) {
+  function formatResult(res, preferredUnit) {
     if (res === undefined || res === null) {
       return String(res);
     }
@@ -1621,6 +1844,20 @@ sum`;
     // Unit (including currencies)
     if (res && res.isUnit) {
       try {
+        const displayUnit = preferredUnit || getUnitDisplayTarget(res);
+        if (displayUnit) {
+          try {
+            const conversionCandidates = getUnitConversionCandidates(displayUnit);
+            for (const candidateUnit of conversionCandidates) {
+              try {
+                const converted = res.to(candidateUnit);
+                const numericValue = converted.toNumber(candidateUnit);
+                const numericText = rd !== null ? Number(numericValue).toFixed(rd) : smartFormat(numericValue, _autoDecimalPlaces);
+                return toPrettyUnits(numericText + ' ' + displayUnit);
+              } catch (e) {}
+            }
+          } catch (e) {}
+        }
         if (rd !== null) {
           const fmt = math.format(res, { precision: rd });
           return toPrettyUnits(String(fmt));
@@ -1669,6 +1906,7 @@ sum`;
     const toggleBtn = document.getElementById('sidebarToggle');
     const toggleIcon = document.getElementById('sidebarToggleIcon');
     const overlay = document.getElementById('sidebarOverlay');
+    const resizeHandle = document.getElementById('sidebarResizeHandle');
     const desktopCollapsed = !!(gridLayout && gridLayout.classList.contains('sidebar-collapsed'));
     const mobileOpen = sidebar.classList.contains('open');
     const visible = isDesktopViewport() ? !desktopCollapsed : mobileOpen;
@@ -1688,12 +1926,17 @@ sum`;
     if (overlay) {
       overlay.classList.toggle('hidden', isDesktopViewport() || !mobileOpen);
     }
+
+    if (resizeHandle) {
+      resizeHandle.classList.toggle('hidden', !isDesktopViewport() || desktopCollapsed);
+    }
   }
 
   function restoreSidebarState() {
     if (gridLayout) {
       const desktopCollapsed = localStorage.getItem('livecalc:sidebarCollapsed') === 'true';
       gridLayout.classList.toggle('sidebar-collapsed', desktopCollapsed);
+      applySidebarWidth(getStoredSidebarWidth(), false);
     }
 
     sidebar.classList.remove('open');

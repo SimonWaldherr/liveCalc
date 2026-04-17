@@ -76,6 +76,96 @@
   function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+  
+  function escapeHtmlWithLineBreaks(s) {
+    return escapeHtml(s).replace(/\r?\n/g, '<br />');
+  }
+
+  function renderPlainTextParagraphs(text) {
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return '';
+    return `<p class="whitespace-pre-wrap break-words">${escapeHtmlWithLineBreaks(trimmed)}</p>`;
+  }
+
+  function renderInsertBlock(snippet) {
+    const code = String(snippet || '').trim();
+    if (!code) return '';
+    const escaped = escapeHtml(code);
+    const encoded = btoa(unescape(encodeURIComponent(code)));
+    return `<div class="rounded bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-1.5 my-1">
+          <pre class="text-[10px] font-mono overflow-x-auto whitespace-pre-wrap break-all">${escaped}</pre>
+          <button onclick="lcAI.insertBlock('${encoded}')"
+            class="mt-1 text-[10px] bg-blue-600 text-white rounded px-2 py-0.5 hover:bg-blue-700 flex items-center gap-1">
+            <span class="material-symbols-outlined text-[12px]">add</span> Insert into editor
+          </button>
+        </div>`;
+  }
+
+  function renderKatex(expr, displayMode) {
+    const source = String(expr || '').trim();
+    if (!source) return '';
+
+    if (window.katex && typeof window.katex.renderToString === 'function') {
+      try {
+        return window.katex.renderToString(source, {
+          displayMode: !!displayMode,
+          throwOnError: false,
+          strict: 'ignore',
+        });
+      } catch (e) {}
+    }
+
+    const escaped = escapeHtml(source);
+    return displayMode
+      ? `<div class="my-1 whitespace-pre-wrap break-words">${escaped}</div>`
+      : `<span class="whitespace-pre-wrap break-words">${escaped}</span>`;
+  }
+
+  function renderAssistantText(text) {
+    const source = String(text || '');
+    const mathRe = /\\\[([\s\S]*?)\\\]|\\\(([\s\S]*?)\\\)/g;
+    let html = '';
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mathRe.exec(source)) !== null) {
+      const before = source.slice(lastIndex, match.index);
+      if (before) {
+        html += renderPlainTextParagraphs(before);
+      }
+
+      if (match[1] !== undefined) {
+        html += `<div class="my-1 overflow-x-auto">${renderKatex(match[1], true)}</div>`;
+      } else {
+        html += renderKatex(match[2], false);
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    const tail = source.slice(lastIndex);
+    if (tail) html += renderPlainTextParagraphs(tail);
+    return html || renderPlainTextParagraphs(source);
+  }
+
+  function renderAssistantContent(text) {
+    const source = String(text || '');
+    const markerRe = /(?:^|\n)LIVECALC_INSERT_START\s*\n([\s\S]*?)\nLIVECALC_INSERT_END(?:\n|$)/gi;
+    let html = '';
+    let lastIndex = 0;
+    let match;
+
+    while ((match = markerRe.exec(source)) !== null) {
+      const before = source.slice(lastIndex, match.index).trim();
+      if (before) html += renderAssistantText(before);
+      html += renderInsertBlock(match[1]);
+      lastIndex = match.index + match[0].length;
+    }
+
+    const tail = source.slice(lastIndex).trim();
+    if (tail) html += renderAssistantText(tail);
+    return html || renderAssistantText(source);
+  }
 
   function setSendBusy(isBusy) {
     const btn = document.getElementById('aiChatSendBtn');
@@ -112,9 +202,14 @@
 
     const section = document.getElementById('aiChatSection');
     const headerBtn = document.getElementById('aiChatToggleBtn');
+    const sidebar = document.getElementById('sidebar');
+    const graphSection = sidebar ? sidebar.firstElementChild : null;
 
     if (section) {
       section.classList.toggle('hidden', !hasProvider);
+      if (hasProvider && sidebar && graphSection && graphSection !== section) {
+        sidebar.insertBefore(section, graphSection);
+      }
     }
     if (headerBtn) {
       headerBtn.classList.toggle('hidden', !hasProvider);
@@ -158,34 +253,7 @@
     if (role === 'user') {
       bubble.textContent = content;
     } else {
-      let html = '';
-      const re = /```(?:livecalc|calc|math|plaintext|text)?\n?([\s\S]*?)```/gi;
-      let lastIndex = 0;
-      let m;
-      re.lastIndex = 0;
-
-      while ((m = re.exec(content)) !== null) {
-        const before = content.slice(lastIndex, m.index).trim();
-        if (before) html += `<p class="whitespace-pre-wrap break-words">${escapeHtml(before)}</p>`;
-
-        const code = m[1].trim();
-        const escaped = escapeHtml(code);
-        const encoded = btoa(unescape(encodeURIComponent(code)));
-
-        html += `<div class="rounded bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-1.5 my-1">
-          <pre class="text-[10px] font-mono overflow-x-auto whitespace-pre-wrap break-all">${escaped}</pre>
-          <button onclick="lcAI.insertBlock('${encoded}')"
-            class="mt-1 text-[10px] bg-blue-600 text-white rounded px-2 py-0.5 hover:bg-blue-700 flex items-center gap-1">
-            <span class="material-symbols-outlined text-[12px]">add</span> Insert into editor
-          </button>
-        </div>`;
-        lastIndex = m.index + m[0].length;
-      }
-
-      const tail = content.slice(lastIndex).trim();
-      if (tail) html += `<p class="whitespace-pre-wrap break-words">${escapeHtml(tail)}</p>`;
-      if (!html) html = `<p class="whitespace-pre-wrap break-words">${escapeHtml(content)}</p>`;
-      bubble.innerHTML = html;
+      bubble.innerHTML = renderAssistantContent(content);
     }
 
     wrapper.appendChild(bubble);
@@ -305,13 +373,13 @@ ${editorContent || '(empty)'}
 
 You can help the user understand their calculations, explain results, suggest improvements, or write new calculation snippets.
 
-When you want to suggest something the user can insert into their notebook, wrap it in a code fence:
-\`\`\`livecalc
-# your suggestion here
-x = 42
-\`\`\`
+Respond in plain text only. Do not use Markdown or any other formatting, including code fences, bullet points, numbered lists, headings, tables, emphasis, or inline code.
 
-Keep responses concise and focused on math/calculations. Use math.js syntax (e.g., units like \`5 m\`, \`10 kg\`, expressions like \`sqrt(x^2 + y^2)\`).`;
+If you want to suggest text that the user can insert into the notebook, put only the exact snippet between these two lines:
+LIVECALC_INSERT_START
+LIVECALC_INSERT_END
+
+Keep responses concise and focused on math/calculations. Use math.js syntax (e.g., units like 5 m, 10 kg, expressions like sqrt(x^2 + y^2)).`;
 
     const messages = [
       { role: 'system', content: systemPrompt },

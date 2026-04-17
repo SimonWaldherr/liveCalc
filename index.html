@@ -16,8 +16,10 @@
     />
 
     <!-- Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/14.8.1/math.min.js"></script>
+    <script src="https://unpkg.com/mathjs@15.2.0/lib/browser/math.js"></script>
     <script src="https://unpkg.com/function-plot/dist/function-plot.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 
     <style></style>
     <link rel="stylesheet" href="./style.css" />
@@ -333,6 +335,15 @@
         </div>
       </main>
 
+      <div
+        id="sidebarResizeHandle"
+        class="hidden lg:flex items-stretch justify-center cursor-col-resize select-none sidebar-resize-handle"
+        aria-hidden="true"
+        title="Resize sidebar"
+      >
+        <div class="h-full w-[3px] rounded-full bg-gray-200/0 dark:bg-gray-700/0 transition-all"></div>
+      </div>
+
       <!-- Right: Sidebar (Variables & Graph) -->
       <aside
         id="sidebar"
@@ -524,16 +535,14 @@
                         stroke-dasharray="5,5"
                         opacity="0.5"
                         d="M0,-197L0,197"
-                        class="tip-x-line"
-                        style=""
+                          class="tip-x-line"
                       ></path>
                       <path
                         stroke="grey"
                         stroke-dasharray="5,5"
                         opacity="0.5"
                         d="M-259,0L259,0"
-                        class="tip-y-line"
-                        style=""
+                          class="tip-y-line"
                       ></path>
                       <circle r="3"></circle>
                       <text transform="translate(5,-5)"></text>
@@ -825,7 +834,7 @@
         <!-- AI Chat Section -->
         <div id="aiChatSection" class="hidden flex flex-col border-b border-gray-200 dark:border-gray-800">
           <div
-            class="section-header px-4 py-2 bg-blue-50 dark:bg-blue-950/40 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
+            class="section-header px-4 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex justify-between items-center cursor-pointer transition-colors"
             onclick="app.toggleSection('aiChat')"
             onkeydown="
               if (event.key === 'Enter' || event.key === ' ') {
@@ -1175,13 +1184,13 @@
       display: block;
     }
   </style>
-  <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
     <div
       class="absolute inset-0 bg-black opacity-40"
       onclick="document.getElementById('settingsModal').classList.add('hidden')"
     ></div>
     <div
-      class="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-[500px] max-w-[95vw] z-60 max-h-[90vh] flex flex-col overflow-hidden"
+      class="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl ring-1 ring-black/5 dark:ring-white/10 w-[440px] max-w-[88vw] z-60 max-h-[78vh] flex flex-col overflow-hidden min-w-0"
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-4 pt-4 pb-0 flex-shrink-0">
@@ -1205,9 +1214,9 @@
         </button>
       </div>
       <!-- Tab content -->
-      <div class="overflow-y-auto p-4 flex-1 text-sm text-gray-700 dark:text-gray-300">
+      <div class="overflow-y-auto overflow-x-hidden p-4 flex-1 text-sm text-gray-700 dark:text-gray-300 min-h-0 min-w-0">
         <!-- ====== Appearance tab ====== -->
-        <div id="settingsPanel-appearance" class="settings-panel active space-y-4">
+        <div id="settingsPanel-appearance" class="settings-panel active space-y-4 min-w-0">
           <div>
             <label class="block text-xs font-medium text-gray-500">Decimal places</label>
             <input
@@ -1281,69 +1290,64 @@
         </div>
 
         <!-- ====== AI / LLM tab ====== -->
-        <div id="settingsPanel-ai" class="settings-panel space-y-4">
-          <div>
+        <div id="settingsPanel-ai" class="settings-panel space-y-4 min-w-0">
+          <div class="min-w-0">
             <label class="block text-xs font-medium text-gray-500">Provider</label>
             <select
               id="settingsLlmProvider"
-              class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs"
+              class="mt-1 w-full max-w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs"
             >
               <option value="openai">OpenAI</option>
               <option value="local">Local OpenAI-Compatible</option>
               <option value="custom">Custom OpenAI-Compatible</option>
             </select>
           </div>
-          <div>
+          <div class="min-w-0">
             <label class="block text-xs font-medium text-gray-500">Base URL</label>
             <input
               id="settingsLlmBaseUrl"
               type="url"
-              class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
+              class="mt-1 w-full max-w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
               placeholder="http://localhost:1234/v1"
               autocomplete="off"
             />
-            <p id="settingsLlmProviderHint" class="text-[10px] text-gray-400 mt-1 leading-relaxed">
+            <p id="settingsLlmProviderHint" class="text-[10px] text-gray-400 mt-1 leading-relaxed break-words">
               OpenAI-compatible API base URL (for example:
               <code class="bg-gray-100 dark:bg-gray-800 px-0.5 rounded">http://localhost:1234/v1</code>
               ).
             </p>
           </div>
-          <div>
+          <div class="min-w-0">
             <label class="block text-xs font-medium text-gray-500">Model</label>
-            <div class="flex gap-1.5 mt-1">
-              <input
+            <div class="flex gap-1.5 mt-1 min-w-0">
+              <select
                 id="settingsLlmModel"
-                type="text"
-                list="llmModelList"
-                class="flex-1 rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono min-w-0"
-                placeholder="e.g. gpt-4.1-mini, llama3.1"
-                autocomplete="off"
-              />
-              <datalist id="llmModelList"></datalist>
+                class="flex-1 min-w-0 rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
+              ></select>
               <button
                 id="settingsLlmDetect"
                 type="button"
                 title="Auto-detect available models"
-                class="px-2.5 py-1 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-1 whitespace-nowrap transition-colors flex-shrink-0"
+                class="px-2.5 py-1 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-1 whitespace-nowrap transition-colors flex-shrink-0 max-w-full"
               >
                 <span class="material-symbols-outlined text-[14px]">refresh</span>
                 <span id="settingsLlmDetectLabel">Detect</span>
               </button>
             </div>
-            <p id="settingsLlmModelHint" class="text-[10px] text-gray-400 mt-0.5">
+            <p id="settingsLlmModelHint" class="text-[10px] text-gray-400 mt-0.5 break-words">
               Click Detect to load available models from the server.
             </p>
           </div>
-          <div>
+          <div class="min-w-0">
             <label class="block text-xs font-medium text-gray-500">API key</label>
             <input
               id="settingsLlmApiKey"
               type="password"
-              class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
+              class="mt-1 w-full max-w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
               placeholder="sk-…"
               autocomplete="new-password"
             />
-            <p id="settingsLlmApiKeyHint" class="text-[10px] text-gray-400 mt-1">Optional for local providers.</p>
+            <p id="settingsLlmApiKeyHint" class="text-[10px] text-gray-400 mt-1 break-words">Optional for local providers.</p>
           </div>
           <div id="settingsLlmCustomKeyWrap" class="hidden">
             <label class="flex items-center gap-2 cursor-pointer">
@@ -1351,7 +1355,7 @@
               <span class="text-xs text-gray-600 dark:text-gray-400">Custom provider requires API key</span>
             </label>
           </div>
-          <div class="space-y-2">
+          <div class="space-y-2 min-w-0">
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="settingsLlmStreaming" type="checkbox" class="form-checkbox" />
               <span class="text-xs text-gray-600 dark:text-gray-400">Use streaming in chat</span>
@@ -1363,7 +1367,7 @@
               </span>
             </label>
           </div>
-          <div id="settingsLlmTestResult" class="hidden rounded border px-3 py-2 text-xs"></div>
+          <div id="settingsLlmTestResult" class="hidden rounded border px-3 py-2 text-xs break-words"></div>
           <button
             id="settingsLlmTestBtn"
             type="button"
@@ -1436,7 +1440,6 @@
       const llmCustomRequiresApiKey = document.getElementById('settingsLlmCustomRequiresApiKey');
       const llmDetectBtn = document.getElementById('settingsLlmDetect');
       const llmDetectLabel = document.getElementById('settingsLlmDetectLabel');
-      const llmModelList = document.getElementById('llmModelList');
       const llmModelHint = document.getElementById('settingsLlmModelHint');
       const llmTestBtn = document.getElementById('settingsLlmTestBtn');
       const llmTestResult = document.getElementById('settingsLlmTestResult');
@@ -1592,6 +1595,136 @@
         }
       }
 
+      let llmModelRefreshTimer = null;
+      const llmModelCache = {};
+
+      function buildModelCacheKey(providerId, providerCfg) {
+        return [providerId || '', providerCfg && providerCfg.baseURL ? providerCfg.baseURL : '', providerCfg && providerCfg.apiKey ? '1' : '0'].join('|');
+      }
+
+      function renderModelSuggestions(models, providerMeta, providerCfg, autoFill) {
+        const currentValue = llmModel ? llmModel.value.trim() : '';
+        const detectedModels = Array.from(
+          new Set((Array.isArray(models) ? models : []).map((model) => String(model || '').trim()).filter(Boolean))
+        );
+        const fallbackModels = [];
+
+        if (providerCfg && providerCfg.model) fallbackModels.push(providerCfg.model);
+        if (providerMeta && providerMeta.defaultModel) fallbackModels.push(providerMeta.defaultModel);
+        if (currentValue) fallbackModels.push(currentValue);
+
+        const uniqueSuggestions = Array.from(new Set([...detectedModels, ...fallbackModels.filter(Boolean)]));
+
+        if (llmModel) {
+          llmModel.innerHTML = '';
+
+          const options = uniqueSuggestions.length ? uniqueSuggestions : [currentValue || ''];
+          if (!options[0]) {
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = 'No models found';
+            llmModel.appendChild(placeholderOption);
+          } else {
+            options.forEach((model, index) => {
+              const option = document.createElement('option');
+              option.value = model;
+              option.textContent = model;
+              if (index === 0 && !currentValue) option.selected = true;
+              llmModel.appendChild(option);
+            });
+          }
+
+          if (currentValue && !uniqueSuggestions.includes(currentValue)) {
+            const customOption = document.createElement('option');
+            customOption.value = currentValue;
+            customOption.textContent = `${currentValue} (current)`;
+            customOption.selected = true;
+            llmModel.appendChild(customOption);
+          }
+
+          if (currentValue) {
+            llmModel.value = currentValue;
+          }
+        }
+
+        if (llmModel && !currentValue && uniqueSuggestions.length) {
+          llmModel.value = autoFill && detectedModels.length ? detectedModels[0] : uniqueSuggestions[0];
+        }
+
+        if (llmModelHint) {
+          if (uniqueSuggestions.length) {
+            llmModelHint.textContent = `Suggested models loaded. Active: ${llmModel ? llmModel.value || uniqueSuggestions[0] : uniqueSuggestions[0]}.`;
+            llmModelHint.className = 'text-[10px] text-green-600 mt-0.5';
+          } else {
+            llmModelHint.textContent = 'No model suggestions available yet. Use Detect to load available models.';
+            llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5';
+          }
+        }
+      }
+
+      async function refreshModelSuggestions(opts) {
+        const options = opts || {};
+        const autoFill = !!options.autoFill;
+        const force = !!options.force;
+        const draft = ensureLlmDraft();
+        const providerId = getSelectedProviderId();
+        const catalog = getProviderCatalogMap();
+        const providerMeta = catalog[providerId] || catalog.local;
+        const providerCfg = draft.providers[providerId] || providerDefaults[providerId];
+        const cacheKey = buildModelCacheKey(providerId, providerCfg);
+
+        if (!providerCfg || !providerCfg.baseURL) {
+          renderModelSuggestions([], providerMeta, providerCfg, autoFill);
+          return [];
+        }
+
+        if ((providerMeta && providerMeta.requiresApiKey) || (providerCfg && providerCfg.requiresApiKey)) {
+          if (!providerCfg.apiKey) {
+            renderModelSuggestions([], providerMeta, providerCfg, autoFill);
+            if (llmModelHint) {
+              llmModelHint.textContent = 'API key required before model detection.';
+              llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5';
+            }
+            return [];
+          }
+        }
+
+        if (!force && llmModelCache[cacheKey]) {
+          renderModelSuggestions(llmModelCache[cacheKey], providerMeta, providerCfg, autoFill);
+          return llmModelCache[cacheKey];
+        }
+
+        if (!window.livecalcLLM || typeof window.livecalcLLM.fetchModels !== 'function') {
+          renderModelSuggestions([], providerMeta, providerCfg, autoFill);
+          return [];
+        }
+
+        try {
+          if (llmModelHint) {
+            llmModelHint.textContent = 'Fetching models...';
+            llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5';
+          }
+          const models = await window.livecalcLLM.fetchModels(draft);
+          llmModelCache[cacheKey] = models;
+          renderModelSuggestions(models, providerMeta, providerCfg, autoFill);
+          return models;
+        } catch (err) {
+          if (llmModelHint) {
+            llmModelHint.textContent = 'Model detection failed. You can still type a model manually.';
+            llmModelHint.className = 'text-[10px] text-yellow-500 mt-0.5';
+          }
+          renderModelSuggestions([], providerMeta, providerCfg, autoFill);
+          return [];
+        }
+      }
+
+      function scheduleModelRefresh(opts) {
+        if (llmModelRefreshTimer) clearTimeout(llmModelRefreshTimer);
+        llmModelRefreshTimer = setTimeout(() => {
+          refreshModelSuggestions(opts || {}).catch(() => {});
+        }, opts && opts.immediate ? 0 : 300);
+      }
+
       function buildLlmConfigFromForm() {
         persistActiveProviderToDraft();
         return normalizeLlmSettings(llmDraft);
@@ -1622,19 +1755,29 @@
           if (llmDraft) llmDraft.providerId = llmProvider.value;
           renderProviderUi();
           resetLlmModelHint();
+          scheduleModelRefresh({ autoFill: true });
+        });
+      }
+
+      if (llmBaseURL) {
+        llmBaseURL.addEventListener('change', function () {
+          persistActiveProviderToDraft();
+          scheduleModelRefresh({ autoFill: false });
+        });
+        llmBaseURL.addEventListener('input', function () {
+          scheduleModelRefresh({ autoFill: false });
+        });
+      }
+
+      if (llmModel) {
+        llmModel.addEventListener('change', function () {
+          persistActiveProviderToDraft();
+          scheduleModelRefresh({ autoFill: false });
         });
       }
 
       if (llmDetectBtn) {
         llmDetectBtn.addEventListener('click', async function () {
-          if (!window.livecalcLLM || typeof window.livecalcLLM.fetchModels !== 'function') {
-            if (llmModelHint) {
-              llmModelHint.textContent = 'Error: LLM layer not loaded.';
-              llmModelHint.className = 'text-[10px] text-red-500 mt-0.5';
-            }
-            return;
-          }
-
           const llmCfg = buildLlmConfigFromForm();
           const activeProvider = llmCfg.providerId;
           const currentProviderCfg = llmCfg.providers[activeProvider];
@@ -1648,31 +1791,11 @@
 
           llmDetectBtn.disabled = true;
           if (llmDetectLabel) llmDetectLabel.textContent = '...';
-          if (llmModelHint) {
-            llmModelHint.textContent = 'Fetching models...';
-            llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5';
-          }
           try {
-            const models = await window.livecalcLLM.fetchModels(llmCfg);
-            if (llmModelList) {
-              llmModelList.innerHTML = '';
-              models.forEach((m) => {
-                const opt = document.createElement('option');
-                opt.value = m;
-                llmModelList.appendChild(opt);
-              });
-            }
-            if (models.length === 0) {
-              if (llmModelHint) {
-                llmModelHint.textContent = 'No models returned by endpoint.';
-                llmModelHint.className = 'text-[10px] text-yellow-500 mt-0.5';
-              }
-            } else {
-              if (llmModel && !llmModel.value) llmModel.value = models[0];
-              if (llmModelHint) {
-                llmModelHint.textContent = `OK: ${models.length} model(s) found. Select from list or type manually.`;
-                llmModelHint.className = 'text-[10px] text-green-600 mt-0.5';
-              }
+            const models = await refreshModelSuggestions({ autoFill: true, force: true });
+            if (models.length === 0 && llmModelHint) {
+              llmModelHint.textContent = 'No models returned by endpoint.';
+              llmModelHint.className = 'text-[10px] text-yellow-500 mt-0.5';
             }
           } catch (err) {
             if (llmModelHint) {
@@ -1814,6 +1937,7 @@
         renderProviderUi();
         resetLlmModelHint();
         if (llmTestResult) llmTestResult.classList.add('hidden');
+        scheduleModelRefresh({ autoFill: true });
       });
 
       // Close on Escape
@@ -1824,6 +1948,7 @@
       readLlmFromApp();
       renderProviderUi();
       resetLlmModelHint();
+      scheduleModelRefresh({ autoFill: false, immediate: true });
     })();
   </script>
 </html>

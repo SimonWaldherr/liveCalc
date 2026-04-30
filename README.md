@@ -14,6 +14,21 @@ No installation, no account, no server: everything runs locally in your browser.
 
 ---
 
+## Run locally
+
+LiveCalc is a static web app. You can run it locally with any simple HTTP server:
+
+```bash
+cd /home/runner/work/liveCalc/liveCalc
+python3 -m http.server 8080
+```
+
+Then open: `http://localhost:8080`
+
+> Note: some browser setups block `file://` features, so serving over HTTP is recommended.
+
+---
+
 ## Features
 
 ### Real-time calculation
@@ -116,7 +131,14 @@ geometry, finance (compound interest), mixed-unit sums, matrix operations, CSV t
 
 ---
 
+## Notes
+
+- LLM API keys and settings are stored in your browser local storage.
+- Local provider mode expects an OpenAI-compatible endpoint (default: `http://localhost:1234/v1`).
+- Shared links include encoded notebook content in the URL hash.
+
+---
+
 ## License
 
 [MIT](LICENSE)
-

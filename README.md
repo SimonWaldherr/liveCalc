@@ -1,4 +1,4 @@
-# LiveCalc Pro
+# liveCalc (LiveCalc Pro)
 
 [![mathjs](https://img.shields.io/badge/powered%20by-mathjs-blue.svg)](https://mathjs.org/)
 [![github](https://img.shields.io/badge/hosted%20on-github-yellow.svg)](https://github.com/SimonWaldherr/liveCalc)

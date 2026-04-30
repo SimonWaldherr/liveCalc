@@ -168,7 +168,10 @@
 
   function renderAssistantContent(text) {
     const source = String(text || '');
-    const markerRe = /(?:^|\n)LIVECALC_INSERT_START\s*\n([\s\S]*?)\nLIVECALC_INSERT_END(?:\n|$)/gi;
+    // Be tolerant of both LF and CRLF because different providers / proxies may
+    // normalize newlines differently. Keep support for multiple insert blocks in
+    // one answer and across later assistant replies.
+    const markerRe = /(?:^|\r?\n)LIVECALC_INSERT_START\s*\r?\n([\s\S]*?)\r?\nLIVECALC_INSERT_END(?:\r?\n|$)/gi;
     let html = '';
     let lastIndex = 0;
     let match;
@@ -424,11 +427,19 @@ ${editorContent || '(empty)'}
 
 You can help the user understand their calculations, explain results, suggest improvements, or write new calculation snippets.
 
+Important notebook rules:
+- LiveCalc evaluates the notebook line by line from top to bottom.
+- Always define variables before any calculation line that uses them.
+- If you suggest a snippet, make it self-contained: include every required variable / function definition before the final calculation or conversion lines.
+- Prefer small, directly usable snippets over abstract formulas.
+
 Respond in plain text only. Do not use Markdown or any other formatting, including code fences, bullet points, numbered lists, headings, tables, emphasis, or inline code.
 
 If you want to suggest text that the user can insert into the notebook, put only the exact snippet between these two lines:
 LIVECALC_INSERT_START
 LIVECALC_INSERT_END
+
+You may emit such insert blocks in any reply where they are useful, including later follow-up replies in the same chat. If you provide more than one distinct snippet, use a separate LIVECALC_INSERT_START / LIVECALC_INSERT_END block for each snippet.
 
 Keep responses concise and focused on math/calculations. Use math.js syntax (e.g., units like 5 m, 10 kg, expressions like sqrt(x^2 + y^2)). Inside the LIVECALC_INSERT_START/END block always use a dot ('.') as the decimal separator regardless of the user's display preference, because math.js requires it.`;
 

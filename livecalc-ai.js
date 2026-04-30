@@ -87,16 +87,34 @@
     return `<p class="whitespace-pre-wrap break-words">${escapeHtmlWithLineBreaks(trimmed)}</p>`;
   }
 
+  // Translation helper used throughout the AI panel. Falls back to the
+  // English string when LCi18n is unavailable.
+  function lct(key, fallback, params) {
+    try {
+      if (typeof window !== 'undefined' && window.LCi18n && typeof window.LCi18n.t === 'function') {
+        var v = window.LCi18n.t(key, params);
+        if (v && v !== key) return v;
+      }
+    } catch (e) {}
+    if (fallback && params) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_, k) {
+        return params[k] !== undefined && params[k] !== null ? String(params[k]) : '{' + k + '}';
+      });
+    }
+    return fallback || key;
+  }
+
   function renderInsertBlock(snippet) {
     const code = String(snippet || '').trim();
     if (!code) return '';
     const escaped = escapeHtml(code);
     const encoded = btoa(unescape(encodeURIComponent(code)));
+    const insertLabel = escapeHtml(lct('ai.insertButton', 'Insert into editor'));
     return `<div class="rounded bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-1.5 my-1">
           <pre class="text-[10px] font-mono overflow-x-auto whitespace-pre-wrap break-all">${escaped}</pre>
           <button onclick="lcAI.insertBlock('${encoded}')"
             class="mt-1 text-[10px] bg-blue-600 text-white rounded px-2 py-0.5 hover:bg-blue-700 flex items-center gap-1">
-            <span class="material-symbols-outlined text-[12px]">add</span> Insert into editor
+            <span class="material-symbols-outlined text-[12px]">add</span> ${insertLabel}
           </button>
         </div>`;
   }
@@ -150,7 +168,10 @@
 
   function renderAssistantContent(text) {
     const source = String(text || '');
-    const markerRe = /(?:^|\n)LIVECALC_INSERT_START\s*\n([\s\S]*?)\nLIVECALC_INSERT_END(?:\n|$)/gi;
+    // Be tolerant of both LF and CRLF because different providers / proxies may
+    // normalize newlines differently. Keep support for multiple insert blocks in
+    // one answer and across later assistant replies.
+    const markerRe = /(?:^|\r?\n)LIVECALC_INSERT_START\s*\r?\n([\s\S]*?)\r?\nLIVECALC_INSERT_END(?:\r?\n|$)/gi;
     let html = '';
     let lastIndex = 0;
     let match;
@@ -187,7 +208,7 @@
     activeAbortController.abort();
     activeAbortController = null;
     setSendBusy(false);
-    setStatus('Cancelled', 'text-gray-400');
+    setStatus(lct('ai.status.cancelled', 'Cancelled'), 'text-gray-400');
     return true;
   }
 
@@ -268,7 +289,9 @@
     el.className = 'flex justify-start';
     el.id = 'aiThinking';
     el.innerHTML =
-      '<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-400">Thinking...</div>';
+      '<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-400">' +
+      escapeHtml(lct('ai.thinking', 'Thinking...')) +
+      '</div>';
     msgs.appendChild(el);
     msgs.scrollTop = msgs.scrollHeight;
     return el;
@@ -278,7 +301,7 @@
     if (!el) return;
     const box = el.firstElementChild;
     if (!box) return;
-    box.textContent = text || 'Thinking...';
+    box.textContent = text || lct('ai.thinking', 'Thinking...');
 
     const msgs = document.getElementById('aiChatMessages');
     if (msgs) msgs.scrollTop = msgs.scrollHeight;
@@ -300,7 +323,7 @@
     try {
       const text = decodeURIComponent(escape(atob(encoded)));
       insertIntoEditor(text);
-      if (typeof showToast === 'function') showToast('Inserted into editor');
+      if (typeof showToast === 'function') showToast(lct('toast.insertedIntoEditor', 'Inserted into editor'));
     } catch (e) {
       console.error('lcAI.insertBlock error', e);
     }
@@ -347,13 +370,13 @@
       llmSettings = getLlmSettings();
       const runtime = getLlmCore().resolveProviderRuntime(llmSettings);
       if (!runtime.baseURL) {
-        throw new Error('Please set a Base URL in Settings.');
+        throw new Error(lct('ai.error.noBaseUrl', 'Please set a Base URL in Settings.'));
       }
       if (!runtime.model) {
-        throw new Error('Please set a model name in Settings.');
+        throw new Error(lct('ai.error.noModel', 'Please set a model name in Settings.'));
       }
     } catch (err) {
-      alert(err.userMessage || err.message || 'Please configure LLM settings first.');
+      alert(err.userMessage || err.message || lct('ai.error.configure', 'Please configure LLM settings first.'));
       if (window.app && typeof window.app.openSettings === 'function') app.openSettings();
       return;
     }
@@ -364,7 +387,38 @@
     renderMessage('user', userText);
 
     const editorContent = getEditorContent();
+    // Determine the user's preferred reply language and unit system so the
+    // model can match them. We pull these from the persisted app settings
+    // (if available) and from the active i18n locale as a fallback.
+    let langCode = 'en';
+    let langLabel = 'English';
+    let unitSystem = 'metric';
+    let decimalSeparator = '.';
+    try {
+      if (window.LCi18n && typeof window.LCi18n.getLocale === 'function') {
+        langCode = window.LCi18n.getLocale() || langCode;
+      }
+      if (window.app && typeof window.app.getSettings === 'function') {
+        const s = window.app.getSettings() || {};
+        if (s.language) langCode = s.language;
+        if (s.unitSystem) unitSystem = s.unitSystem;
+        if (s.decimalSeparator) decimalSeparator = s.decimalSeparator;
+      }
+      const labels = { en: 'English', de: 'German (Deutsch)' };
+      langLabel = labels[langCode] || langCode;
+    } catch (e) {}
+    const unitGuidance =
+      unitSystem === 'imperial'
+        ? 'Prefer Imperial / US units (ft, lb, gal, °F) when giving examples or suggestions.'
+        : unitSystem === 'all'
+        ? 'No unit-system preference; pick whichever is clearest for the question.'
+        : 'Strongly prefer SI / metric units (m, kg, l, s, °C) when giving examples or suggestions.';
     const systemPrompt = `You are a helpful math and calculation assistant integrated into LiveCalc Pro — a live math notebook that evaluates expressions using math.js syntax.
+
+User preferences:
+- Reply language: ${langLabel} (${langCode}). Always answer in this language unless the user asks otherwise.
+- Unit system: ${unitSystem}. ${unitGuidance}
+- Decimal separator the user reads/writes: "${decimalSeparator}".
 
 The user's current calculation notebook content is:
 \`\`\`
@@ -373,13 +427,21 @@ ${editorContent || '(empty)'}
 
 You can help the user understand their calculations, explain results, suggest improvements, or write new calculation snippets.
 
+Important notebook rules:
+- LiveCalc evaluates the notebook line by line from top to bottom.
+- Always define variables before any calculation line that uses them.
+- If you suggest a snippet, make it self-contained: include every required variable / function definition before the final calculation or conversion lines.
+- Prefer small, directly usable snippets over abstract formulas.
+
 Respond in plain text only. Do not use Markdown or any other formatting, including code fences, bullet points, numbered lists, headings, tables, emphasis, or inline code.
 
 If you want to suggest text that the user can insert into the notebook, put only the exact snippet between these two lines:
 LIVECALC_INSERT_START
 LIVECALC_INSERT_END
 
-Keep responses concise and focused on math/calculations. Use math.js syntax (e.g., units like 5 m, 10 kg, expressions like sqrt(x^2 + y^2)).`;
+You may emit such insert blocks in any reply where they are useful, including later follow-up replies in the same chat. If you provide more than one distinct snippet, use a separate LIVECALC_INSERT_START / LIVECALC_INSERT_END block for each snippet.
+
+Keep responses concise and focused on math/calculations. Use math.js syntax (e.g., units like 5 m, 10 kg, expressions like sqrt(x^2 + y^2)). Inside the LIVECALC_INSERT_START/END block always use a dot ('.') as the decimal separator regardless of the user's display preference, because math.js requires it.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -392,7 +454,7 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
     const thinking = renderThinking();
     const streamBuffer = { text: '' };
 
-    setStatus('Thinking...', 'text-yellow-500');
+    setStatus(lct('ai.status.thinking', 'Thinking...'), 'text-yellow-500');
     setSendBusy(true);
 
     activeAbortController = new AbortController();
@@ -406,7 +468,7 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
           if (!delta) return;
           streamBuffer.text += delta;
           updateThinkingText(thinking, streamBuffer.text);
-          setStatus('Streaming...', 'text-yellow-500');
+          setStatus(lct('ai.status.streaming', 'Streaming...'), 'text-yellow-500');
         },
       });
 
@@ -414,21 +476,22 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
 
       const finalText = (result && result.text) || streamBuffer.text || '';
       if (!finalText.trim()) {
-        renderMessage('assistant', 'No text content was returned by the provider.');
+        renderMessage('assistant', lct('ai.error.empty', 'No text content was returned by the provider.'));
       } else {
         renderMessage('assistant', finalText);
         chatHistory.push({ role: 'assistant', content: finalText });
       }
 
-      setStatus('Connected', 'text-green-500');
+      setStatus(lct('ai.status.connected', 'Connected'), 'text-green-500');
     } catch (err) {
       removeThinking();
       if (err && err.code === 'ABORTED') {
-        setStatus('Cancelled', 'text-gray-400');
+        setStatus(lct('ai.status.cancelled', 'Cancelled'), 'text-gray-400');
       } else {
-        setStatus('Error', 'text-red-500');
-        const userMessage = (err && (err.userMessage || err.message)) || 'Unknown error while contacting LLM provider.';
-        renderMessage('assistant', 'Error: ' + userMessage);
+        setStatus(lct('ai.status.error', 'Error'), 'text-red-500');
+        const userMessage =
+          (err && (err.userMessage || err.message)) || lct('ai.error.unknown', 'Unknown error while contacting LLM provider.');
+        renderMessage('assistant', lct('ai.error.prefix', 'Error: {message}', { message: userMessage }));
 
         try {
           console.warn('LLM request failed', {

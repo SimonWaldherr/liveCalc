@@ -1,10 +1,11 @@
 <html lang="en" class="light">
   <head>
+    <script src="./livecalc-i18n.js"></script>
     <script src="./livecalc.js" defer></script>
 
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LiveCalc Pro - Interactive Math Studio</title>
+    <title data-i18n="app.title">LiveCalc Pro - Interactive Math Studio</title>
 
     <!-- Tailwind CSS (built locally) -->
     <link rel="stylesheet" href="./tailwind.css" />
@@ -44,7 +45,7 @@
             LiveCalc
             <span class="text-blue-600">Pro</span>
           </h1>
-          <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide uppercase">
+          <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide uppercase" data-i18n="app.tagline">
             Interactive Math Studio
           </span>
         </div>
@@ -62,6 +63,7 @@
             aria-label="Insert square root"
             class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
             title="Square Root"
+            data-i18n-attr="title:helper.sqrt"
           >
             √
           </button>
@@ -70,6 +72,7 @@
             aria-label="Insert power"
             class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
             title="Power"
+            data-i18n-attr="title:helper.power"
           >
             xʸ
           </button>
@@ -78,6 +81,7 @@
             aria-label="Insert pi"
             class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
             title="Pi"
+            data-i18n-attr="title:helper.pi"
           >
             π
           </button>
@@ -86,6 +90,7 @@
             aria-label="Insert sine function"
             class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
             title="Sine"
+            data-i18n-attr="title:helper.sin"
           >
             sin
           </button>
@@ -94,6 +99,7 @@
             aria-label="Insert cosine function"
             class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-600 dark:text-gray-300"
             title="Cosine"
+            data-i18n-attr="title:helper.cos"
           >
             cos
           </button>
@@ -104,6 +110,7 @@
           onclick="app.toggleTheme()"
           class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
           title="Toggle Dark Mode"
+          data-i18n-attr="title:header.toggleDarkMode"
         >
           <span class="material-symbols-outlined theme-icon">dark_mode</span>
         </button>
@@ -113,6 +120,7 @@
           class="hidden p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
           title="AI Chat"
           aria-label="Toggle AI Chat"
+          data-i18n-attr="title:header.aiChat,aria-label:header.aiChatToggle"
         >
           <span class="material-symbols-outlined">smart_toy</span>
         </button>
@@ -123,6 +131,7 @@
           aria-expanded="true"
           aria-label="Hide sidebar"
           class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          data-i18n-attr="aria-label:header.hideSidebar"
         >
           <span id="sidebarToggleIcon" class="material-symbols-outlined">right_panel_close</span>
         </button>
@@ -140,9 +149,10 @@
             class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-md transition-colors"
             title="Examples"
             aria-label="Open examples menu"
+            data-i18n-attr="title:header.examples,aria-label:header.examplesOpen"
           >
             <span class="material-symbols-outlined text-[18px]">lightbulb</span>
-            <span>Examples</span>
+            <span data-i18n="header.examples">Examples</span>
           </button>
           <div
             id="examplesMenu"
@@ -158,6 +168,7 @@
                 insertExampleGeometry();
                 toggleExamplesMenu(false);
               "
+              data-i18n="examples.menu.geometry"
             >
               Geometry — circle area
             </button>
@@ -168,6 +179,7 @@
                 insertExampleFinance();
                 toggleExamplesMenu(false);
               "
+              data-i18n="examples.menu.finance"
             >
               Finance — compound interest
             </button>
@@ -178,6 +190,7 @@
                 insertExampleSum();
                 toggleExamplesMenu(false);
               "
+              data-i18n="examples.menu.sum"
             >
               Sum — mixed units
             </button>
@@ -188,6 +201,7 @@
                 insertExampleRandom();
                 toggleExamplesMenu(false);
               "
+              data-i18n="examples.menu.random"
             >
               Random example
             </button>
@@ -198,6 +212,7 @@
                 insertExampleTableDemo();
                 toggleExamplesMenu(false);
               "
+              data-i18n="examples.menu.table"
             >
               Table — CSV import & query
             </button>
@@ -208,6 +223,7 @@
                 insertExampleDataPlotDemo();
                 toggleExamplesMenu(false);
               "
+              data-i18n="examples.menu.dataplot"
             >
               Data Plot — avg price per region
             </button>
@@ -218,6 +234,7 @@
           class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
           title="Download"
           aria-label="Download math as text"
+          data-i18n-attr="title:header.download,aria-label:header.downloadAria"
         >
           <span class="material-symbols-outlined">download</span>
         </button>
@@ -226,6 +243,7 @@
           class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
           title="Settings"
           aria-label="Settings"
+          data-i18n-attr="title:header.settings,aria-label:header.settings"
         >
           <span class="material-symbols-outlined">settings</span>
         </button>
@@ -234,6 +252,7 @@
           class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
           title="Copy link"
           aria-label="Copy link to clipboard"
+          data-i18n-attr="title:header.copyLink,aria-label:header.copyLinkAria"
         >
           <span class="material-symbols-outlined">content_copy</span>
         </button>
@@ -242,6 +261,7 @@
           class="ml-2 p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
           title="Upload data file"
           aria-label="Upload data file"
+          data-i18n-attr="title:header.uploadData,aria-label:header.uploadData"
         >
           <input
             id="dataFileInput"
@@ -255,6 +275,7 @@
           onclick="app.clear()"
           class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
           title="Clear All"
+          data-i18n-attr="title:header.clearAll"
         >
           <span class="material-symbols-outlined">delete</span>
         </button>
@@ -331,6 +352,7 @@
             spellcheck="false"
             autocapitalize="off"
             placeholder="Type math here... e.g. a = 10 + 5"
+            data-i18n-attr="placeholder:editor.placeholder"
           ></textarea>
         </div>
       </main>
@@ -369,9 +391,9 @@
             aria-expanded="true"
             aria-controls="graphContent"
           >
-            <span>Graph</span>
+            <span data-i18n="sidebar.graph">Graph</span>
             <div class="flex items-center gap-2">
-              <span class="text-[10px] text-gray-400">f(x), g(x)</span>
+              <span class="text-[10px] text-gray-400" data-i18n="sidebar.graph.hint">f(x), g(x)</span>
               <span id="graphToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
                 expand_less
               </span>
@@ -382,6 +404,7 @@
               <button
                 onclick="app.resetGraph()"
                 class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 p-1 rounded text-xs hover:bg-gray-50 dark:hover:bg-gray-700"
+                data-i18n="sidebar.graph.reset"
               >
                 Reset
               </button>
@@ -576,7 +599,7 @@
             aria-expanded="true"
             aria-controls="variablesContent"
           >
-            <span>Variables</span>
+            <span data-i18n="sidebar.variables">Variables</span>
             <div class="flex items-center gap-2">
               <span class="text-[10px] text-gray-400" id="varCount">7 defined</span>
               <span id="variablesToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
@@ -662,7 +685,7 @@
                   data_array
                 </span>
               </div>
-              <div class="mt-2 mb-1 text-[10px] font-bold text-gray-400 uppercase">Functions</div>
+              <div class="mt-2 mb-1 text-[10px] font-bold text-gray-400 uppercase" data-i18n="sidebar.variables.functions">Functions</div>
               <div
                 class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700"
               >
@@ -710,23 +733,23 @@
             aria-expanded="true"
             aria-controls="datasetContent"
           >
-            <span>Datasets</span>
+            <span data-i18n="sidebar.datasets">Datasets</span>
             <div class="flex items-center gap-2">
               <select
                 id="datasetSelect"
                 onclick="event.stopPropagation()"
                 class="text-[10px] bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 px-2 py-0.5 hover:border-blue-400 transition-colors"
               >
-                <option value="">Select dataset</option>
+                <option value="" data-i18n="sidebar.datasets.select">Select dataset</option>
               </select>
               <select
                 id="previewRowsSelect"
                 onclick="event.stopPropagation()"
                 class="text-[10px] bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 px-2 py-0.5 hover:border-blue-400 transition-colors"
               >
-                <option value="5">5 rows</option>
-                <option value="10" selected>10 rows</option>
-                <option value="25">25 rows</option>
+                <option value="5" data-i18n="sidebar.datasets.rows5">5 rows</option>
+                <option value="10" selected data-i18n="sidebar.datasets.rows10">10 rows</option>
+                <option value="25" data-i18n="sidebar.datasets.rows25">25 rows</option>
               </select>
               <button
                 id="datasetUploadBtn"
@@ -735,6 +758,7 @@
                   document.getElementById('dataFileInput').click();
                 "
                 class="text-[10px] bg-white dark:bg-gray-800 rounded border px-2 py-0.5"
+                data-i18n="sidebar.datasets.upload"
               >
                 Upload
               </button>
@@ -745,7 +769,7 @@
           </div>
           <div id="datasetContent" class="overflow-hidden transition-all duration-300">
             <div id="datasetPreviewInner" class="overflow-auto p-2" style="max-height: 300px">
-              <div id="datasetEmptyState" class="text-xs text-gray-400 text-center py-4">No dataset loaded</div>
+              <div id="datasetEmptyState" class="text-xs text-gray-400 text-center py-4" data-i18n="sidebar.datasets.empty">No dataset loaded</div>
               <table id="datasetPreviewTable" class="min-w-full text-xs hidden">
                 <thead id="datasetPreviewHead"></thead>
                 <tbody id="datasetPreviewBody"></tbody>
@@ -770,9 +794,9 @@
             aria-expanded="true"
             aria-controls="examplesContent"
           >
-            <span>Examples</span>
+            <span data-i18n="sidebar.examples">Examples</span>
             <div class="flex items-center gap-2">
-              <span class="text-[10px] text-gray-400">Load example snippets</span>
+              <span class="text-[10px] text-gray-400" data-i18n="sidebar.examples.hint">Load example snippets</span>
               <span id="examplesToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
                 expand_less
               </span>
@@ -805,7 +829,7 @@
             aria-expanded="true"
             aria-controls="historyContent"
           >
-            <span>History</span>
+            <span data-i18n="sidebar.history">History</span>
             <div class="flex items-center gap-2">
               <button
                 onclick="
@@ -815,7 +839,7 @@
                 class="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 flex items-center gap-1 transition-colors"
               >
                 <span class="material-symbols-outlined text-[14px]">save</span>
-                Save
+                <span data-i18n="sidebar.history.save">Save</span>
               </button>
               <span id="historyToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
                 expand_less
@@ -827,7 +851,7 @@
             class="overflow-y-auto p-2 space-y-1 transition-all duration-300"
             style="max-height: 400px"
           >
-            <div class="text-xs text-gray-400 text-center py-4">No history saved yet</div>
+            <div class="text-xs text-gray-400 text-center py-4" data-i18n="sidebar.history.empty">No history saved yet</div>
           </div>
         </div>
 
@@ -849,10 +873,10 @@
           >
             <span class="flex items-center gap-1">
               <span class="material-symbols-outlined text-[16px]">smart_toy</span>
-              AI Assistant
+              <span data-i18n="ai.section">AI Assistant</span>
             </span>
             <div class="flex items-center gap-2">
-              <span id="aiChatStatus" class="text-[10px] text-green-500">Connected</span>
+              <span id="aiChatStatus" class="text-[10px] text-green-500" data-i18n="ai.status.connected">Connected</span>
               <span id="aiChatToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
                 expand_less
               </span>
@@ -869,7 +893,7 @@
               class="flex-1 overflow-y-auto p-2 space-y-2 text-xs"
               style="min-height: 120px; max-height: 300px"
             >
-              <div class="text-gray-400 text-center py-2 text-[11px]" id="aiChatPlaceholder">
+              <div class="text-gray-400 text-center py-2 text-[11px]" id="aiChatPlaceholder" data-i18n="ai.placeholder">
                 Ask the AI about your calculation…
               </div>
             </div>
@@ -879,6 +903,7 @@
                 id="aiChatInput"
                 rows="2"
                 placeholder="Ask a question or describe what to calculate…"
+                data-i18n-attr="placeholder:ai.input.placeholder"
                 class="flex-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 resize-none focus:outline-none focus:border-blue-400"
                 onkeydown="
                   if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
@@ -891,12 +916,13 @@
                 id="aiChatSendBtn"
                 onclick="lcAI.send()"
                 title="Send (Ctrl+Enter)"
+                data-i18n-attr="title:ai.send"
                 class="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center flex-shrink-0"
               >
                 <span id="aiChatSendIcon" class="material-symbols-outlined text-[18px]">send</span>
               </button>
             </div>
-            <div class="px-2 pb-1 text-[10px] text-gray-400">
+            <div class="px-2 pb-1 text-[10px] text-gray-400" data-i18n="ai.help">
               Ctrl+Enter to send &bull; The AI sees your current calculation
             </div>
           </div>
@@ -904,7 +930,7 @@
 
         <!-- Footer / Info -->
         <div class="p-3 border-t border-gray-200 dark:border-gray-800 text-[10px] text-gray-400 text-center">
-          Powered by Math.js &amp; Function Plot
+          <span data-i18n="app.poweredBy">Powered by Math.js &amp; Function Plot</span>
           <br />
           <!--<a href="#" onclick="app.download(); return false;" class="hover:underline text-blue-500">Export Text</a>-->
         </div>
@@ -974,18 +1000,34 @@
         }, 260);
       }, timeout);
     }
+    // Translation helper used by inline scripts. Falls back to the default
+    // English string if i18n is not yet ready or the key is unknown.
+    function lct(key, fallback, params) {
+      try {
+        if (window.LCi18n && typeof window.LCi18n.t === 'function') {
+          var v = window.LCi18n.t(key, params);
+          if (v && v !== key) return v;
+        }
+      } catch (e) {}
+      if (fallback && params) {
+        return String(fallback).replace(/\{(\w+)\}/g, function (_, k) {
+          return params[k] !== undefined && params[k] !== null ? String(params[k]) : '{' + k + '}';
+        });
+      }
+      return fallback || key;
+    }
 
     function clearTextarea() {
       if (window.app && typeof window.app.clear === 'function') {
         window.app.clear();
-        showToast('Editor cleared');
+        showToast(lct('toast.editorCleared', 'Editor cleared'));
         return;
       }
       const editor = document.getElementById('editor');
       if (editor) {
         editor.value = '';
         editor.dispatchEvent(new Event('input'));
-        showToast('Editor cleared');
+        showToast(lct('toast.editorCleared', 'Editor cleared'));
       }
     }
 
@@ -1000,7 +1042,7 @@
       if (editor) {
         editor.value = pick;
         editor.dispatchEvent(new Event('input'));
-        showToast('Example inserted');
+        showToast(lct('toast.exampleInsertedShort', 'Example inserted'));
       }
     }
 
@@ -1010,7 +1052,7 @@
       if (editor) {
         editor.value = txt;
         editor.dispatchEvent(new Event('input'));
-        showToast('Geometry example inserted');
+        showToast(lct('toast.geometryInserted', 'Geometry example inserted'));
       }
     }
     function insertExampleFinance() {
@@ -1019,7 +1061,7 @@
       if (editor) {
         editor.value = txt;
         editor.dispatchEvent(new Event('input'));
-        showToast('Finance example inserted');
+        showToast(lct('toast.financeInserted', 'Finance example inserted'));
       }
     }
 
@@ -1029,7 +1071,7 @@
       if (editor) {
         editor.value = txt;
         editor.dispatchEvent(new Event('input'));
-        showToast('Table demo inserted');
+        showToast(lct('toast.tableDemoInserted', 'Table demo inserted'));
       }
     }
 
@@ -1039,7 +1081,7 @@
       if (editor) {
         editor.value = txt;
         editor.dispatchEvent(new Event('input'));
-        showToast('Sum example inserted');
+        showToast(lct('toast.sumInserted', 'Sum example inserted'));
       }
     }
 
@@ -1049,14 +1091,14 @@
       if (editor) {
         editor.value = txt;
         editor.dispatchEvent(new Event('input'));
-        showToast('Data plot demo inserted');
+        showToast(lct('toast.dataplotInserted', 'Data plot demo inserted'));
       }
     }
 
     function downloadMath() {
       if (window.app && typeof window.app.download === 'function') {
         window.app.download();
-        showToast('Downloaded');
+        showToast(lct('toast.downloaded', 'Downloaded'));
         return;
       }
       const editor = document.getElementById('editor');
@@ -1066,7 +1108,7 @@
       a.href = URL.createObjectURL(blob);
       a.download = 'calculation.txt';
       a.click();
-      showToast('Downloaded');
+      showToast(lct('toast.downloaded', 'Downloaded'));
     }
 
     function copyURLtoClipboard() {
@@ -1075,13 +1117,13 @@
         navigator.clipboard
           .writeText(url)
           .then(() => {
-            showToast('Link copied');
+            showToast(lct('toast.linkCopied', 'Link copied'));
           })
           .catch(() => {
-            showToast('Copy failed');
+            showToast(lct('toast.copyFailed', 'Copy failed'));
           });
       } else {
-        prompt('Copy this link', url);
+        prompt(lct('toast.copyPrompt', 'Copy this link'), url);
       }
     }
 
@@ -1194,10 +1236,12 @@
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-4 pt-4 pb-0 flex-shrink-0">
-        <h3 class="text-base font-semibold text-slate-800 dark:text-gray-100">Settings</h3>
+        <h3 class="text-base font-semibold text-slate-800 dark:text-gray-100" data-i18n="settings.title">Settings</h3>
         <button
           onclick="document.getElementById('settingsModal').classList.add('hidden')"
           class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded"
+          data-i18n-attr="aria-label:settings.close"
+          aria-label="Close"
         >
           <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
@@ -1206,11 +1250,11 @@
       <div class="flex border-b border-gray-200 dark:border-gray-700 px-4 mt-2 flex-shrink-0" id="settingsTabs">
         <button class="settings-tab active" data-tab="appearance" onclick="switchSettingsTab('appearance')">
           <span class="material-symbols-outlined text-[14px] align-text-bottom mr-0.5">palette</span>
-          Appearance
+          <span data-i18n="settings.tab.appearance">Appearance</span>
         </button>
         <button class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')">
           <span class="material-symbols-outlined text-[14px] align-text-bottom mr-0.5">smart_toy</span>
-          AI / LLM
+          <span data-i18n="settings.tab.ai">AI / LLM</span>
         </button>
       </div>
       <!-- Tab content -->
@@ -1218,7 +1262,19 @@
         <!-- ====== Appearance tab ====== -->
         <div id="settingsPanel-appearance" class="settings-panel active space-y-4 min-w-0">
           <div>
-            <label class="block text-xs font-medium text-gray-500">Decimal places</label>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.language">Language</label>
+            <select
+              id="settingsLanguage"
+              class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
+            >
+              <!-- Filled at runtime from LCi18n.getAvailableLocales() -->
+            </select>
+            <p class="text-[10px] text-gray-400 mt-0.5" data-i18n="settings.language.help">
+              Select the user-interface language. Number/unit defaults adapt automatically.
+            </p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.decimalPlaces">Decimal places</label>
             <input
               id="settingsRound"
               type="number"
@@ -1226,65 +1282,93 @@
               step="1"
               class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
               placeholder="Auto (leave empty for auto-detect)"
+              data-i18n-attr="placeholder:settings.decimalPlaces.placeholder"
             />
-            <p class="text-[10px] text-gray-400 mt-0.5">
+            <p class="text-[10px] text-gray-400 mt-0.5" data-i18n="settings.decimalPlaces.help">
               Leave empty to auto-detect precision from your input numbers.
             </p>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium text-gray-500">Decimal separator</label>
+              <label class="block text-xs font-medium text-gray-500" data-i18n="settings.decimalSeparator">Decimal separator</label>
               <select
                 id="settingsDecimalSeparator"
                 class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
               >
-                <option value=".">Dot (1.23)</option>
-                <option value=",">Comma (1,23)</option>
+                <option value="." data-i18n="settings.decimalSeparator.dot">Dot (1.23)</option>
+                <option value="," data-i18n="settings.decimalSeparator.comma">Comma (1,23)</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500">CSV delimiter</label>
+              <label class="block text-xs font-medium text-gray-500" data-i18n="settings.thousandsSeparator">Thousands separator</label>
               <select
-                id="settingsCsvDelimiter"
+                id="settingsThousandsSeparator"
                 class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
               >
-                <option value="auto">Auto-detect</option>
-                <option value="comma">Comma (,)</option>
-                <option value="semicolon">Semicolon (;)</option>
-                <option value="tab">Tab</option>
-                <option value="pipe">Pipe (|)</option>
+                <option value="" data-i18n="settings.thousandsSeparator.none">None (1234567)</option>
+                <option value=" " data-i18n="settings.thousandsSeparator.space">Space (1 234 567)</option>
+                <option value="," data-i18n="settings.thousandsSeparator.comma">Comma (1,234,567)</option>
+                <option value="." data-i18n="settings.thousandsSeparator.dot">Dot (1.234.567)</option>
+                <option value="'" data-i18n="settings.thousandsSeparator.apostrophe">Apostrophe (1'234'567)</option>
               </select>
             </div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-500">Color scheme</label>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.unitSystem">Unit system</label>
+            <select
+              id="settingsUnitSystem"
+              class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
+            >
+              <option value="metric" data-i18n="settings.unitSystem.metric">Metric / SI (m, kg, l, °C)</option>
+              <option value="imperial" data-i18n="settings.unitSystem.imperial">Imperial / US (ft, lb, gal, °F)</option>
+              <option value="all" data-i18n="settings.unitSystem.all">Both (no preference)</option>
+            </select>
+            <p class="text-[10px] text-gray-400 mt-0.5" data-i18n="settings.unitSystem.help">
+              Hints the calculator (and the AI) which units to prefer in suggestions.
+            </p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.csvDelimiter">CSV delimiter</label>
+            <select
+              id="settingsCsvDelimiter"
+              class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm"
+            >
+              <option value="auto" data-i18n="settings.csvDelimiter.auto">Auto-detect</option>
+              <option value="comma" data-i18n="settings.csvDelimiter.comma">Comma (,)</option>
+              <option value="semicolon" data-i18n="settings.csvDelimiter.semicolon">Semicolon (;)</option>
+              <option value="tab" data-i18n="settings.csvDelimiter.tab">Tab</option>
+              <option value="pipe" data-i18n="settings.csvDelimiter.pipe">Pipe (|)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.colorScheme">Color scheme</label>
             <select id="settingsColor" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
-              <option value="default">Default</option>
-              <option value="warm">Warm</option>
-              <option value="midnight">Midnight</option>
-              <option value="solarized">Solarized</option>
-              <option value="ocean">Ocean</option>
-              <option value="monochrome">Monochrome</option>
+              <option value="default" data-i18n="settings.color.default">Default</option>
+              <option value="warm" data-i18n="settings.color.warm">Warm</option>
+              <option value="midnight" data-i18n="settings.color.midnight">Midnight</option>
+              <option value="solarized" data-i18n="settings.color.solarized">Solarized</option>
+              <option value="ocean" data-i18n="settings.color.ocean">Ocean</option>
+              <option value="monochrome" data-i18n="settings.color.monochrome">Monochrome</option>
             </select>
             <div id="settingsPalettePreview" class="settings-palette" aria-hidden="true"></div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-500">Editor font</label>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.font">Editor font</label>
             <select id="settingsFont" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
-              <option value="'Fira Code', 'Menlo', 'Monaco', monospace">Fira Code</option>
-              <option value="'Menlo', 'Monaco', 'Consolas', monospace">Menlo / Mono</option>
-              <option value="'Courier New', monospace">Courier New</option>
-              <option value="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">System UI</option>
+              <option value="'Fira Code', 'Menlo', 'Monaco', monospace" data-i18n="settings.font.firaCode">Fira Code</option>
+              <option value="'Menlo', 'Monaco', 'Consolas', monospace" data-i18n="settings.font.menlo">Menlo / Mono</option>
+              <option value="'Courier New', monospace" data-i18n="settings.font.courier">Courier New</option>
+              <option value="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" data-i18n="settings.font.system">System UI</option>
             </select>
           </div>
           <div class="flex items-center gap-4 pt-1">
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="settingsLargeText" type="checkbox" class="form-checkbox" />
-              <span class="text-xs text-gray-600 dark:text-gray-400">Large text</span>
+              <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.largeText">Large text</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="settingsHighContrast" type="checkbox" class="form-checkbox" />
-              <span class="text-xs text-gray-600 dark:text-gray-400">High contrast</span>
+              <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.highContrast">High contrast</span>
             </label>
           </div>
         </div>
@@ -1292,18 +1376,18 @@
         <!-- ====== AI / LLM tab ====== -->
         <div id="settingsPanel-ai" class="settings-panel space-y-4 min-w-0">
           <div class="min-w-0">
-            <label class="block text-xs font-medium text-gray-500">Provider</label>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.llm.provider">Provider</label>
             <select
               id="settingsLlmProvider"
               class="mt-1 w-full max-w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs"
             >
-              <option value="openai">OpenAI</option>
-              <option value="local">Local OpenAI-Compatible</option>
-              <option value="custom">Custom OpenAI-Compatible</option>
+              <option value="openai" data-i18n="settings.llm.provider.openai">OpenAI</option>
+              <option value="local" data-i18n="settings.llm.provider.local">Local OpenAI-Compatible</option>
+              <option value="custom" data-i18n="settings.llm.provider.custom">Custom OpenAI-Compatible</option>
             </select>
           </div>
           <div class="min-w-0">
-            <label class="block text-xs font-medium text-gray-500">Base URL</label>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.llm.baseUrl">Base URL</label>
             <input
               id="settingsLlmBaseUrl"
               type="url"
@@ -1311,14 +1395,12 @@
               placeholder="http://localhost:1234/v1"
               autocomplete="off"
             />
-            <p id="settingsLlmProviderHint" class="text-[10px] text-gray-400 mt-1 leading-relaxed break-words">
-              OpenAI-compatible API base URL (for example:
-              <code class="bg-gray-100 dark:bg-gray-800 px-0.5 rounded">http://localhost:1234/v1</code>
-              ).
+            <p id="settingsLlmProviderHint" class="text-[10px] text-gray-400 mt-1 leading-relaxed break-words" data-i18n="settings.llm.baseUrl.help">
+              OpenAI-compatible API base URL (for example: http://localhost:1234/v1).
             </p>
           </div>
           <div class="min-w-0">
-            <label class="block text-xs font-medium text-gray-500">Model</label>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.llm.model">Model</label>
             <div class="flex gap-1.5 mt-1 min-w-0">
               <select
                 id="settingsLlmModel"
@@ -1328,18 +1410,19 @@
                 id="settingsLlmDetect"
                 type="button"
                 title="Auto-detect available models"
+                data-i18n-attr="title:settings.llm.detect.title"
                 class="px-2.5 py-1 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-1 whitespace-nowrap transition-colors flex-shrink-0 max-w-full"
               >
                 <span class="material-symbols-outlined text-[14px]">refresh</span>
-                <span id="settingsLlmDetectLabel">Detect</span>
+                <span id="settingsLlmDetectLabel" data-i18n="settings.llm.detect">Detect</span>
               </button>
             </div>
-            <p id="settingsLlmModelHint" class="text-[10px] text-gray-400 mt-0.5 break-words">
+            <p id="settingsLlmModelHint" class="text-[10px] text-gray-400 mt-0.5 break-words" data-i18n="settings.llm.model.help">
               Click Detect to load available models from the server.
             </p>
           </div>
           <div class="min-w-0">
-            <label class="block text-xs font-medium text-gray-500">API key</label>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.llm.apiKey">API key</label>
             <input
               id="settingsLlmApiKey"
               type="password"
@@ -1347,26 +1430,29 @@
               placeholder="sk-…"
               autocomplete="new-password"
             />
-            <p id="settingsLlmApiKeyHint" class="text-[10px] text-gray-400 mt-1 break-words">Optional for local providers.</p>
+            <p id="settingsLlmApiKeyHint" class="text-[10px] text-gray-400 mt-1 break-words" data-i18n="settings.llm.apiKey.help">Optional for local providers.</p>
           </div>
           <div id="settingsLlmCustomKeyWrap" class="hidden">
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="settingsLlmCustomRequiresApiKey" type="checkbox" class="form-checkbox" />
-              <span class="text-xs text-gray-600 dark:text-gray-400">Custom provider requires API key</span>
+              <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.llm.customRequiresApiKey">Custom provider requires API key</span>
             </label>
           </div>
           <div class="space-y-2 min-w-0">
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="settingsLlmStreaming" type="checkbox" class="form-checkbox" />
-              <span class="text-xs text-gray-600 dark:text-gray-400">Use streaming in chat</span>
+              <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.llm.streaming">Use streaming in chat</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="settingsLlmUseResponses" type="checkbox" class="form-checkbox" />
-              <span class="text-xs text-gray-600 dark:text-gray-400">
+              <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.llm.responsesApi">
                 Prefer Responses API (fallback to chat/completions)
               </span>
             </label>
           </div>
+          <p class="text-[10px] text-gray-400 break-words" data-i18n="settings.llm.aiLanguage.help">
+            AI replies in the UI language and is asked to prefer the chosen unit system.
+          </p>
           <div id="settingsLlmTestResult" class="hidden rounded border px-3 py-2 text-xs break-words"></div>
           <button
             id="settingsLlmTestBtn"
@@ -1374,7 +1460,7 @@
             class="w-full py-1.5 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center gap-1 transition-colors"
           >
             <span class="material-symbols-outlined text-[14px]">network_check</span>
-            Test connection
+            <span data-i18n="settings.llm.testConnection">Test connection</span>
           </button>
         </div>
       </div>
@@ -1385,6 +1471,7 @@
         <button
           id="settingsReset"
           class="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          data-i18n="settings.reset"
         >
           Reset defaults
         </button>
@@ -1393,12 +1480,14 @@
             id="settingsCancel"
             class="px-3 py-1.5 text-xs bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             onclick="document.getElementById('settingsModal').classList.add('hidden')"
+            data-i18n="settings.cancel"
           >
             Cancel
           </button>
           <button
             id="settingsSave"
             class="px-4 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
+            data-i18n="settings.save"
           >
             Save
           </button>

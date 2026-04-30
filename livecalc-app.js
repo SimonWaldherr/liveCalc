@@ -2377,7 +2377,7 @@ f(x) = x^2 - 5*x`;
         if (results.functions && results.functions[name]) {
           plotFunctions({ [name]: results.functions[name] });
         } else {
-          alert(t('toast.functionNotPlottable', "Function '{name}' not found or not in a plot-able format.", { name: name }));
+          alert(t('toast.functionNotPlottable', "Function '{name}' not found or not in a plottable format.", { name: name }));
         }
       },
     // Settings API

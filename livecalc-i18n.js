@@ -164,7 +164,7 @@
       'toast.downloaded': 'Downloaded',
       'toast.linkCopied': 'Link copied',
       'toast.insertedIntoEditor': 'Inserted into editor',
-      'toast.functionNotPlottable': "Function '{name}' not found or not in a plot-able format.",
+      'toast.functionNotPlottable': "Function '{name}' not found or not in a plottable format.",
       'toast.copyFailed': 'Copy failed',
       'toast.copyPrompt': 'Copy this link',
       'dataset.namePrompt': 'Dataset name',

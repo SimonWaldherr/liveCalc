@@ -401,6 +401,25 @@
     }
   }
 
+  // -----------------------------------------------------------------
+  // i18n helper — falls back to the embedded English string when the
+  // optional LCi18n module is absent. Keeps llm.js standalone-usable.
+  // -----------------------------------------------------------------
+  function lct(key, fallback, params) {
+    try {
+      if (typeof window !== 'undefined' && window.LCi18n && typeof window.LCi18n.t === 'function') {
+        var v = window.LCi18n.t(key, params);
+        if (v && v !== key) return v;
+      }
+    } catch (e) {}
+    if (fallback && params) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_, k) {
+        return params[k] !== undefined && params[k] !== null ? String(params[k]) : '{' + k + '}';
+      });
+    }
+    return fallback || key;
+  }
+
   function isMixedContentBlocked(url) {
     try {
       const pageProtocol = window.location && window.location.protocol;
@@ -419,7 +438,10 @@
     if (isMixedContentBlocked(url)) {
       return new LLMRequestError(
         'MIXED_CONTENT',
-        'Die HTTPS-App darf diesen HTTP-Endpoint nicht laden (Mixed Content). Nutze HTTPS oder localhost.',
+        lct(
+          'llm.error.mixedContent',
+          'The HTTPS app cannot load this HTTP endpoint (mixed content). Use HTTPS or localhost.'
+        ),
         { details: { url, message: msg }, cause: err }
       );
     }
@@ -429,7 +451,10 @@
       if (isLocalhostHost(u.hostname)) {
         return new LLMRequestError(
           'LOCALHOST_UNREACHABLE',
-          'Lokaler LLM-Server unter localhost ist nicht erreichbar. Prüfe, ob er auf diesem Gerät läuft und CORS aktiv ist.',
+          lct(
+            'llm.error.localhostUnreachable',
+            'Local LLM server on localhost is not reachable. Check that it is running on this device with CORS enabled.'
+          ),
           { details: { url, message: msg }, cause: err }
         );
       }
@@ -438,7 +463,10 @@
     if (/cors/i.test(msg)) {
       return new LLMRequestError(
         'CORS',
-        'Der Endpoint blockiert Browser-Zugriffe (CORS). Erlaube den Origin deiner App auf dem LLM-Server.',
+        lct(
+          'llm.error.cors',
+          'The endpoint blocks browser access (CORS). Allow your app origin on the LLM server.'
+        ),
         {
           details: { url, message: msg },
           cause: err,
@@ -448,7 +476,10 @@
 
     return new LLMRequestError(
       'NETWORK',
-      'Netzwerkfehler beim Zugriff auf den LLM-Endpoint. Prüfe URL, CORS und Erreichbarkeit des Servers.',
+      lct(
+        'llm.error.network',
+        'Network error reaching the LLM endpoint. Check URL, CORS and server availability.'
+      ),
       {
         details: { url, message: msg },
         cause: err,
@@ -467,7 +498,7 @@
     if (status === 401 || status === 403) {
       return new LLMRequestError(
         status === 401 ? 'HTTP_401' : 'HTTP_403',
-        'Authentifizierung fehlgeschlagen. Prüfe API-Key und Berechtigungen.',
+        lct('llm.error.auth', 'Authentication failed. Check API key and permissions.'),
         {
           status,
           details: { url, bodyText: snippet },
@@ -475,24 +506,24 @@
       );
     }
     if (status === 404) {
-      return new LLMRequestError('HTTP_404', 'Endpoint nicht gefunden (404). Prüfe Base-URL und API-Pfad.', {
+      return new LLMRequestError('HTTP_404', lct('llm.error.notFound', 'Endpoint not found (404). Check base URL and API path.'), {
         status,
         details: { url, bodyText: snippet },
       });
     }
     if (status === 429) {
-      return new LLMRequestError('HTTP_429', 'Rate Limit erreicht (429). Bitte später erneut versuchen.', {
+      return new LLMRequestError('HTTP_429', lct('llm.error.rateLimit', 'Rate limit reached (429). Please try again later.'), {
         status,
         details: { url, bodyText: snippet },
       });
     }
     if (status >= 500) {
-      return new LLMRequestError('HTTP_5XX', `Provider-Fehler (${status}). Bitte später erneut versuchen.`, {
+      return new LLMRequestError('HTTP_5XX', lct('llm.error.server', 'Provider error ({status}). Please try again later.', { status: status }), {
         status,
         details: { url, bodyText: snippet },
       });
     }
-    return new LLMRequestError(`HTTP_${status}`, `LLM-Request fehlgeschlagen (${status}).`, {
+    return new LLMRequestError(`HTTP_${status}`, lct('llm.error.generic', 'LLM request failed ({status}).', { status: status }), {
       status,
       details: { url, bodyText: snippet },
     });

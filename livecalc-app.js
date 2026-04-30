@@ -405,6 +405,42 @@ const app = (() => {
   const AUTO_DEFAULT_PRECISION = 6;
   // Maximum allowed value for the roundDecimals setting.
   const MAX_DECIMAL_PLACES = 20;
+
+  // -----------------------------------------------------------------
+  // i18n helpers — thin wrappers around window.LCi18n that gracefully
+  // fall back to the English string when the i18n module is missing.
+  // -----------------------------------------------------------------
+  function t(key, fallback, params) {
+    try {
+      if (window.LCi18n && typeof window.LCi18n.t === 'function') {
+        var v = window.LCi18n.t(key, params);
+        if (v && v !== key) return v;
+      }
+    } catch (e) {}
+    if (fallback && params) {
+      return String(fallback).replace(/\{(\w+)\}/g, function (_, k) {
+        return params[k] !== undefined && params[k] !== null ? String(params[k]) : '{' + k + '}';
+      });
+    }
+    return fallback || key;
+  }
+
+  // Apply the user's preferred decimal/thousands separator to a numeric
+  // string that uses JS's native '.' decimal and no thousands grouping.
+  function applySeparators(numStr) {
+    try {
+      var decSep = (settings && settings.decimalSeparator) || '.';
+      var thouSep = settings && typeof settings.thousandsSeparator === 'string' ? settings.thousandsSeparator : '';
+      if (decSep === '.' && !thouSep) return numStr;
+      if (window.LCi18n && typeof window.LCi18n.applyLocaleSeparators === 'function') {
+        return window.LCi18n.applyLocaleSeparators(numStr, decSep, thouSep);
+      }
+      return numStr;
+    } catch (e) {
+      return numStr;
+    }
+  }
+
   const LLM_PROVIDER_DEFAULTS = {
     openai: {
       baseURL: 'https://api.openai.com/v1',
@@ -544,8 +580,11 @@ const app = (() => {
   }
 
   const defaultSettings = {
+    language: 'en', // 'en' | 'de' (UI language); auto-detected on first run
     roundDecimals: null, // null = auto-detect from input; number = fixed decimal places
     decimalSeparator: '.', // '.' or ','
+    thousandsSeparator: '', // '', ' ', ',', '.', "'"
+    unitSystem: 'metric', // 'metric' (SI), 'imperial', 'all'
     csvDelimiter: 'auto', // 'auto', 'comma', 'semicolon', 'tab', 'pipe'
     colorScheme: 'default', // options: default, warm, midnight, solarized, ocean, monochrome
     font: "'Fira Code', 'Menlo', 'Monaco', monospace",
@@ -555,7 +594,26 @@ const app = (() => {
     },
     llm: clone(LLM_DEFAULT_SETTINGS),
   };
+  // First-run i18n bootstrap: pick a sensible language + locale defaults
+  // from the browser if the user has no persisted settings yet.
+  try {
+    if (window.LCi18n && !localStorage.getItem(SETTINGS_KEY)) {
+      var detected = window.LCi18n.detectLocale();
+      var locDefaults = window.LCi18n.defaultsForLocale(detected) || {};
+      defaultSettings.language = detected;
+      if (locDefaults.decimalSeparator) defaultSettings.decimalSeparator = locDefaults.decimalSeparator;
+      if (locDefaults.thousandsSeparator !== undefined)
+        defaultSettings.thousandsSeparator = locDefaults.thousandsSeparator;
+      if (locDefaults.unitSystem) defaultSettings.unitSystem = locDefaults.unitSystem;
+    }
+  } catch (e) {}
   let settings = loadSettings();
+  // Sync i18n module to persisted/active language as soon as possible.
+  try {
+    if (window.LCi18n && settings && settings.language) {
+      window.LCi18n.setLocale(settings.language);
+    }
+  } catch (e) {}
 
   // Prevent updateHash from overwriting an incoming shared hash during initial load.
   let suppressHashUpdate = false;
@@ -579,45 +637,56 @@ const app = (() => {
     return maxPlaces > 0 ? maxPlaces : 0;
   }
 
-  // Example snippets available to load into the editor
+  // Example snippets available to load into the editor.
+  // Each example uses an i18n key for its title/description so the sidebar
+  // localizes correctly when the language is switched.
   const examples = [
     {
       id: 'geometry',
-      title: 'Geometry — Circle Area',
-      desc: 'radius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius',
+      i18nTitle: 'examples.geometry.title',
+      i18nDesc: 'examples.geometry.desc',
       content: `# Geometry example\nradius = 5 cm\narea = pi * radius^2\nperimeter = 2 * pi * radius`,
     },
     {
       id: 'finance',
-      title: 'Finance — Compound Interest',
-      desc: 'P = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t',
+      i18nTitle: 'examples.finance.title',
+      i18nDesc: 'examples.finance.desc',
       content: `# Compound Interest example\nP = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t`,
     },
     {
       id: 'sum',
-      title: 'Sum — Mixed Units',
-      desc: 'val1 = 10 m\nval2 = 20 cm\nsum',
+      i18nTitle: 'examples.sum.title',
+      i18nDesc: 'examples.sum.desc',
       content: `# Sum example\nval1 = 10 m\nval2 = 20 cm\nval3 = 50 cm\nsum`,
     },
     {
       id: 'table',
-      title: 'Table — CSV import & query',
-      desc: 'Instructions for using demo dataset',
+      i18nTitle: 'examples.table.title',
+      i18nDesc: 'examples.table.desc',
       content: `# Table demo\n# Upload a CSV (or use demo.csv). After import try:\n# sum price from demo where qty > 2\n# count order_id from demo where region == 'North'`,
     },
     {
       id: 'dataplot',
-      title: 'Data Plot — avg price per region',
-      desc: 'Example for data-driven plotting',
+      i18nTitle: 'examples.dataplot.title',
+      i18nDesc: 'examples.dataplot.desc',
       content: `# Data Plot demo\n# Import 'demo.csv' (provided) or your own dataset named 'demo'.\n# Use query() to compute aggregates inside expressions.\navgPriceNorth = query('demo', 'avg price where region == "North"')\nf(x) = avgPriceNorth + sin(x)`,
     },
     {
       id: 'conv_all',
-      title: 'Conversions — Mixed examples',
-      desc: 'Collection of common conversions (weight, pressure, area, volume, force, mass, temperature, currency)',
+      i18nTitle: 'examples.conv_all.title',
+      i18nDesc: 'examples.conv_all.desc',
       content: `# Conversions example\n# Weight\n30 lb in kg\n\n# Pressure\n14.7 psi in bar\n\n# Area\n200 in^2 in cm^2\n\n# Volume\n1 gal in L\n\n# Force\n10 lbf in N\n\n# Mass (imperial)\n1 slug in kg\n\n# Temperature (F <-> C)\n# If your environment doesn't have F/C units defined, a manual formula is provided below\n100 F in C\n# Manual (formula) alternative:\n(100 - 32) * 5/9\n\n# Currency\n100 EUR in USD\n\n# Mixed units and sum\na = 20 cm\nb = 0.5 m\nc = 3 in\n# list values then an explicit 'sum' line to show block sum\na\nb\nc\nsum\n# Convert sum to m\nsum in m`,
     },
   ];
+
+  // Resolve the localized title/desc for an example (used by sidebar render
+  // and toasts).
+  function exampleTitle(ex) {
+    return ex && ex.i18nTitle ? t(ex.i18nTitle, ex.id) : (ex && ex.title) || '';
+  }
+  function exampleDesc(ex) {
+    return ex && ex.i18nDesc ? t(ex.i18nDesc, '') : (ex && ex.desc) || '';
+  }
 
   function loadSettings() {
     try {
@@ -927,20 +996,22 @@ const app = (() => {
     const list = document.getElementById('examplesList');
     if (!list) return;
     if (!examples || examples.length === 0) {
-      list.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">No examples available</div>';
+      list.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">' + escapeHtml(t('sidebar.examples.empty', 'No examples available')) + '</div>';
       return;
     }
+    const loadLabel = escapeHtml(t('sidebar.examples.load', 'Load'));
+    const insertLabel = escapeHtml(t('sidebar.examples.insert', 'Insert'));
     list.innerHTML = examples
       .map(
         (ex) => `
       <div class="flex items-start justify-between gap-2 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
         <div class="flex-1">
-          <div class="text-xs font-semibold text-gray-700 dark:text-gray-200">${escapeHtml(ex.title)}</div>
-          <div class="text-[10px] text-gray-400 mt-1">${escapeHtml(ex.desc)}</div>
+          <div class="text-xs font-semibold text-gray-700 dark:text-gray-200">${escapeHtml(exampleTitle(ex))}</div>
+          <div class="text-[10px] text-gray-400 mt-1">${escapeHtml(exampleDesc(ex))}</div>
         </div>
         <div class="flex flex-col gap-1">
-          <button onclick="(function(id){ if(window.app && window.app.loadExample) window.app.loadExample(id); })('${ex.id}')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded">Load</button>
-          <button onclick="(function(id){ if(window.app && window.app.insertExampleToEditor) window.app.insertExampleToEditor(id); })('${ex.id}')" class="text-[10px] bg-gray-50 text-gray-700 px-2 py-0.5 rounded">Insert</button>
+          <button onclick="(function(id){ if(window.app && window.app.loadExample) window.app.loadExample(id); })('${ex.id}')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded">${loadLabel}</button>
+          <button onclick="(function(id){ if(window.app && window.app.insertExampleToEditor) window.app.insertExampleToEditor(id); })('${ex.id}')" class="text-[10px] bg-gray-50 text-gray-700 px-2 py-0.5 rounded">${insertLabel}</button>
         </div>
       </div>
     `
@@ -951,22 +1022,22 @@ const app = (() => {
   function loadExample(id) {
     const ex = examples.find((e) => e.id === id);
     if (!ex) {
-      showToast('Example not found');
+      showToast(t('toast.exampleNotFound', 'Example not found'));
       return;
     }
     editor.value = ex.content;
     handleInput();
-    showToast('Loaded example: ' + ex.title);
+    showToast(t('toast.exampleLoaded', 'Loaded example: {title}', { title: exampleTitle(ex) }));
   }
 
   function insertExampleToEditor(id) {
     const ex = examples.find((e) => e.id === id);
     if (!ex) {
-      showToast('Example not found');
+      showToast(t('toast.exampleNotFound', 'Example not found'));
       return;
     }
     insert('\n' + ex.content + '\n');
-    showToast('Inserted example: ' + ex.title);
+    showToast(t('toast.exampleInserted', 'Inserted example: {title}', { title: exampleTitle(ex) }));
   }
 
   // Try several heuristics to decode a base64 hash into UTF-8 text.
@@ -1161,7 +1232,7 @@ sum`;
               }
             }
           } catch (e) {
-            showToast('Failed to parse file');
+            showToast(t('toast.parseFileFailed', 'Failed to parse file'));
             return;
           }
           // normalize non-array JSON to array
@@ -1176,10 +1247,10 @@ sum`;
           }
           dsName = attempt;
           // prompt user to rename (non-blocking)
-          const custom = prompt('Dataset name', dsName);
+          const custom = prompt(t('dataset.namePrompt', 'Dataset name'), dsName);
           if (custom && custom.trim()) dsName = custom.trim().replace(/[^A-Za-z0-9_]/g, '_');
           registerDataset(dsName, data);
-          showToast('Imported ' + f.name + ' as ' + dsName);
+          showToast(t('toast.importedAs', 'Imported {name} as {dsName}', { name: f.name, dsName: dsName }));
           // clear input so same file can be re-selected later
           fileInput.value = '';
         };
@@ -1212,6 +1283,23 @@ sum`;
     // Render examples list
     try {
       renderExamples();
+    } catch (e) {}
+
+    // Re-render locale-dependent dynamic content whenever the language
+    // changes at runtime, so the variables panel, examples list, and
+    // history switch language without a page reload.
+    try {
+      document.addEventListener('livecalc:locale-changed', () => {
+        try {
+          renderExamples();
+        } catch (e) {}
+        try {
+          renderHistory();
+        } catch (e) {}
+        try {
+          if (typeof handleInput === 'function') handleInput();
+        } catch (e) {}
+      });
     } catch (e) {}
 
     initSidebarResize();
@@ -1709,11 +1797,11 @@ sum`;
   function updateVariables(vars, funcs) {
     const keys = Object.keys(vars).sort();
     const funcKeys = Object.keys(funcs).sort();
-    varCount.textContent = keys.length + funcKeys.length + ' defined';
+    varCount.textContent = t('sidebar.variables.count', '{count} defined', { count: keys.length + funcKeys.length });
 
     if (keys.length === 0 && funcKeys.length === 0) {
       variablesList.innerHTML =
-        '<div class="text-center text-sm text-gray-400 mt-10 italic">No variables defined yet.</div>';
+        '<div class="text-center text-sm text-gray-400 mt-10 italic">' + escapeHtml(t('sidebar.variables.empty', 'No variables defined yet.')) + '</div>';
       return;
     }
 
@@ -1786,20 +1874,24 @@ sum`;
   // ------------------------------------------------------------
 
   // Smart number formatter: strips unnecessary trailing zeros but keeps meaningful precision.
+  // Always returns the result formatted with the user's preferred decimal /
+  // thousands separators (so output respects locale, not just input).
   function smartFormat(num, autoPlaces) {
     try {
+      var raw;
       if (autoPlaces !== null && autoPlaces !== undefined) {
         // Use auto-detected decimal places, but cap at MAX_DECIMAL_PLACES
         const places = Math.min(autoPlaces, MAX_DECIMAL_PLACES);
         const fixed = Number(num).toFixed(places);
         // Strip trailing zeros after decimal point
-        return fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+        raw = fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+      } else {
+        // Fallback: use AUTO_DEFAULT_PRECISION significant digits, strip trailing zeros
+        const n = Number(num);
+        if (!isFinite(n)) return String(num);
+        raw = n.toPrecision(AUTO_DEFAULT_PRECISION).replace(/\.?0+$/, '');
       }
-      // Fallback: use AUTO_DEFAULT_PRECISION significant digits, strip trailing zeros
-      const n = Number(num);
-      if (!isFinite(n)) return String(num);
-      const s = n.toPrecision(AUTO_DEFAULT_PRECISION).replace(/\.?0+$/, '');
-      return s;
+      return applySeparators(raw);
     } catch (e) {
       return String(num);
     }
@@ -1836,7 +1928,7 @@ sum`;
 
     // BigNumber
     if (res && res.isBigNumber) {
-      if (rd !== null && res.toFixed) return res.toFixed(rd);
+      if (rd !== null && res.toFixed) return applySeparators(res.toFixed(rd));
       // Auto: use detected decimal places
       return smartFormat(res.toNumber ? res.toNumber() : Number(res.toString()), _autoDecimalPlaces);
     }
@@ -1852,7 +1944,7 @@ sum`;
               try {
                 const converted = res.to(candidateUnit);
                 const numericValue = converted.toNumber(candidateUnit);
-                const numericText = rd !== null ? Number(numericValue).toFixed(rd) : smartFormat(numericValue, _autoDecimalPlaces);
+                const numericText = rd !== null ? applySeparators(Number(numericValue).toFixed(rd)) : smartFormat(numericValue, _autoDecimalPlaces);
                 return toPrettyUnits(numericText + ' ' + displayUnit);
               } catch (e) {}
             }
@@ -1860,7 +1952,7 @@ sum`;
         }
         if (rd !== null) {
           const fmt = math.format(res, { precision: rd });
-          return toPrettyUnits(String(fmt));
+          return toPrettyUnits(applySeparators(String(fmt)));
         }
         // Auto: format with math.format then apply smart rounding to the numeric part
         const rawFmt = math.format(res);
@@ -1870,14 +1962,14 @@ sum`;
           const unitPart = numMatch[2] ? ' ' + numMatch[2] : '';
           return toPrettyUnits(numPart + unitPart);
         }
-        return toPrettyUnits(rawFmt);
+        return toPrettyUnits(applySeparators(rawFmt));
       } catch (e) {
         return toPrettyUnits(res.toString());
       }
     }
 
     if (typeof res === 'number') {
-      if (rd !== null) return res.toFixed(rd);
+      if (rd !== null) return applySeparators(res.toFixed(rd));
       return smartFormat(res, _autoDecimalPlaces);
     }
 
@@ -1885,7 +1977,7 @@ sum`;
     if (typeof res === 'object') {
       try {
         const fmt = rd !== null ? math.format(res, { precision: rd }) : math.format(res);
-        return toPrettyUnits(String(fmt));
+        return toPrettyUnits(applySeparators(String(fmt)));
       } catch (e) {
         try {
           return JSON.stringify(res).replace(/"/g, '');
@@ -2279,15 +2371,15 @@ f(x) = x^2 - 5*x`;
       handleInput();
       return true;
     },
-    forcePlot: (name) => {
-      // Re-evaluate to ensure we have latest function RHS strings
-      const results = evalMath(editor.value);
-      if (results.functions && results.functions[name]) {
-        plotFunctions({ [name]: results.functions[name] });
-      } else {
-        alert("Function '" + name + "' not found or not in a plot-able format.");
-      }
-    },
+      forcePlot: (name) => {
+        // Re-evaluate to ensure we have latest function RHS strings
+        const results = evalMath(editor.value);
+        if (results.functions && results.functions[name]) {
+          plotFunctions({ [name]: results.functions[name] });
+        } else {
+          alert(t('toast.functionNotPlottable', "Function '{name}' not found or not in a plot-able format.", { name: name }));
+        }
+      },
     // Settings API
     setSettings: (s) => setSettings(s),
     getSettings: () => getSettings(),
@@ -2300,6 +2392,9 @@ f(x) = x^2 - 5*x`;
       const fontSelect = document.getElementById('settingsFont');
       const largeChk = document.getElementById('settingsLargeText');
       const highChk = document.getElementById('settingsHighContrast');
+      const langSelect = document.getElementById('settingsLanguage');
+      const unitSysSelect = document.getElementById('settingsUnitSystem');
+      const thouSepSel = document.getElementById('settingsThousandsSeparator');
       const llmProvider = document.getElementById('settingsLlmProvider');
       const llmBaseURL = document.getElementById('settingsLlmBaseUrl');
       const llmModel = document.getElementById('settingsLlmModel');
@@ -2310,6 +2405,33 @@ f(x) = x^2 - 5*x`;
       const llmCfg = normalizeLlmSettings(settings && settings.llm);
       const providerId = llmCfg.providerId || 'local';
       const providerCfg = llmCfg.providers[providerId] || llmCfg.providers.local;
+
+      // Populate language dropdown from LCi18n's available locales (once,
+      // idempotent — it's safe to re-build to reflect new options).
+      if (langSelect) {
+        try {
+          const locales = (window.LCi18n && window.LCi18n.getAvailableLocales && window.LCi18n.getAvailableLocales()) || [
+            { code: 'en', label: 'English' },
+            { code: 'de', label: 'Deutsch' },
+          ];
+          // Rebuild only if option set differs
+          const existingValues = Array.from(langSelect.options).map((o) => o.value).join(',');
+          const desiredValues = locales.map((l) => l.code).join(',');
+          if (existingValues !== desiredValues) {
+            langSelect.innerHTML = '';
+            for (const l of locales) {
+              const opt = document.createElement('option');
+              opt.value = l.code;
+              opt.textContent = l.label;
+              langSelect.appendChild(opt);
+            }
+          }
+          langSelect.value = (settings && settings.language) || (window.LCi18n && window.LCi18n.getLocale && window.LCi18n.getLocale()) || 'en';
+        } catch (e) {}
+      }
+      if (unitSysSelect) unitSysSelect.value = (settings && settings.unitSystem) || 'metric';
+      if (thouSepSel) thouSepSel.value = (settings && typeof settings.thousandsSeparator === 'string') ? settings.thousandsSeparator : '';
+
       // null/undefined → empty string (auto-detect mode)
       if (roundInput)
         roundInput.value = settings && typeof settings.roundDecimals === 'number' ? settings.roundDecimals : '';
@@ -2347,6 +2469,9 @@ f(x) = x^2 - 5*x`;
       const fontSelect = document.getElementById('settingsFont');
       const largeChk = document.getElementById('settingsLargeText');
       const highChk = document.getElementById('settingsHighContrast');
+      const langSelect = document.getElementById('settingsLanguage');
+      const unitSysSelect = document.getElementById('settingsUnitSystem');
+      const thouSepSel = document.getElementById('settingsThousandsSeparator');
       const llmProvider = document.getElementById('settingsLlmProvider');
       const llmBaseURL = document.getElementById('settingsLlmBaseUrl');
       const llmModel = document.getElementById('settingsLlmModel');
@@ -2386,14 +2511,31 @@ f(x) = x^2 - 5*x`;
       const csvDelimSel = document.getElementById('settingsCsvDelimiter');
       if (decSepSel) next.decimalSeparator = decSepSel.value || '.';
       if (csvDelimSel) next.csvDelimiter = csvDelimSel.value || 'auto';
+      if (langSelect && langSelect.value) next.language = langSelect.value;
+      if (unitSysSelect && unitSysSelect.value) next.unitSystem = unitSysSelect.value;
+      if (thouSepSel) next.thousandsSeparator = typeof thouSepSel.value === 'string' ? thouSepSel.value : '';
       setSettings(next);
+      // Apply language change immediately to the UI.
+      try {
+        if (window.LCi18n && next.language) {
+          window.LCi18n.setLocale(next.language);
+        }
+      } catch (e) {}
+      // Re-render parts of the UI whose strings come from JS so they update
+      // immediately when the language or separators change.
+      try {
+        renderExamples();
+      } catch (e) {}
+      try {
+        if (typeof handleInput === 'function') handleInput();
+      } catch (e) {}
       const modal = document.getElementById('settingsModal');
       if (modal) modal.classList.add('hidden');
       // update AI chat visibility
       try {
         if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility();
       } catch (e) {}
-      showToast('Settings saved');
+      showToast(t('toast.settingsSaved', 'Settings saved'));
     },
 
     // Section toggle functionality with state persistence
@@ -2447,7 +2589,7 @@ f(x) = x^2 - 5*x`;
     saveToHistory: () => {
       const editorContent = editor.value;
       if (!editorContent.trim()) {
-        showToast('Nothing to save');
+        showToast(t('toast.nothingToSave', 'Nothing to save'));
         return;
       }
 
@@ -2467,7 +2609,7 @@ f(x) = x^2 - 5*x`;
 
       saveHistory(history);
       renderHistory();
-      showToast('Saved to history');
+      showToast(t('toast.savedToHistory', 'Saved to history'));
     },
 
     loadFromHistory: (id) => {
@@ -2476,7 +2618,7 @@ f(x) = x^2 - 5*x`;
       if (entry) {
         editor.value = entry.content;
         handleInput();
-        showToast('Loaded from history');
+        showToast(t('toast.loadedFromHistory', 'Loaded from history'));
       }
     },
 
@@ -2485,7 +2627,7 @@ f(x) = x^2 - 5*x`;
       const filtered = history.filter((e) => e.id !== id);
       saveHistory(filtered);
       renderHistory();
-      showToast('Deleted from history');
+      showToast(t('toast.deletedFromHistory', 'Deleted from history'));
     },
     // Examples API
     loadExample: (id) => loadExample(id),
@@ -2532,9 +2674,12 @@ f(x) = x^2 - 5*x`;
     const history = getHistory();
 
     if (history.length === 0) {
-      historyContent.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">No history saved yet</div>';
+      historyContent.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">' + escapeHtml(t('sidebar.history.empty', 'No history saved yet')) + '</div>';
       return;
     }
+
+    const loadLabel = escapeHtml(t('sidebar.examples.load', 'Load'));
+    const deleteLabel = escapeHtml(t('history.delete', 'Delete'));
 
     historyContent.innerHTML = history
       .map(
@@ -2545,8 +2690,8 @@ f(x) = x^2 - 5*x`;
           <div class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">${entry.content.split('\n')[0]}</div>
         </div>
         <div class="flex gap-1 flex-shrink-0">
-          <button onclick="app.loadFromHistory(${entry.id})" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Load</button>
-          <button onclick="app.deleteFromHistory(${entry.id})" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300">Delete</button>
+          <button onclick="app.loadFromHistory(${entry.id})" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">${loadLabel}</button>
+          <button onclick="app.deleteFromHistory(${entry.id})" class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300">${deleteLabel}</button>
         </div>
       </div>
     `

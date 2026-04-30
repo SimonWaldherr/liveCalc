@@ -19,7 +19,7 @@ No installation, no account, no server: everything runs locally in your browser.
 LiveCalc is a static web app. You can run it locally with any simple HTTP server:
 
 ```bash
-cd /home/runner/work/liveCalc/liveCalc
+cd path/to/liveCalc
 python3 -m http.server 8080
 ```
 

@@ -81,10 +81,12 @@ const app = (() => {
 
   function getUnitConversionCandidates(unitName) {
     const candidates = [];
-    const raw = String(unitName || '').trim();
+    const raw = normalizeUnitToken(unitName);
     if (!raw) return candidates;
 
     candidates.push(raw);
+    candidates.push(raw.toLowerCase());
+    candidates.push(raw.toUpperCase());
 
     const powerMatch = raw.match(/^([A-Za-z]+)\^([23])$/);
     if (powerMatch) {
@@ -311,8 +313,42 @@ const app = (() => {
   const fxRates =
     _LC && _LC.fxRates ? Object.assign({}, _LC.fxRates) : { USD: 1.0, EUR: 1.08, GBP: 1.25, JPY: 0.0072, CHF: 1.09 };
   const currencyUnits = new Set(
-    _LC && Array.isArray(_LC.currencyUnits) ? _LC.currencyUnits : ['USD', 'EUR', 'GBP', 'JPY', 'CHF']
+    (_LC && Array.isArray(_LC.currencyUnits) ? _LC.currencyUnits : ['USD', 'EUR', 'GBP', 'JPY', 'CHF']).map((c) =>
+      String(c).toUpperCase()
+    )
   );
+  const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  const RESERVED_ASSIGNMENT_NAMES = new Set(['query']);
+
+  function isSafeIdentifier(name) {
+    return IDENTIFIER_RE.test(String(name || ''));
+  }
+
+  function sanitizeIdentifier(name, fallback) {
+    let next = String(name || '')
+      .trim()
+      .replace(/[^A-Za-z0-9_]/g, '_');
+    if (!/^[A-Za-z_]/.test(next)) next = '_' + next;
+    if (!isSafeIdentifier(next)) next = fallback || 'data';
+    return next || fallback || 'data';
+  }
+
+  function escapeRegExp(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function normalizeUnitToken(unit) {
+    return String(unit || '').trim().replace(/^°/, '');
+  }
+
+  function getCurrencyUnit(unit) {
+    const upper = normalizeUnitToken(unit).toUpperCase();
+    return currencyUnits.has(upper) ? upper : '';
+  }
+
+  function getCurrencyCodePattern() {
+    return Array.from(currencyUnits).map(escapeRegExp).join('|');
+  }
 
   // Ensure currency unit names are present in math.js as simple units
   try {
@@ -359,7 +395,6 @@ const app = (() => {
             ['lb', '0.45359237 kg'],
             ['atm', '101325 Pa'],
             ['bar', '100000 Pa'],
-            ['percent', '0.01'][('sec', '1 s')],
             ['percent', '0.01'],
             ['L', '1 l'],
           ];
@@ -373,8 +408,12 @@ const app = (() => {
       }
     }
 
-    units.forEach(([name, def]) => {
+    units.forEach((entry) => {
       try {
+        if (!Array.isArray(entry) || entry.length < 2) return;
+        const name = normalizeUnitToken(entry[0]);
+        const def = String(entry[1] || '').trim();
+        if (!name || !def) return;
         if (!math.unit || !math.createUnit) return;
         if (!unitExists(name)) {
           math.createUnit(name, def);
@@ -946,6 +985,7 @@ const app = (() => {
   // Normalize common currency symbols and compact notations to unit names
   function normalizeCurrencySymbols(s) {
     if (!s || typeof s !== 'string') return s;
+    const codePattern = getCurrencyCodePattern();
     // Replace euro sign after number: 300€ -> 300 EUR
     s = s.replace(/(\d[\d\.,]*)\s*€/g, '$1 EUR');
     // Replace pound sign after number: 100£ -> 100 GBP
@@ -955,10 +995,13 @@ const app = (() => {
     s = s.replace(/(\d[\d\.,]*)\s*\$/g, '$1 USD');
     // Yen symbol
     s = s.replace(/(\d[\d\.,]*)\s*¥/g, '$1 JPY');
-    // Common abbreviations with no space: 100USD -> 100 USD
-    s = s.replace(/(\d)\s*(USD|EUR|GBP|JPY|CHF)\b/gi, function (m, a, b) {
-      return a + ' ' + b.toUpperCase();
-    });
+    // Common abbreviations with no space: 100USD -> 100 USD.
+    // Keep the list in sync with the centralized currency registry.
+    if (codePattern) {
+      s = s.replace(new RegExp('(\\d)\\s*(' + codePattern + ')\\b', 'gi'), function (m, a, b) {
+        return a + ' ' + b.toUpperCase();
+      });
+    }
     return s;
   }
 
@@ -1239,7 +1282,7 @@ sum`;
           if (!Array.isArray(data)) data = [data];
           // ask user for dataset name
           const base = nameParts.join('.') || 'data';
-          let dsName = base.replace(/[^A-Za-z0-9_]/g, '_');
+          let dsName = sanitizeIdentifier(base, 'data');
           let attempt = dsName;
           let i = 1;
           while (datasets[attempt]) {
@@ -1248,7 +1291,15 @@ sum`;
           dsName = attempt;
           // prompt user to rename (non-blocking)
           const custom = prompt(t('dataset.namePrompt', 'Dataset name'), dsName);
-          if (custom && custom.trim()) dsName = custom.trim().replace(/[^A-Za-z0-9_]/g, '_');
+          if (custom && custom.trim()) {
+            const requested = sanitizeIdentifier(custom, dsName);
+            attempt = requested;
+            i = 1;
+            while (datasets[attempt]) {
+              attempt = requested + '_' + i++;
+            }
+            dsName = attempt;
+          }
           registerDataset(dsName, data);
           showToast(t('toast.importedAs', 'Imported {name} as {dsName}', { name: f.name, dsName: dsName }));
           // clear input so same file can be re-selected later
@@ -1409,6 +1460,10 @@ sum`;
       if (fnMatch) {
         const name = fnMatch[1];
         const expr = fnMatch[3];
+        if (RESERVED_ASSIGNMENT_NAMES.has(name)) {
+          outputLines.push({ value: '"' + name + '" is reserved and cannot be assigned', type: 'error' });
+          continue;
+        }
         functionDefs[name] = expr.trim();
         try {
           parser.evaluate(trimmed); // register function in scope
@@ -1424,6 +1479,10 @@ sum`;
       if (assignMatch) {
         const varName = assignMatch[1];
         const rhs = assignMatch[2].trim();
+        if (RESERVED_ASSIGNMENT_NAMES.has(varName)) {
+          outputLines.push({ value: '"' + varName + '" is reserved and cannot be assigned', type: 'error' });
+          continue;
+        }
         const qMatch2 = rhs.match(
           /^(sum|avg|min|max|count)\s+([A-Za-z_][A-Za-z0-9_]*)\s+from\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+where\s+(.+))?$/i
         );
@@ -1496,10 +1555,14 @@ sum`;
       }
 
       // Handle conversion syntax:  expr in UNIT (especially for currencies)
-      const convMatch = trimmed.match(/^(.+?)\s+in\s+([A-Za-z0-9^_\-]+)$/i);
+      const convMatch = trimmed.match(/^(.+?)\s+in\s+(.+)$/i);
       if (convMatch) {
         const leftExpr = convMatch[1].trim();
-        const rawTarget = convMatch[2].trim();
+        const rawTarget = normalizeUnitToken(convMatch[2]);
+        if (!rawTarget) {
+          outputLines.push({ value: 'Missing conversion target unit', type: 'error' });
+          continue;
+        }
         // Temperature heuristic: allow converting plain numeric temperatures even if units aren't registered
         const tempMatch = leftExpr.match(/^\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*(°?F|F|°?C|C|K)\s*$/i);
         if (tempMatch) {
@@ -1524,7 +1587,7 @@ sum`;
           }
         }
         // Try sensible target candidates (user may type 'kg', 'KG', 'm^2', etc.)
-        const candidates = [rawTarget, rawTarget.toLowerCase(), rawTarget.toUpperCase()];
+        const candidates = getUnitConversionCandidates(rawTarget);
         try {
           let val;
           try {
@@ -1543,15 +1606,17 @@ sum`;
           const srcUnitName = (val.units && val.units[0] && val.units[0].unit && val.units[0].unit.name) || '';
 
           // Currency special-case: use fxRates if both sides are currencies
-          const tryCurrency = (u) => currencyUnits.has(srcUnitName) && currencyUnits.has(u);
+          const tryCurrency = (u) => getCurrencyUnit(srcUnitName) && getCurrencyUnit(u);
 
           let success = false;
           for (const cand of candidates) {
             try {
-              if (tryCurrency(cand.toUpperCase())) {
+              const targetCurrency = getCurrencyUnit(cand);
+              const sourceCurrency = getCurrencyUnit(srcUnitName);
+              if (tryCurrency(cand)) {
                 const amountNum = val.toNumber(srcUnitName);
-                const converted = amountNum * (fxRates[srcUnitName] / (fxRates[cand.toUpperCase()] || 1));
-                outputLines.push({ value: formatResult(converted) + ' ' + cand.toUpperCase(), type: 'result' });
+                const converted = amountNum * (fxRates[sourceCurrency] / (fxRates[targetCurrency] || 1));
+                outputLines.push({ value: formatResult(converted) + ' ' + targetCurrency, type: 'result' });
                 success = true;
                 break;
               }
@@ -1604,15 +1669,16 @@ sum`;
               const u = (res.units && res.units[0] && res.units[0].unit && res.units[0].unit.name) || null;
               if (u) {
                 // Currency handling (use fxRates table)
-                if (currencyUnits.has(u)) {
+                const currencyUnit = getCurrencyUnit(u);
+                if (currencyUnit) {
                   const amount = res.toNumber(u);
                   if (blockSum === null) {
                     blockSum = math.bignumber(amount);
                     blockSumIsCurrency = true;
-                    blockSumCurrencyBase = u;
+                    blockSumCurrencyBase = currencyUnit;
                   } else if (blockSumIsCurrency) {
                     // convert incoming to base currency
-                    const rSrc = fxRates[u] || 1;
+                    const rSrc = fxRates[currencyUnit] || 1;
                     const rBase = fxRates[blockSumCurrencyBase] || 1;
                     const converted = math.bignumber(amount).mul(math.bignumber(rSrc)).div(math.bignumber(rBase));
                     blockSum = math.add(blockSum, converted);
@@ -1816,12 +1882,14 @@ sum`;
       } catch (e) {
         return;
       }
+      const safeKey = escapeHtml(key);
+      const safeDisplayVal = escapeHtml(displayVal);
       html += `
-            <div role="button" tabindex="0" class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert('${key}')" onkeydown="if(event.key==='Enter'||event.key===' ') app.insert('${key}');" title="Click to insert">
+            <div role="button" tabindex="0" data-insert-token="${safeKey}" class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert(this.getAttribute('data-insert-token'))" onkeydown="if(event.key==='Enter'||event.key===' ') app.insert(this.getAttribute('data-insert-token'));" title="Click to insert">
               <div class="flex items-center gap-2 overflow-hidden">
-                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">${key}</span>
+                <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">${safeKey}</span>
                 <span class="text-xs text-gray-400">=</span>
-                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">${displayVal}</span>
+                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">${safeDisplayVal}</span>
               </div>
               <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
             </div>
@@ -1832,13 +1900,14 @@ sum`;
     if (funcKeys.length > 0) {
       html += `<div class="mt-2 mb-1 text-[10px] font-bold text-gray-400 uppercase">Functions</div>`;
       funcKeys.forEach((key) => {
+        const safeKey = escapeHtml(key);
         // We construct a simple signature representation
         html += `
               <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700">
                 <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold text-pink-600 dark:text-pink-400 font-mono">${key}(x)</span>
+                  <span class="text-xs font-bold text-pink-600 dark:text-pink-400 font-mono">${safeKey}(x)</span>
                 </div>
-                <button onclick="app.forcePlot('${key}')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Plot</button>
+                <button data-plot-token="${safeKey}" onclick="app.forcePlot(this.getAttribute('data-plot-token'))" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">Plot</button>
               </div>
              `;
       });
@@ -1849,16 +1918,18 @@ sum`;
     if (dsKeys.length > 0) {
       html += `<div class="mt-2 mb-1 text-[10px] font-bold text-gray-400 uppercase">Datasets</div>`;
       dsKeys.forEach((key) => {
+        const safeKey = escapeHtml(key);
+        const rowCount = escapeHtml((datasets[key] && datasets[key].length) || 0);
         html += `
-          <div role="button" tabindex="0" onclick="app.insert('${key}')" class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" title="Insert dataset name">
+          <div role="button" tabindex="0" data-insert-token="${safeKey}" onclick="app.insert(this.getAttribute('data-insert-token'))" class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" title="Insert dataset name">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-green-600 dark:text-green-400 font-mono">${key}</span>
+              <span class="text-xs font-bold text-green-600 dark:text-green-400 font-mono">${safeKey}</span>
               <span class="text-xs text-gray-400">rows</span>
-              <span class="text-xs font-mono text-gray-700 dark:text-gray-300">${(datasets[key] && datasets[key].length) || 0}</span>
+              <span class="text-xs font-mono text-gray-700 dark:text-gray-300">${rowCount}</span>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="(function(e,k){ if(e && e.stopPropagation) e.stopPropagation(); if(window.app && window.app.previewDataset) window.app.previewDataset(k); })(event,'${key}')" class="text-[10px] bg-gray-50 text-gray-700 px-2 py-0.5 rounded">Preview</button>
-              <button onclick="(function(e,k){ if(e && e.stopPropagation) e.stopPropagation(); const ans=prompt('Rename dataset', k); if(ans) { if(window.app && window.app.renameDataset) window.app.renameDataset(k, ans); } })(event,'${key}')" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded">Rename</button>
+              <button data-dataset-token="${safeKey}" onclick="(function(e,el){ if(e && e.stopPropagation) e.stopPropagation(); if(window.app && window.app.previewDataset) window.app.previewDataset(el.getAttribute('data-dataset-token')); })(event,this)" class="text-[10px] bg-gray-50 text-gray-700 px-2 py-0.5 rounded">Preview</button>
+              <button data-dataset-token="${safeKey}" onclick="(function(e,el){ if(e && e.stopPropagation) e.stopPropagation(); const k=el.getAttribute('data-dataset-token'); const ans=prompt('Rename dataset', k); if(ans) { if(window.app && window.app.renameDataset) window.app.renameDataset(k, ans); } })(event,this)" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded">Rename</button>
             </div>
           </div>
         `;
@@ -1907,6 +1978,7 @@ sum`;
 
   function shouldDisplayScopeValue(key, value) {
     if (key === 'query') return false;
+    if (!isSafeIdentifier(key)) return false;
     if (value === undefined || value === null) return false;
     if (typeof value === 'function') return false;
     if (isMathNodeValue(value)) return false;
@@ -2364,7 +2436,8 @@ f(x) = x^2 - 5*x`;
     },
     renameDataset: (oldName, newName) => {
       if (!datasets[oldName] || !newName) return false;
-      const clean = newName.trim().replace(/[^A-Za-z0-9_]/g, '_');
+      const clean = sanitizeIdentifier(newName, oldName);
+      if (clean === oldName) return true;
       if (datasets[clean]) return false;
       datasets[clean] = datasets[oldName];
       delete datasets[oldName];

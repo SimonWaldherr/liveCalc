@@ -341,6 +341,11 @@ const app = (() => {
     return String(unit || '').trim().replace(/^°/, '');
   }
 
+  function isSafeUnitTarget(unit) {
+    const target = normalizeUnitToken(unit);
+    return !!target && /^[A-Za-z][A-Za-z0-9_^*/.\-\s]*$/.test(target);
+  }
+
   function getCurrencyUnit(unit) {
     const upper = normalizeUnitToken(unit).toUpperCase();
     return currencyUnits.has(upper) ? upper : '';
@@ -1563,6 +1568,10 @@ sum`;
           outputLines.push({ value: 'Missing conversion target unit', type: 'error' });
           continue;
         }
+        if (!isSafeUnitTarget(rawTarget)) {
+          outputLines.push({ value: 'Invalid conversion target unit "' + rawTarget + '"', type: 'error' });
+          continue;
+        }
         // Temperature heuristic: allow converting plain numeric temperatures even if units aren't registered
         const tempMatch = leftExpr.match(/^\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*(°?F|F|°?C|C|K)\s*$/i);
         if (tempMatch) {
@@ -2437,7 +2446,7 @@ f(x) = x^2 - 5*x`;
     renameDataset: (oldName, newName) => {
       if (!datasets[oldName] || !newName) return false;
       const clean = sanitizeIdentifier(newName, oldName);
-      if (clean === oldName) return true;
+      if (clean === oldName) return false;
       if (datasets[clean]) return false;
       datasets[clean] = datasets[oldName];
       delete datasets[oldName];

@@ -352,7 +352,10 @@ const app = (() => {
   }
 
   function getCurrencyCodePattern() {
-    return Array.from(currencyUnits).map(escapeRegExp).join('|');
+    return Array.from(currencyUnits)
+      .filter((code) => /^[A-Z]{3}$/.test(code))
+      .map(escapeRegExp)
+      .join('|');
   }
 
   // Ensure currency unit names are present in math.js as simple units
@@ -401,7 +404,6 @@ const app = (() => {
             ['atm', '101325 Pa'],
             ['bar', '100000 Pa'],
             ['percent', '0.01'],
-            ['L', '1 l'],
           ];
 
     function unitExists(name) {
@@ -1560,7 +1562,7 @@ sum`;
       }
 
       // Handle conversion syntax:  expr in UNIT (especially for currencies)
-      const convMatch = trimmed.match(/^(.+?)\s+in\s+(.+)$/i);
+      const convMatch = trimmed.match(/^(.+?)\s+in\s+([A-Za-z°][A-Za-z0-9°_^*/.\-\s]*)$/i);
       if (convMatch) {
         const leftExpr = convMatch[1].trim();
         const rawTarget = normalizeUnitToken(convMatch[2]);
@@ -2446,7 +2448,10 @@ f(x) = x^2 - 5*x`;
     renameDataset: (oldName, newName) => {
       if (!datasets[oldName] || !newName) return false;
       const clean = sanitizeIdentifier(newName, oldName);
-      if (clean === oldName) return false;
+      if (clean === oldName) {
+        handleInput();
+        return true;
+      }
       if (datasets[clean]) return false;
       datasets[clean] = datasets[oldName];
       delete datasets[oldName];

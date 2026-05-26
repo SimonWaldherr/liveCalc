@@ -1562,6 +1562,8 @@ sum`;
       }
 
       // Handle conversion syntax:  expr in UNIT (especially for currencies)
+      // Target units may include compound math.js unit syntax such as m^2,
+      // km/h, kg*m/s^2, and °C, but not arbitrary punctuation.
       const convMatch = trimmed.match(/^(.+?)\s+in\s+([A-Za-z°][A-Za-z0-9°_^*/.\-\s]*)$/i);
       if (convMatch) {
         const leftExpr = convMatch[1].trim();
@@ -1571,7 +1573,7 @@ sum`;
           continue;
         }
         if (!isSafeUnitTarget(rawTarget)) {
-          outputLines.push({ value: 'Invalid conversion target unit "' + rawTarget + '"', type: 'error' });
+          outputLines.push({ value: 'Invalid conversion target unit "' + escapeHtml(rawTarget) + '"', type: 'error' });
           continue;
         }
         // Temperature heuristic: allow converting plain numeric temperatures even if units aren't registered

@@ -1618,15 +1618,12 @@ sum`;
           // Determine source unit name
           const srcUnitName = (val.units && val.units[0] && val.units[0].unit && val.units[0].unit.name) || '';
 
-          // Currency special-case: use fxRates if both sides are currencies
-          const tryCurrency = (u) => getCurrencyUnit(srcUnitName) && getCurrencyUnit(u);
-
           let success = false;
           for (const cand of candidates) {
             try {
               const targetCurrency = getCurrencyUnit(cand);
               const sourceCurrency = getCurrencyUnit(srcUnitName);
-              if (tryCurrency(cand)) {
+              if (targetCurrency && sourceCurrency) {
                 const amountNum = val.toNumber(srcUnitName);
                 const converted = amountNum * (fxRates[sourceCurrency] / (fxRates[targetCurrency] || 1));
                 outputLines.push({ value: formatResult(converted) + ' ' + targetCurrency, type: 'result' });
@@ -1932,7 +1929,7 @@ sum`;
       html += `<div class="mt-2 mb-1 text-[10px] font-bold text-gray-400 uppercase">Datasets</div>`;
       dsKeys.forEach((key) => {
         const safeKey = escapeHtml(key);
-        const rowCount = escapeHtml((datasets[key] && datasets[key].length) || 0);
+        const rowCount = (datasets[key] && datasets[key].length) || 0;
         html += `
           <div role="button" tabindex="0" data-insert-token="${safeKey}" onclick="app.insert(this.getAttribute('data-insert-token'))" class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" title="Insert dataset name">
             <div class="flex items-center gap-2">

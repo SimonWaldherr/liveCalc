@@ -8,6 +8,10 @@ const app = (() => {
   const plotContainer = document.getElementById('plot');
   const sidebar = document.getElementById('sidebar');
   const gridLayout = document.querySelector('.grid-layout');
+  const modelRuntime =
+    typeof window !== 'undefined' && window.LiveCalcModel && typeof window.LiveCalcModel.createRuntime === 'function'
+      ? window.LiveCalcModel.createRuntime({ math: typeof math !== 'undefined' ? math : null })
+      : null;
 
   const DESKTOP_SIDEBAR_MEDIA = '(min-width: 1024px)';
   const SIDEBAR_WIDTH_KEY = 'livecalc:sidebarWidth';
@@ -1193,30 +1197,40 @@ const app = (() => {
       initSectionStates();
     }, 0);
 
-    // Load content
-    // Prefer pre-decoded value if page injected it early
-    const preshared = window.__livecalc_shared;
-    if (preshared && preshared.length > 0) {
-      editor.value = preshared;
+    // Load a versioned LiveCalc share first. Legacy text-only hashes remain
+    // supported so existing links continue to work.
+    const sharedModel =
+      modelRuntime && typeof window !== 'undefined' && window.LiveCalcModel
+        ? window.LiveCalcModel.deserializeShareState(window.location.hash)
+        : null;
+    if (sharedModel) {
+      modelRuntime.hydrate(sharedModel);
+      editor.value = sharedModel.notebook.source;
     } else {
-      const hash = window.location.hash.substring(1);
-      if (hash.length > 0) {
-        try {
-          const decoded = tryDecodeHash(hash) || '';
-          if (decoded) {
-            editor.value = decoded;
-          } else {
-            // last attempt using legacy helper
-            try {
-              editor.value = b64_to_utf8(hash);
-            } catch (e) {
-              console.error('hash decode failed', e);
-            }
-          }
-        } catch (e) {
-          console.error(e);
-        }
+      // Prefer pre-decoded value if page injected it early
+      const preshared = window.__livecalc_shared;
+      if (preshared && preshared.length > 0) {
+        editor.value = preshared;
       } else {
+        const hash = window.location.hash.substring(1);
+        if (hash.length > 0) {
+          try {
+            const decoded = tryDecodeHash(hash) || '';
+            if (decoded) {
+              editor.value = decoded;
+            } else {
+              // last attempt using legacy helper
+              try {
+                editor.value = b64_to_utf8(hash);
+              } catch (e) {
+                console.error('hash decode failed', e);
+              }
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        } else {
+        }
       }
     }
     // Default welcome text (only if editor is still empty after loading)
@@ -1383,6 +1397,10 @@ sum`;
   // -- Core Logic --
 
   function handleInput() {
+    // The notebook source starts a new revision before any parser, evaluator,
+    // renderer, or future asynchronous work can consume it.
+    const revision = modelRuntime ? modelRuntime.setNotebook(editor.value) : 0;
+
     // 0. Update auto-detected decimal places from current input
     _autoDecimalPlaces = detectInputDecimalPlaces(editor.value);
 
@@ -1397,6 +1415,11 @@ sum`;
     // 1. Evaluate Math
     const results = evalMath(editorValue);
 
+    // Commit only if this result belongs to the current editor revision. This
+    // makes a future async evaluator safe by construction and prevents stale
+    // results from silently reappearing after a syntax error.
+    if (modelRuntime) modelRuntime.commitEvaluation(revision, results);
+
     // 2. Update Backdrop (Syntax Highlight + Results)
     renderBackdrop(editorValue, results);
 
@@ -1408,6 +1431,9 @@ sum`;
 
     // 5. Update Graph
     plotFunctions(results.functions);
+
+    // 5b. The inspector and any controls read from the same current model.
+    renderInspector();
 
     // 6. Update URL State
     updateHash(editor.value);
@@ -1895,13 +1921,13 @@ sum`;
       const safeKey = escapeHtml(key);
       const safeDisplayVal = escapeHtml(displayVal);
       html += `
-            <div role="button" tabindex="0" data-insert-token="${safeKey}" class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.insert(this.getAttribute('data-insert-token'))" onkeydown="if(event.key==='Enter'||event.key===' ') app.insert(this.getAttribute('data-insert-token'));" title="Click to insert">
+            <div role="button" tabindex="0" data-variable-name="${safeKey}" class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-400 transition-colors cursor-pointer" onclick="app.selectVariable(this.getAttribute('data-variable-name'))" onkeydown="if(event.key==='Enter'||event.key===' ') app.selectVariable(this.getAttribute('data-variable-name'));" title="Inspect variable">
               <div class="flex items-center gap-2 overflow-hidden">
                 <span class="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono">${safeKey}</span>
                 <span class="text-xs text-gray-400">=</span>
                 <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">${safeDisplayVal}</span>
               </div>
-              <span class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100">data_array</span>
+              <button data-insert-token="${safeKey}" onclick="event.stopPropagation();app.insert(this.getAttribute('data-insert-token'))" class="material-symbols-outlined text-[14px] text-gray-300 opacity-0 group-hover:opacity-100" title="Insert variable">data_array</button>
             </div>
           `;
     });
@@ -1947,6 +1973,222 @@ sum`;
     }
 
     variablesList.innerHTML = html;
+  }
+
+  // ------------------------------------------------------------
+  // Model inspector and source-backed input controls
+  // ------------------------------------------------------------
+  function getLiteralNumber(expression) {
+    const withoutComment = String(expression || '')
+      .replace(/\s+(?:#|\/\/).*$/, '')
+      .trim();
+    const match = withoutComment.match(
+      /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)(?:\s+[A-Za-z°][A-Za-z0-9°_^*/.-]*)?$/
+    );
+    if (!match) return null;
+    const number = Number(match[1]);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function getControlNumber(value) {
+    try {
+      if (value && value.isUnit) {
+        const unit = getUnitDisplayTarget(value);
+        const number = value.toNumber(unit || undefined);
+        return Number.isFinite(number) ? number : null;
+      }
+      const number = typeof value === 'number' ? value : Number(value && value.valueOf ? value.valueOf() : value);
+      return Number.isFinite(number) ? number : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function inspectorReferenceButton(name) {
+    const safeName = escapeHtml(name);
+    return `<button class="font-mono text-blue-600 dark:text-blue-400 hover:underline" onclick="app.selectVariable('${safeName}')">${safeName}</button>`;
+  }
+
+  function renderInspector() {
+    const content = document.getElementById('inspectorContent');
+    const revisionLabel = document.getElementById('modelRevision');
+    if (!content) return;
+    if (!modelRuntime) {
+      content.textContent = 'Model runtime unavailable.';
+      return;
+    }
+
+    const state = modelRuntime.getState();
+    const parsed = state.parsedModel;
+    const evaluation = state.evaluation;
+    if (revisionLabel) revisionLabel.textContent = 'r' + state.notebook.revision;
+
+    const selectedName = state.selection.kind === 'variable' ? state.selection.id : null;
+    const definition = selectedName && parsed.definitions[selectedName] ? parsed.definitions[selectedName] : null;
+    const statusClass =
+      evaluation.status === 'valid'
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : evaluation.status === 'invalid'
+          ? 'text-red-600 dark:text-red-400'
+          : 'text-amber-600 dark:text-amber-400';
+    const statusText =
+      evaluation.status === 'valid'
+        ? 'Current model is valid'
+        : evaluation.status === 'invalid'
+          ? 'Current model is invalid'
+          : 'Evaluating model';
+
+    if (!definition) {
+      const inputCount = parsed.symbols.filter(function (symbol) {
+        return symbol.kind === 'variable' && getLiteralNumber(symbol.expression) !== null;
+      }).length;
+      const outputCount = parsed.symbols.filter(function (symbol) {
+        return (parsed.dependents[symbol.name] || []).length === 0;
+      }).length;
+      const invalidControls = state.controls.specs.filter(function (specification) {
+        return !specification.valid;
+      });
+      content.innerHTML = `
+        <div class="space-y-2">
+          <div class="font-medium ${statusClass}">${statusText}</div>
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="rounded bg-gray-50 dark:bg-gray-900 p-2"><div class="font-semibold text-slate-700 dark:text-gray-200">${parsed.symbols.length}</div><div class="text-[10px]">variables</div></div>
+            <div class="rounded bg-gray-50 dark:bg-gray-900 p-2"><div class="font-semibold text-slate-700 dark:text-gray-200">${inputCount}</div><div class="text-[10px]">inputs</div></div>
+            <div class="rounded bg-gray-50 dark:bg-gray-900 p-2"><div class="font-semibold text-slate-700 dark:text-gray-200">${outputCount}</div><div class="text-[10px]">outputs</div></div>
+          </div>
+          <p class="leading-relaxed">Select a variable to inspect its formula, dependencies, and source-backed controls.</p>
+          ${
+            evaluation.errors.length
+              ? `<div class="rounded border border-red-200 bg-red-50 p-2 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">Line ${evaluation.errors[0].line}: ${escapeHtml(evaluation.errors[0].message)}</div>`
+              : ''
+          }
+          ${
+            invalidControls.length
+              ? `<div class="rounded border border-amber-200 bg-amber-50 p-2 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">${invalidControls.length} control reference${invalidControls.length === 1 ? '' : 's'} need attention.</div>`
+              : ''
+          }
+        </div>`;
+      return;
+    }
+
+    const context = window.LiveCalcModel.getDependencyContext(parsed, selectedName);
+    const rawValue = evaluation.values[selectedName];
+    let currentValue = 'Not calculated';
+    try {
+      if (rawValue !== undefined) currentValue = formatResult(rawValue, getUnitDisplayTarget(rawValue));
+    } catch (e) {}
+    const literalValue = getLiteralNumber(definition.expression);
+    const matchingControls = state.controls.specs.filter(function (specification) {
+      return specification.variable === selectedName;
+    });
+    const dependencyList = context.directDependencies.length
+      ? context.directDependencies.map(inspectorReferenceButton).join(', ')
+      : '<span class="text-gray-400">No direct inputs</span>';
+    const dependentList = context.usages.length
+      ? context.usages
+          .map(function (usage) {
+            return `${inspectorReferenceButton(usage.name)} <span class="text-gray-400">L${usage.line}</span>`;
+          })
+          .join(', ')
+      : '<span class="text-gray-400">Not used by another variable</span>';
+    const controlMarkup = matchingControls
+      .map(function (specification) {
+        if (!specification.valid) {
+          return `<div class="rounded border border-amber-200 bg-amber-50 p-2 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">${escapeHtml((specification.errors || []).join(' '))}</div>`;
+        }
+        const value = getControlNumber(rawValue);
+        if (specification.type !== 'range' || value === null) {
+          return `<div class="rounded bg-gray-50 dark:bg-gray-900 p-2">${escapeHtml(specification.label)} is not a numeric input.</div>`;
+        }
+        const min = specification.min !== undefined ? specification.min : Math.min(0, value);
+        const max = specification.max !== undefined ? specification.max : Math.max(1, value * 2 || 100);
+        const step = specification.step !== undefined ? specification.step : Math.max((max - min) / 100, 0.01);
+        return `
+          <div class="rounded border border-blue-100 bg-blue-50/60 p-2 dark:border-blue-900/60 dark:bg-blue-950/30">
+            <div class="mb-1 flex items-center justify-between gap-2"><span class="font-medium text-slate-700 dark:text-gray-200">${escapeHtml(specification.label)}</span><output class="font-mono text-blue-700 dark:text-blue-300">${escapeHtml(String(value))}</output></div>
+            <input class="w-full accent-blue-600" type="range" min="${min}" max="${max}" step="${step}" value="${value}" aria-label="${escapeHtml(specification.label)}" oninput="app.setControlValue('${escapeHtml(specification.id)}', this.value)" />
+            <div class="mt-1 flex justify-between text-[10px] text-gray-400"><span>${min}</span><span>${max}</span></div>
+            <button class="mt-1 text-[10px] text-gray-500 hover:text-red-600" onclick="app.removeControl('${escapeHtml(specification.id)}')">Remove control</button>
+          </div>`;
+      })
+      .join('');
+
+    content.innerHTML = `
+      <div class="space-y-3">
+        <div class="flex items-start justify-between gap-2">
+          <div><div class="font-mono text-sm font-semibold text-purple-600 dark:text-purple-400">${escapeHtml(selectedName)}</div><div class="${statusClass}">${escapeHtml(currentValue)}</div></div>
+          <button class="text-[10px] text-gray-500 hover:text-blue-600" onclick="app.clearSelection()">Close</button>
+        </div>
+        <div><div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Formula · line ${definition.line}</div><code class="block overflow-x-auto rounded bg-gray-50 p-2 text-[11px] text-slate-700 dark:bg-gray-900 dark:text-gray-200">${escapeHtml(definition.expression)}</code></div>
+        <div class="grid gap-2"><div><span class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Depends on</span><div class="mt-1">${dependencyList}</div></div><div><span class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Used by</span><div class="mt-1">${dependentList}</div></div></div>
+        ${
+          literalValue !== null && matchingControls.length === 0
+            ? `<button class="w-full rounded border border-blue-200 px-2 py-1.5 text-left text-xs text-blue-700 hover:bg-blue-50 dark:border-blue-900/70 dark:text-blue-300 dark:hover:bg-blue-950/40" onclick="app.addControl('${escapeHtml(selectedName)}')">Add slider control</button>`
+            : ''
+        }
+        ${controlMarkup ? `<div class="space-y-2"><div class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Controls</div>${controlMarkup}</div>` : ''}
+      </div>`;
+  }
+
+  function selectVariable(name) {
+    if (!modelRuntime) return;
+    modelRuntime.select('variable', name);
+    renderInspector();
+  }
+
+  function clearSelection() {
+    if (!modelRuntime) return;
+    modelRuntime.select(null, null);
+    renderInspector();
+  }
+
+  function addControl(name) {
+    if (!modelRuntime) return;
+    const state = modelRuntime.getState();
+    const definition = state.parsedModel.definitions[name];
+    const value = definition ? getLiteralNumber(definition.expression) : null;
+    if (value === null) {
+      showToast('Only a literal numeric input can become a slider.');
+      return;
+    }
+    const span = Math.max(Math.abs(value) || 1, 1);
+    const min = value >= 0 ? 0 : value - span;
+    const max = value >= 0 ? value + span : 0;
+    const step = Math.max((max - min) / 100, 0.01);
+    modelRuntime.addControl({
+      id: 'control-' + name,
+      variable: name,
+      type: 'range',
+      label: name,
+      min: min,
+      max: max,
+      step: step,
+    });
+    renderInspector();
+    updateHash(editor.value);
+  }
+
+  function removeControl(id) {
+    if (!modelRuntime) return;
+    modelRuntime.removeControl(id);
+    renderInspector();
+    updateHash(editor.value);
+  }
+
+  function setControlValue(id, value) {
+    if (!modelRuntime || !window.LiveCalcModel) return;
+    const state = modelRuntime.getState();
+    const specification = state.controls.specs.find(function (spec) {
+      return spec.id === id;
+    });
+    if (!specification || !specification.valid) return;
+    const replacement = window.LiveCalcModel.replaceAssignmentValue(editor.value, specification.variable, value);
+    if (!replacement.replaced) {
+      showToast('The referenced variable is no longer a direct notebook assignment.');
+      return;
+    }
+    editor.value = replacement.source;
+    handleInput();
   }
 
   // ------------------------------------------------------------
@@ -2306,7 +2548,18 @@ sum`;
 
   function updateHash(content) {
     if (suppressHashUpdate) return;
-    const hash = content ? utf8_to_b64(content) : '';
+    let hash = content ? utf8_to_b64(content) : '';
+    if (modelRuntime && window.LiveCalcModel) {
+      modelRuntime.setShareOptions({
+        locale: {
+          language: settings && settings.language,
+          decimalSeparator: settings && settings.decimalSeparator,
+          thousandsSeparator: settings && settings.thousandsSeparator,
+          unitSystem: settings && settings.unitSystem,
+        },
+      });
+      hash = window.LiveCalcModel.serializeShareState(modelRuntime.getShareState());
+    }
     history.replaceState(null, null, '#' + hash);
   }
 
@@ -2432,6 +2685,12 @@ f(x) = x^2 - 5*x`;
     init,
     toggleTheme,
     insert,
+    selectVariable,
+    clearSelection,
+    addControl,
+    removeControl,
+    setControlValue,
+    getModelState: () => (modelRuntime ? modelRuntime.getState() : null),
     clear,
     insertExample,
     download,

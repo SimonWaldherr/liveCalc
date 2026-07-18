@@ -373,6 +373,15 @@
         aria-hidden="false"
         class="sidebar flex flex-col bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 lg:relative lg:flex transition-transform duration-300"
       >
+        <!-- Contextual Inspector: derived from the current notebook model. -->
+        <section id="inspectorSection" class="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+          <div class="px-4 py-2 flex items-center justify-between bg-gray-100 dark:bg-gray-800">
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Inspector</span>
+            <span id="modelRevision" class="text-[10px] font-mono text-gray-400" aria-live="polite">r0</span>
+          </div>
+          <div id="inspectorContent" class="p-3 text-xs text-gray-500 dark:text-gray-400">Loading model…</div>
+        </section>
+
         <!-- Graph Section -->
         <div
           class="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex flex-col relative group"
@@ -939,6 +948,7 @@
 
     <script src="./conversions.js"></script>
     <script src="./livecalc-llm.js"></script>
+    <script src="./livecalc-model.js"></script>
     <script src="./livecalc-app.js"></script>
     <script src="./livecalc-ai.js"></script>
   </body>

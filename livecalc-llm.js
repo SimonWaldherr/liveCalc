@@ -2,6 +2,14 @@
   'use strict';
 
   const DEFAULT_TIMEOUT_MS = 45000;
+  const GPT_56_REASONING_EFFORTS = Object.freeze(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
+  const TEXT_VERBOSITY_LEVELS = Object.freeze(['low', 'medium', 'high']);
+  const GPT_56_MODEL_PRESETS = Object.freeze([
+    'gpt-5.6-terra',
+    'gpt-5.6',
+    'gpt-5.6-sol',
+    'gpt-5.6-luna',
+  ]);
 
   const PROVIDERS = Object.freeze({
     openai: {
@@ -10,7 +18,9 @@
       baseURL: 'https://api.openai.com/v1',
       apiStyle: 'openai-compatible',
       requiresApiKey: true,
-      defaultModel: 'gpt-4.1-mini',
+      // Terra is the balanced interactive default. The gpt-5.6 alias and
+      // both other family tiers remain available in the Settings picker.
+      defaultModel: 'gpt-5.6-terra',
       supportsStreaming: true,
       supportsTools: true,
       supportsResponsesApi: true,
@@ -51,6 +61,11 @@
       providerId: 'local',
       streaming: true,
       preferResponsesApi: true,
+      // GPT-5.6 defaults to medium when omitted. Keep this explicit so a
+      // user's latency/cost choice is not changed by an API default later.
+      reasoningEffort: 'medium',
+      textVerbosity: 'medium',
+      reasoningMode: 'standard',
       timeoutMs: DEFAULT_TIMEOUT_MS,
       providers: {
         openai: {
@@ -138,6 +153,11 @@
       providerId: raw.providerId && defaults.providers[raw.providerId] ? raw.providerId : defaults.providerId,
       streaming: raw.streaming !== undefined ? !!raw.streaming : defaults.streaming,
       preferResponsesApi: raw.preferResponsesApi !== undefined ? !!raw.preferResponsesApi : defaults.preferResponsesApi,
+      reasoningEffort: GPT_56_REASONING_EFFORTS.includes(raw.reasoningEffort)
+        ? raw.reasoningEffort
+        : defaults.reasoningEffort,
+      textVerbosity: TEXT_VERBOSITY_LEVELS.includes(raw.textVerbosity) ? raw.textVerbosity : defaults.textVerbosity,
+      reasoningMode: raw.reasoningMode === 'pro' ? 'pro' : 'standard',
       timeoutMs:
         typeof raw.timeoutMs === 'number' && isFinite(raw.timeoutMs)
           ? Math.max(5000, Math.min(180000, Math.round(raw.timeoutMs)))
@@ -185,6 +205,14 @@
     return Object.keys(PROVIDERS).map((id) => {
       return Object.assign({}, PROVIDERS[id]);
     });
+  }
+
+  function getOpenAIModelPresets() {
+    return GPT_56_MODEL_PRESETS.slice();
+  }
+
+  function isGpt56Model(model) {
+    return /^gpt-5\.6(?:$|[-.])/i.test(String(model || '').trim());
   }
 
   function normalizeMessageContent(content) {
@@ -529,7 +557,10 @@
     });
   }
 
-  function shouldFallbackToChatCompletions(err) {
+  function shouldFallbackToChatCompletions(err, runtime) {
+    // api.openai.com supports Responses. Falling back there can silently
+    // discard Responses-only settings such as Pro mode or text.verbosity.
+    if (runtime && runtime.provider && runtime.provider.id === 'openai') return false;
     if (!(err instanceof LLMRequestError)) return false;
     if (err.code === 'HTTP_404' || err.code === 'HTTP_405') return true;
     if (err.code === 'HTTP_400') {
@@ -682,17 +713,56 @@
     if (!doneSeen && dataLines.length) emitEvent();
   }
 
+  function getGpt56RequestOptions(runtime) {
+    if (!runtime || !runtime.isOpenAIGpt56) return {};
+
+    const normalized = runtime.normalized || {};
+    const reasoning = { effort: normalized.reasoningEffort };
+    if (normalized.reasoningMode === 'pro') reasoning.mode = 'pro';
+
+    return {
+      reasoning,
+      text: { verbosity: normalized.textVerbosity },
+    };
+  }
+
+  function buildChatRequestBody(runtime, messages, opts) {
+    const body = {
+      model: runtime.model,
+      messages: toChatMessages(messages),
+      stream: !!opts.streaming,
+    };
+
+    // Chat Completions has a different field name. We intentionally do not
+    // send text.verbosity or Pro mode here: both are Responses API features.
+    if (runtime.isOpenAIGpt56) {
+      body.reasoning_effort = runtime.normalized.reasoningEffort;
+    }
+
+    return body;
+  }
+
+  function buildResponsesRequestBody(runtime, messages, opts) {
+    const body = {
+      model: runtime.model,
+      input: toResponsesInputMessages(messages),
+      stream: !!opts.streaming,
+    };
+
+    const instructions = getSystemInstruction(messages);
+    if (instructions) body.instructions = instructions;
+
+    Object.assign(body, getGpt56RequestOptions(runtime));
+    return body;
+  }
+
   async function requestChatCompletions(runtime, messages, opts) {
     if (!runtime.provider.supportsChatCompletions) {
       throw new LLMRequestError('UNSUPPORTED', 'Dieser Provider unterstützt keine Chat-Completions.', {});
     }
 
     const url = buildUrl(runtime.baseURL, '/chat/completions');
-    const body = {
-      model: runtime.model,
-      messages: toChatMessages(messages),
-      stream: !!opts.streaming,
-    };
+    const body = buildChatRequestBody(runtime, messages, opts);
 
     const resp = await performFetch(
       url,
@@ -761,14 +831,7 @@
     }
 
     const url = buildUrl(runtime.baseURL, '/responses');
-    const body = {
-      model: runtime.model,
-      input: toResponsesInputMessages(messages),
-      stream: !!opts.streaming,
-    };
-
-    const instructions = getSystemInstruction(messages);
-    if (instructions) body.instructions = instructions;
+    const body = buildResponsesRequestBody(runtime, messages, opts);
 
     const resp = await performFetch(
       url,
@@ -848,6 +911,7 @@
       streaming: !!normalized.streaming,
       preferResponsesApi: !!normalized.preferResponsesApi,
       timeoutMs: normalized.timeoutMs || DEFAULT_TIMEOUT_MS,
+      isOpenAIGpt56: provider.id === 'openai' && isGpt56Model(model),
     };
   }
 
@@ -879,11 +943,19 @@
       streaming: !!runtime.streaming && typeof opts.onDelta === 'function' && runtime.provider.supportsStreaming,
     };
 
+    if (runtime.isOpenAIGpt56 && runtime.normalized.reasoningMode === 'pro' && !runtime.preferResponsesApi) {
+      throw new LLMRequestError(
+        'RESPONSES_REQUIRED',
+        'GPT-5.6 Pro-Modus benötigt die Responses-API. Aktiviere „Responses API bevorzugen“ in den Einstellungen.',
+        {}
+      );
+    }
+
     if (runtime.preferResponsesApi && runtime.provider.supportsResponsesApi) {
       try {
         return await requestResponses(runtime, messages, requestOpts);
       } catch (err) {
-        if (shouldFallbackToChatCompletions(err) && runtime.provider.supportsChatCompletions) {
+        if (shouldFallbackToChatCompletions(err, runtime) && runtime.provider.supportsChatCompletions) {
           return requestChatCompletions(runtime, messages, requestOpts);
         }
         throw err;
@@ -985,17 +1057,26 @@
     };
   }
 
-  window.livecalcLLM = {
+  const publicApi = {
     PROVIDERS,
     LLMRequestError,
     DEFAULT_TIMEOUT_MS,
+    GPT_56_REASONING_EFFORTS,
+    TEXT_VERBOSITY_LEVELS,
     createDefaultLlmSettings,
     normalizeLlmSettings,
     resolveProviderRuntime,
     getProviderCatalog,
+    getOpenAIModelPresets,
+    isGpt56Model,
+    buildChatRequestBody,
+    buildResponsesRequestBody,
     normalizeLLMResponse,
     sendLLMRequest,
     fetchModels,
     testConnection,
   };
+
+  if (typeof window !== 'undefined') window.livecalcLLM = publicApi;
+  if (typeof module !== 'undefined' && module.exports) module.exports = publicApi;
 })();

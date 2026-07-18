@@ -187,6 +187,17 @@
               role="menuitem"
               class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
               onclick="
+                loadSolarPaybackDemo();
+                toggleExamplesMenu(false);
+              "
+              data-i18n="examples.menu.solarPayback"
+            >
+              Solar payback — interactive demo
+            </button>
+            <button
+              role="menuitem"
+              class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
                 insertExampleSum();
                 toggleExamplesMenu(false);
               "
@@ -1075,6 +1086,13 @@
       }
     }
 
+    function loadSolarPaybackDemo() {
+      if (window.app && typeof window.app.loadExample === 'function') {
+        window.app.loadExample('solar_payback');
+        showToast(lct('toast.exampleInsertedShort', 'Interactive demo loaded'));
+      }
+    }
+
     function insertExampleTableDemo() {
       const editor = document.getElementById('editor');
       const txt = `# Table demo\n# Upload a CSV (or use demo.csv). After import try:\n# sum price from demo where qty > 2\n# count order_id from demo where region == 'North'\n\n# Example query usage when dataset named 'demo' is loaded:\nsum price from demo where qty > 2\ncount order_id from demo where region == 'North'`;
@@ -1460,6 +1478,36 @@
               </span>
             </label>
           </div>
+          <div id="settingsLlmGpt56Options" class="hidden space-y-3 rounded border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-medium text-gray-500" data-i18n="settings.llm.reasoningEffort">Reasoning</label>
+                <select id="settingsLlmReasoningEffort" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs">
+                  <option value="none" data-i18n="settings.llm.reasoning.none">None</option>
+                  <option value="low" data-i18n="settings.llm.reasoning.low">Low</option>
+                  <option value="medium" data-i18n="settings.llm.reasoning.medium">Medium</option>
+                  <option value="high" data-i18n="settings.llm.reasoning.high">High</option>
+                  <option value="xhigh" data-i18n="settings.llm.reasoning.xhigh">Extra high</option>
+                  <option value="max" data-i18n="settings.llm.reasoning.max">Max</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500" data-i18n="settings.llm.verbosity">Answer detail</label>
+                <select id="settingsLlmTextVerbosity" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs">
+                  <option value="low" data-i18n="settings.llm.verbosity.low">Low</option>
+                  <option value="medium" data-i18n="settings.llm.verbosity.medium">Medium</option>
+                  <option value="high" data-i18n="settings.llm.verbosity.high">High</option>
+                </select>
+              </div>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input id="settingsLlmProMode" type="checkbox" class="form-checkbox" />
+              <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.llm.proMode">Use GPT-5.6 Pro mode for difficult requests</span>
+            </label>
+            <p id="settingsLlmGpt56Hint" class="text-[10px] text-gray-500 dark:text-gray-400" data-i18n="settings.llm.gpt56.help">
+              GPT-5.6 uses the Responses API. Medium reasoning is a balanced default; Pro takes longer and uses more tokens.
+            </p>
+          </div>
           <p class="text-[10px] text-gray-400 break-words" data-i18n="settings.llm.aiLanguage.help">
             AI replies in the UI language and is asked to prefer the chosen unit system.
           </p>
@@ -1535,6 +1583,11 @@
       const llmProviderHint = document.getElementById('settingsLlmProviderHint');
       const llmStreaming = document.getElementById('settingsLlmStreaming');
       const llmUseResponses = document.getElementById('settingsLlmUseResponses');
+      const llmGpt56Options = document.getElementById('settingsLlmGpt56Options');
+      const llmReasoningEffort = document.getElementById('settingsLlmReasoningEffort');
+      const llmTextVerbosity = document.getElementById('settingsLlmTextVerbosity');
+      const llmProMode = document.getElementById('settingsLlmProMode');
+      const llmGpt56Hint = document.getElementById('settingsLlmGpt56Hint');
       const llmCustomKeyWrap = document.getElementById('settingsLlmCustomKeyWrap');
       const llmCustomRequiresApiKey = document.getElementById('settingsLlmCustomRequiresApiKey');
       const llmDetectBtn = document.getElementById('settingsLlmDetect');
@@ -1545,7 +1598,7 @@
       const providerDefaults = {
         openai: {
           baseURL: 'https://api.openai.com/v1',
-          model: 'gpt-4.1-mini',
+          model: 'gpt-5.6-terra',
           apiKey: '',
           requiresApiKey: true,
           supportsResponsesApi: true,
@@ -1611,6 +1664,11 @@
           providerId: incoming.providerId || 'local',
           streaming: incoming.streaming !== undefined ? !!incoming.streaming : true,
           preferResponsesApi: incoming.preferResponsesApi !== undefined ? !!incoming.preferResponsesApi : true,
+          reasoningEffort: ['none', 'low', 'medium', 'high', 'xhigh', 'max'].includes(incoming.reasoningEffort)
+            ? incoming.reasoningEffort
+            : 'medium',
+          textVerbosity: ['low', 'medium', 'high'].includes(incoming.textVerbosity) ? incoming.textVerbosity : 'medium',
+          reasoningMode: incoming.reasoningMode === 'pro' ? 'pro' : 'standard',
           timeoutMs: incoming.timeoutMs || 45000,
           providers: {
             openai: Object.assign({}, providerDefaults.openai, (incoming.providers && incoming.providers.openai) || {}),
@@ -1643,9 +1701,9 @@
         return 'local';
       }
 
-      function persistActiveProviderToDraft() {
+      function persistActiveProviderToDraft(providerIdOverride) {
         const draft = ensureLlmDraft();
-        const providerId = getSelectedProviderId();
+        const providerId = providerIdOverride || getSelectedProviderId();
         const target = draft.providers[providerId] || providerDefaults[providerId];
         if (llmBaseURL) target.baseURL = llmBaseURL.value.trim();
         if (llmModel) target.model = llmModel.value.trim();
@@ -1657,6 +1715,9 @@
         draft.providerId = providerId;
         draft.streaming = llmStreaming ? !!llmStreaming.checked : draft.streaming;
         draft.preferResponsesApi = llmUseResponses ? !!llmUseResponses.checked : draft.preferResponsesApi;
+        if (llmReasoningEffort) draft.reasoningEffort = llmReasoningEffort.value || draft.reasoningEffort;
+        if (llmTextVerbosity) draft.textVerbosity = llmTextVerbosity.value || draft.textVerbosity;
+        if (llmProMode) draft.reasoningMode = llmProMode.checked ? 'pro' : 'standard';
       }
 
       function renderProviderUi() {
@@ -1692,6 +1753,42 @@
         if (llmCustomRequiresApiKey) {
           llmCustomRequiresApiKey.checked = !!draft.providers.custom.requiresApiKey;
         }
+        renderGpt56Options();
+      }
+
+      function isActiveGpt56Model() {
+        const draft = ensureLlmDraft();
+        const providerId = getSelectedProviderId();
+        const model = llmModel && llmModel.value ? llmModel.value : (draft.providers[providerId] || {}).model;
+        if (providerId !== 'openai') return false;
+        if (window.livecalcLLM && typeof window.livecalcLLM.isGpt56Model === 'function') {
+          return window.livecalcLLM.isGpt56Model(model);
+        }
+        return /^gpt-5\.6(?:$|[-.])/i.test(String(model || '').trim());
+      }
+
+      function renderGpt56Options() {
+        const draft = ensureLlmDraft();
+        const isGpt56 = isActiveGpt56Model();
+        if (llmGpt56Options) llmGpt56Options.classList.toggle('hidden', !isGpt56);
+        if (!isGpt56) return;
+        if (llmReasoningEffort) llmReasoningEffort.value = draft.reasoningEffort || 'medium';
+        if (llmTextVerbosity) llmTextVerbosity.value = draft.textVerbosity || 'medium';
+        if (llmProMode) {
+          llmProMode.checked = draft.reasoningMode === 'pro';
+          llmProMode.disabled = !(llmUseResponses && llmUseResponses.checked);
+        }
+        if (llmGpt56Hint) {
+          const useResponses = llmUseResponses && llmUseResponses.checked;
+          llmGpt56Hint.textContent =
+            window.LCi18n && typeof window.LCi18n.t === 'function'
+              ? window.LCi18n.t(
+                  useResponses ? 'settings.llm.gpt56.help' : 'settings.llm.gpt56.responsesRequired'
+                )
+              : useResponses
+              ? 'GPT-5.6 uses the Responses API. Medium reasoning is a balanced default; Pro takes longer and uses more tokens.'
+              : 'Pro mode requires the Responses API. Re-enable it to use Pro mode.';
+        }
       }
 
       let llmModelRefreshTimer = null;
@@ -1710,6 +1807,13 @@
 
         if (providerCfg && providerCfg.model) fallbackModels.push(providerCfg.model);
         if (providerMeta && providerMeta.defaultModel) fallbackModels.push(providerMeta.defaultModel);
+        if (providerId === 'openai') {
+          const presets =
+            window.livecalcLLM && typeof window.livecalcLLM.getOpenAIModelPresets === 'function'
+              ? window.livecalcLLM.getOpenAIModelPresets()
+              : ['gpt-5.6-terra', 'gpt-5.6', 'gpt-5.6-sol', 'gpt-5.6-luna'];
+          fallbackModels.push(...presets);
+        }
         if (currentValue) fallbackModels.push(currentValue);
 
         const uniqueSuggestions = Array.from(new Set([...detectedModels, ...fallbackModels.filter(Boolean)]));
@@ -1749,6 +1853,7 @@
         if (llmModel && !currentValue && uniqueSuggestions.length) {
           llmModel.value = autoFill && detectedModels.length ? detectedModels[0] : uniqueSuggestions[0];
         }
+        renderGpt56Options();
 
         if (llmModelHint) {
           if (uniqueSuggestions.length) {
@@ -1850,7 +1955,8 @@
 
       if (llmProvider) {
         llmProvider.addEventListener('change', function () {
-          persistActiveProviderToDraft();
+          const previousProviderId = llmDraft && llmDraft.providerId ? llmDraft.providerId : 'local';
+          persistActiveProviderToDraft(previousProviderId);
           if (llmDraft) llmDraft.providerId = llmProvider.value;
           renderProviderUi();
           resetLlmModelHint();
@@ -1871,9 +1977,18 @@
       if (llmModel) {
         llmModel.addEventListener('change', function () {
           persistActiveProviderToDraft();
+          renderGpt56Options();
           scheduleModelRefresh({ autoFill: false });
         });
       }
+
+      [llmReasoningEffort, llmTextVerbosity, llmProMode, llmUseResponses].forEach(function (control) {
+        if (!control) return;
+        control.addEventListener('change', function () {
+          persistActiveProviderToDraft();
+          renderGpt56Options();
+        });
+      });
 
       if (llmDetectBtn) {
         llmDetectBtn.addEventListener('click', async function () {

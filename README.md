@@ -158,11 +158,15 @@ Supported providers (configured in **Settings**):
 
 | Provider | Notes |
 |---|---|
-| **OpenAI** | Requires API key; default model `gpt-4.1-mini` |
+| **OpenAI** | Requires API key; default model `gpt-5.6-terra` (balanced GPT-5.6 tier) |
 | **Local** | OpenAI-compatible server (e.g. Ollama, LM Studio) at `localhost:1234` |
 | **Custom** | Any OpenAI-compatible endpoint |
 
 The assistant is aware of the current notebook content and can suggest snippets that are inserted into the editor with one click.
+
+For OpenAI's GPT-5.6 family, LiveCalc uses the Responses API by default. Settings expose the balanced `gpt-5.6-terra` default as well as the `gpt-5.6`/Sol and Luna tiers, explicit reasoning effort, answer detail, and an opt-in Pro mode. These request settings apply only to GPT-5.6 on OpenAI; compatible local providers keep their existing request shape. GPT produces explanations and editable formulas, while LiveCalc remains the deterministic source of every evaluated value.
+
+API keys are stored only in the browser's local storage for this prototype. Use a server-side token exchange or proxy before deploying for other users.
 
 ### Shareable URLs
 The notebook content is encoded in the URL hash.  

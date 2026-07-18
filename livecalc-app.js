@@ -83,6 +83,115 @@ const app = (() => {
     return parts.join(' * ');
   }
 
+  // Display families are deliberately small and predictable. The evaluator
+  // keeps the original Quantity; this list affects only the representation
+  // chosen for the editor, inspector, and variables panel.
+  const METRIC_DISPLAY_FAMILIES = [
+    ['m', 'cm', 'mm', 'km'],
+    ['kg', 'g', 'mg', 't'],
+    ['l', 'ml', 'm^3'],
+    ['m^2', 'cm^2', 'mm^2', 'km^2'],
+    ['Pa', 'kPa', 'bar'],
+    ['N'],
+    ['m / s', 'km / h'],
+    ['s', 'min', 'h'],
+  ];
+  const IMPERIAL_DISPLAY_FAMILIES = [
+    ['ft', 'in', 'yd', 'mi'],
+    ['lb', 'oz', 'slug'],
+    ['gal', 'ft^3', 'in^3'],
+    ['ft^2', 'in^2'],
+    ['psi'],
+    ['lbf'],
+    ['ft / s', 'mi / h'],
+    ['s', 'min', 'h'],
+  ];
+
+  function getActiveUnitSystem() {
+    const unitSystem = settings && settings.unitSystem;
+    return unitSystem === 'imperial' || unitSystem === 'all' ? unitSystem : 'metric';
+  }
+
+  function getSingleCurrencyUnit(unitValue) {
+    try {
+      const parts = unitValue && Array.isArray(unitValue.units) ? unitValue.units : [];
+      if (parts.length !== 1) return '';
+      const name = parts[0] && parts[0].unit && parts[0].unit.name;
+      return getCurrencyUnit(name);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function displayMagnitudeScore(value) {
+    const magnitude = Math.abs(Number(value));
+    if (!Number.isFinite(magnitude)) return Number.POSITIVE_INFINITY;
+    if (magnitude === 0) return 0;
+    // Values in [1, 1000) are readable. Within that range favor a compact
+    // representation (5 m over 500 cm); outside it heavily prefer a unit
+    // that gets back into the readable interval.
+    if (magnitude >= 1 && magnitude < 1000) return Math.abs(Math.log10(magnitude));
+    return 10 + Math.abs(Math.log10(magnitude));
+  }
+
+  function findBestCompatibleDisplayUnit(unitValue, candidates) {
+    let best = null;
+    candidates.forEach((candidate, index) => {
+      try {
+        const converted = unitValue.to(candidate);
+        const value = converted.toNumber(candidate);
+        const score = displayMagnitudeScore(value);
+        if (!best || score < best.score || (score === best.score && index < best.index)) {
+          best = { unit: candidate, score: score, index: index };
+        }
+      } catch (e) {
+        // Candidate describes a different dimension; try the next family.
+      }
+    });
+    return best ? best.unit : '';
+  }
+
+  function getDisplayUnitForSystem(unitValue, expressionPreference) {
+    const currentUnit = getUnitDisplayTarget(unitValue);
+    const unitSystem = getActiveUnitSystem();
+    const currency = getSingleCurrencyUnit(unitValue);
+
+    // Currencies have no metric/imperial equivalent. Preserve their explicit
+    // model unit; a future FX action is a calculation, not a display choice.
+    if (currency) return expressionPreference || currentUnit;
+    if (unitSystem === 'all') return expressionPreference || currentUnit;
+
+    const families = unitSystem === 'imperial' ? IMPERIAL_DISPLAY_FAMILIES : METRIC_DISPLAY_FAMILIES;
+    for (const family of families) {
+      const unit = findBestCompatibleDisplayUnit(unitValue, family);
+      if (unit) return unit;
+    }
+
+    // Metric has a useful general fallback for compound quantities (for
+    // example a value evaluated from ft/s). math.js supplies SI dimensions;
+    // if it cannot, retaining the original is safer than inventing a unit.
+    if (unitSystem === 'metric' && typeof unitValue.toSI === 'function') {
+      try {
+        const siUnit = getUnitDisplayTarget(unitValue.toSI());
+        if (siUnit) return siUnit;
+      } catch (e) {}
+    }
+
+    return currentUnit;
+  }
+
+  function formatTemperatureForSystem(value, unit) {
+    const normalizedUnit = normalizeUnitToken(unit).toUpperCase();
+    const unitSystem = getActiveUnitSystem();
+    let celsius = Number(value);
+    if (normalizedUnit === 'F') celsius = ((celsius - 32) * 5) / 9;
+    else if (normalizedUnit === 'K') celsius -= 273.15;
+
+    if (unitSystem === 'imperial') return formatResult((celsius * 9) / 5 + 32) + ' F';
+    if (unitSystem === 'metric') return formatResult(celsius) + ' C';
+    return formatResult(value) + ' ' + normalizedUnit;
+  }
+
   function getUnitConversionCandidates(unitName) {
     const candidates = [];
     const raw = normalizeUnitToken(unitName);
@@ -494,7 +603,7 @@ const app = (() => {
   const LLM_PROVIDER_DEFAULTS = {
     openai: {
       baseURL: 'https://api.openai.com/v1',
-      model: 'gpt-4.1-mini',
+      model: 'gpt-5.6-terra',
       apiKey: '',
       requiresApiKey: true,
     },
@@ -515,6 +624,9 @@ const app = (() => {
     providerId: 'local',
     streaming: true,
     preferResponsesApi: true,
+    reasoningEffort: 'medium',
+    textVerbosity: 'medium',
+    reasoningMode: 'standard',
     timeoutMs: 45000,
     providers: LLM_PROVIDER_DEFAULTS,
   };
@@ -586,6 +698,13 @@ const app = (() => {
       streaming: raw.streaming !== undefined ? !!raw.streaming : !!defaults.streaming,
       preferResponsesApi:
         raw.preferResponsesApi !== undefined ? !!raw.preferResponsesApi : !!defaults.preferResponsesApi,
+      reasoningEffort: ['none', 'low', 'medium', 'high', 'xhigh', 'max'].includes(raw.reasoningEffort)
+        ? raw.reasoningEffort
+        : defaults.reasoningEffort,
+      textVerbosity: ['low', 'medium', 'high'].includes(raw.textVerbosity)
+        ? raw.textVerbosity
+        : defaults.textVerbosity,
+      reasoningMode: raw.reasoningMode === 'pro' ? 'pro' : 'standard',
       timeoutMs:
         typeof raw.timeoutMs === 'number' && isFinite(raw.timeoutMs)
           ? Math.max(5000, Math.min(180000, Math.round(raw.timeoutMs)))
@@ -702,6 +821,19 @@ const app = (() => {
       i18nTitle: 'examples.finance.title',
       i18nDesc: 'examples.finance.desc',
       content: `# Compound Interest example\nP = 10000 USD\nr = 0.05\nt = 10\nA = P * (1 + r)^t`,
+    },
+    {
+      id: 'solar_payback',
+      i18nTitle: 'examples.solarPayback.title',
+      i18nDesc: 'examples.solarPayback.desc',
+      content: `# Solar payback model\n# Change any assumption in the editor or via its inspector control.\nsystem_cost = 12000 # EUR\nannual_generation = 8500 # kWh per year\nself_consumption = 0.70 # share used in the home\nelectricity_price = 0.32 # EUR per kWh\nfeed_in_tariff = 0.08 # EUR per kWh\n\nannual_savings_eur = annual_generation * (self_consumption * electricity_price + (1 - self_consumption) * feed_in_tariff)\npayback_years = system_cost / annual_savings_eur\n\n# The graph derives from the current evaluated variables.\nnet_position(x) = annual_savings_eur * x - system_cost`,
+      controls: [
+        { id: 'control-system-cost', variable: 'system_cost', type: 'range', label: 'System cost (EUR)', min: 5000, max: 30000, step: 500 },
+        { id: 'control-annual-generation', variable: 'annual_generation', type: 'range', label: 'Annual generation (kWh)', min: 2000, max: 15000, step: 100 },
+        { id: 'control-self-consumption', variable: 'self_consumption', type: 'range', label: 'Self-consumption', min: 0, max: 1, step: 0.01 },
+      ],
+      metadata: { title: 'Solar payback model', category: 'Apps for your life' },
+      focusVariable: 'system_cost',
     },
     {
       id: 'sum',
@@ -1080,7 +1212,19 @@ const app = (() => {
       return;
     }
     editor.value = ex.content;
+    if (modelRuntime) {
+      // Examples can seed structural metadata, never a second set of input
+      // values. The next handleInput call reparses the notebook and validates
+      // every referenced control against that source.
+      modelRuntime.setControlSpecs(ex.controls || []);
+      modelRuntime.setVisualizationSpecs(ex.visualizations || []);
+      modelRuntime.setShareOptions({ metadata: Object.assign({ title: exampleTitle(ex) }, ex.metadata || {}) });
+    }
     handleInput();
+    if (modelRuntime && ex.focusVariable) {
+      modelRuntime.select('variable', ex.focusVariable);
+      renderInspector();
+    }
     showToast(t('toast.exampleLoaded', 'Loaded example: {title}', { title: exampleTitle(ex) }));
   }
 
@@ -1430,7 +1574,7 @@ sum`;
     updateVariables(results.scope, results.functions);
 
     // 5. Update Graph
-    plotFunctions(results.functions);
+    plotFunctions(results.functions, results.scope);
 
     // 5b. The inspector and any controls read from the same current model.
     renderInspector();
@@ -1618,7 +1762,7 @@ sum`;
             else if (tgt === 'F') out = (celsius * 9) / 5 + 32;
             else if (tgt === 'K') out = celsius + 273.15;
             if (typeof out !== 'undefined') {
-              outputLines.push({ value: formatResult(out) + ' ' + tgt, type: 'result' });
+              outputLines.push({ value: formatTemperatureForSystem(out, tgt), type: 'result' });
               continue;
             }
           } catch (e) {
@@ -2260,7 +2404,7 @@ sum`;
     // Unit (including currencies)
     if (res && res.isUnit) {
       try {
-        const displayUnit = preferredUnit || getUnitDisplayTarget(res);
+        const displayUnit = getDisplayUnitForSystem(res, preferredUnit);
         if (displayUnit) {
           try {
             const conversionCandidates = getUnitConversionCandidates(displayUnit);
@@ -2360,16 +2504,45 @@ sum`;
   }
 
   // -- Plotting --
-  // We keep track of the last plotted functions to avoid unnecessary re-renders
-  let currentPlots = [];
+  function getPlotNumber(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    try {
+      const numeric = Number(value && typeof value.valueOf === 'function' ? value.valueOf() : value);
+      return Number.isFinite(numeric) ? numeric : null;
+    } catch (e) {
+      return null;
+    }
+  }
 
-  function plotFunctions(funcs) {
+  function derivePlotExpression(expression, scope) {
+    let derived = String(expression || '');
+    const values = scope && typeof scope === 'object' ? scope : {};
+    Object.keys(values)
+      .sort(function (a, b) {
+        return b.length - a.length;
+      })
+      .forEach(function (name) {
+        // x is the plotting domain, not a notebook value to inline.
+        if (name === 'x') return;
+        const numeric = getPlotNumber(values[name]);
+        if (numeric === null) return;
+        const escapedName = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        derived = derived.replace(new RegExp('\\b' + escapedName + '\\b', 'g'), '(' + String(numeric) + ')');
+      });
+    return derived;
+  }
+
+  function plotFunctions(funcs, scope) {
     // Detect functions named f, g, h or anything that takes 1 argument and plot them
     // For simplicity, we auto-plot f(x) and g(x) if they exist, or just everything.
     // LIMIT: Plotting everything might be chaotic. Let's plot only 'f' and 'g' by default,
     // or whatever the user explicitly defined as single-variable functions.
 
-    if (!funcs) return;
+    // A resize does not get a fresh function map. Read the current evaluation
+    // state instead of retaining a chart-owned numeric copy.
+    const evaluation = modelRuntime ? modelRuntime.getState().evaluation : null;
+    const currentFunctions = funcs || (evaluation && evaluation.functions) || {};
+    const currentScope = scope || (evaluation && evaluation.values) || {};
 
     const containerWidth = plotContainer.offsetWidth;
     const containerHeight = plotContainer.offsetHeight;
@@ -2378,9 +2551,9 @@ sum`;
 
     // Filter valid plot targets (prefer RHS expression strings)
     const targets = [];
-    for (const [name, fn] of Object.entries(funcs)) {
+    for (const [name, fn] of Object.entries(currentFunctions)) {
       // fn may be a string expression (preferred) or a function object (fallback)
-      const expr = typeof fn === 'string' ? fn : `${name}(x)`;
+      const expr = typeof fn === 'string' ? derivePlotExpression(fn, currentScope) : `${name}(x)`;
       targets.push({ fn: expr, color: getRandomColor(name) });
     }
 
@@ -2720,7 +2893,7 @@ f(x) = x^2 - 5*x`;
         // Re-evaluate to ensure we have latest function RHS strings
         const results = evalMath(editor.value);
         if (results.functions && results.functions[name]) {
-          plotFunctions({ [name]: results.functions[name] });
+          plotFunctions({ [name]: results.functions[name] }, results.scope);
         } else {
           alert(t('toast.functionNotPlottable', "Function '{name}' not found or not in a plottable format.", { name: name }));
         }

@@ -8,7 +8,7 @@
 
 **LiveCalc Pro** is a browser-based interactive math notebook.  
 Formulas are evaluated in real time — the result updates with every keystroke.  
-No installation, no account, no server: everything runs locally in your browser.
+The deterministic calculator needs no account or server. The optional AI assistant uses a small same-origin backend so provider credentials never enter the browser.
 
 LiveCalc is evolving from an interactive calculator into a medium for inspectable, editable, and shareable calculation models: **AI can propose a calculation, but LiveCalc owns every formula and every value.**
 
@@ -42,6 +42,19 @@ The dependency graph is derived from parsed expressions and symbol references, n
 
 AI is an optional model-design and explanation assistant. It may suggest a notebook, names, assumptions, units, controls, or visualization specifications. It must not provide cached chart points, final table values, or hidden calculation results. Those are always derived by the deterministic evaluator from the current notebook.
 
+AI requests follow a separate, deliberately narrow path: browser → LiveCalc backend → named AI provider. The backend accepts only an allow-listed provider ID, model, and request shape; it reads upstream URLs and credentials from server environment variables. It never accepts a browser-supplied API key or upstream URL, so it cannot become an open proxy.
+
+The repository includes equivalent Node.js and Go backends in [`backend/`](backend/README.md). Each serves the app and exposes the same compact same-origin API:
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/health` | Safe provider configuration status; never includes credentials |
+| `GET /api/ai/:provider/models` | Lists models for one configured named provider |
+| `POST /api/ai/:provider/responses` | Validated OpenAI Responses API request, including SSE relay |
+| `POST /api/ai/:provider/chat/completions` | Validated OpenAI-compatible Chat Completions request, including SSE relay |
+
+`provider` is limited to `openai`, `local`, or `custom`. Each is configured from server environment variables, rather than from browser input.
+
 ### Sharing
 
 Small and medium models use a versioned `#lc1.` URL payload. It includes editable notebook source, control specifications, visualization specifications, selected layout/locale preferences, and metadata; the recipient evaluates the notebook afresh. API keys, chat history, and evaluation caches are intentionally excluded.
@@ -50,18 +63,40 @@ Small and medium models use a versioned `#lc1.` URL payload. It includes editabl
 
 ---
 
+## OpenAI Build Week entry
+
+**Track:** Work & Productivity
+**Tagline:** *Build it. Verify it. Share it.*
+
+LiveCalc turns an everyday question—such as “When does a solar installation pay back?”—into an editable, deterministic model rather than an opaque AI answer. The **Solar Payback — Interactive Model** example is the fastest complete demo: adjust an assumption in the inspector, watch the notebook and net-position graph update, inspect the dependency chain, then copy the link. The whole model, including controls, is encoded in the share URL and re-evaluated by the recipient.
+
+The product uses GPT-5.6 as a bounded model-design assistant: it proposes formulas, assumptions, and snippets; LiveCalc parses, evaluates, and visualizes the values locally. The OpenAI provider uses the Responses API with explicit reasoning effort, response verbosity, and an opt-in Pro mode, mediated by a credential-safe backend.
+
+---
+
 ## Run locally
 
-LiveCalc is a static web app. You can run it locally with any simple HTTP server:
+For the Node.js backend, use Node.js 18 or newer:
 
 ```bash
 cd path/to/liveCalc
-python3 -m http.server 8080
+cp .env.example .env
+# OPENAI_API_KEY enables the optional OpenAI assistant; without it, calculator-only mode remains available.
+npm start
 ```
 
-Then open: `http://localhost:8080`
+Then open: `http://127.0.0.1:3000`
 
-> Note: some browser setups block `file://` features, so serving over HTTP is recommended.
+The Go backend uses the same `.env` configuration and API contract:
+
+```bash
+cd backend/golang
+go run .
+```
+
+See [`backend/README.md`](backend/README.md) for the available implementations and commands.
+
+The calculator and examples still work without any provider configured. For a static-only preview, any HTTP server can serve the files, but AI actions will correctly report that the backend is unavailable.
 
 ---
 
@@ -79,11 +114,12 @@ The math engine itself always uses `.` internally (math.js requirement); only th
 
 ## AI assistant integration
 
-liveCalc ships with an optional AI assistant panel (OpenAI-compatible). It is fully integrated with the localization settings:
+liveCalc ships with an optional AI assistant panel and a server-side provider gateway. It is fully integrated with the localization settings:
 
 * The system prompt automatically tells the model **which language to reply in**, **which unit system to prefer**, and **which decimal separator** the user reads — so SI units and the user's language are used naturally.
 * Connection / network errors and panel UI are localized.
-* Configure provider, base URL, model, and API key under **Settings → AI / LLM**. Local OpenAI-compatible servers (LM Studio, Ollama with the OpenAI shim, llama.cpp server, etc.) are supported out of the box.
+* Choose the provider and model under **Settings → AI / LLM**. The visible route is always the same-origin LiveCalc backend; there is no API-key field in the browser.
+* Configure providers in `.env` or your deployment secret store: `OPENAI_API_KEY` for OpenAI, or explicit `LOCAL_LLM_*` / `CUSTOM_LLM_*` values for named OpenAI-compatible services. The backend does not accept browser-supplied upstream URLs or credentials.
 * Snippets emitted by the AI between `LIVECALC_INSERT_START` / `LIVECALC_INSERT_END` markers can be inserted into the editor with a single click.
 
 ---
@@ -154,19 +190,19 @@ avg(sales[region == "North"])
 
 ### AI / LLM chat assistant
 Connect to an LLM to get help with calculations, explanations, or formula suggestions.  
-Supported providers (configured in **Settings**):
+Supported named providers (selected in **Settings**, configured on the server):
 
 | Provider | Notes |
 |---|---|
-| **OpenAI** | Requires API key; default model `gpt-5.6-terra` (balanced GPT-5.6 tier) |
-| **Local** | OpenAI-compatible server (e.g. Ollama, LM Studio) at `localhost:1234` |
-| **Custom** | Any OpenAI-compatible endpoint |
+| **OpenAI** | `OPENAI_API_KEY`; default model `gpt-5.6-terra` (balanced GPT-5.6 tier) |
+| **Local** | An explicitly configured `LOCAL_LLM_BASE_URL` (e.g. Ollama or LM Studio) |
+| **Custom** | One explicitly configured `CUSTOM_LLM_BASE_URL` |
 
 The assistant is aware of the current notebook content and can suggest snippets that are inserted into the editor with one click.
 
 For OpenAI's GPT-5.6 family, LiveCalc uses the Responses API by default. Settings expose the balanced `gpt-5.6-terra` default as well as the `gpt-5.6`/Sol and Luna tiers, explicit reasoning effort, answer detail, and an opt-in Pro mode. These request settings apply only to GPT-5.6 on OpenAI; compatible local providers keep their existing request shape. GPT produces explanations and editable formulas, while LiveCalc remains the deterministic source of every evaluated value.
 
-API keys are stored only in the browser's local storage for this prototype. Use a server-side token exchange or proxy before deploying for other users.
+Provider API keys, base URLs, and server tokens are never stored in browser settings. Existing browser-side key settings are removed during migration. See [.env.example](.env.example) for the supported server configuration and limits.
 
 ### Shareable URLs
 The notebook content is encoded in the URL hash.  
@@ -206,13 +242,15 @@ geometry, finance (compound interest), mixed-unit sums, matrix operations, CSV t
 | [function-plot](https://mauriciopoppe.github.io/function-plot/) | Interactive function graphs |
 | [KaTeX](https://katex.org/) | Math rendering in the AI chat |
 | [Tailwind CSS](https://tailwindcss.com/) | UI styling |
+| Node.js built-in HTTP server | One backend implementation for static app delivery and the credential-safe AI gateway |
+| Go standard library | Equivalent backend implementation with the same browser API contract |
 
 ---
 
 ## Notes
 
-- LLM API keys and settings are stored in your browser local storage.
-- Local provider mode expects an OpenAI-compatible endpoint (default: `http://localhost:1234/v1`).
+- LLM provider selection, model, and request preferences are stored in browser local storage; credentials and upstream URLs are server-side only.
+- The backend exposes only named providers configured in `.env` or the deployment environment, and applies request-size, timeout, and basic per-IP rate limits.
 - Shared links include encoded notebook content in the URL hash.
 
 ---

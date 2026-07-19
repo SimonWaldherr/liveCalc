@@ -1415,16 +1415,16 @@
             </select>
           </div>
           <div class="min-w-0">
-            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.llm.baseUrl">Base URL</label>
+            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.llm.backend">AI backend</label>
             <input
               id="settingsLlmBaseUrl"
-              type="url"
+              type="text"
+              readonly
               class="mt-1 w-full max-w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
-              placeholder="http://localhost:1234/v1"
-              autocomplete="off"
+              aria-describedby="settingsLlmProviderHint"
             />
-            <p id="settingsLlmProviderHint" class="text-[10px] text-gray-400 mt-1 leading-relaxed break-words" data-i18n="settings.llm.baseUrl.help">
-              OpenAI-compatible API base URL (for example: http://localhost:1234/v1).
+            <p id="settingsLlmProviderHint" class="text-[10px] text-gray-400 mt-1 leading-relaxed break-words" data-i18n="settings.llm.backend.help">
+              LiveCalc sends requests to its own backend. Provider URLs and API keys stay on the server.
             </p>
           </div>
           <div class="min-w-0">
@@ -1448,23 +1448,6 @@
             <p id="settingsLlmModelHint" class="text-[10px] text-gray-400 mt-0.5 break-words" data-i18n="settings.llm.model.help">
               Click Detect to load available models from the server.
             </p>
-          </div>
-          <div class="min-w-0">
-            <label class="block text-xs font-medium text-gray-500" data-i18n="settings.llm.apiKey">API key</label>
-            <input
-              id="settingsLlmApiKey"
-              type="password"
-              class="mt-1 w-full max-w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-xs font-mono"
-              placeholder="sk-…"
-              autocomplete="new-password"
-            />
-            <p id="settingsLlmApiKeyHint" class="text-[10px] text-gray-400 mt-1 break-words" data-i18n="settings.llm.apiKey.help">Optional for local providers.</p>
-          </div>
-          <div id="settingsLlmCustomKeyWrap" class="hidden">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input id="settingsLlmCustomRequiresApiKey" type="checkbox" class="form-checkbox" />
-              <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.llm.customRequiresApiKey">Custom provider requires API key</span>
-            </label>
           </div>
           <div class="space-y-2 min-w-0">
             <label class="flex items-center gap-2 cursor-pointer">
@@ -1578,8 +1561,6 @@
       const llmProvider = document.getElementById('settingsLlmProvider');
       const llmBaseURL = document.getElementById('settingsLlmBaseUrl');
       const llmModel = document.getElementById('settingsLlmModel');
-      const llmApiKey = document.getElementById('settingsLlmApiKey');
-      const llmApiKeyHint = document.getElementById('settingsLlmApiKeyHint');
       const llmProviderHint = document.getElementById('settingsLlmProviderHint');
       const llmStreaming = document.getElementById('settingsLlmStreaming');
       const llmUseResponses = document.getElementById('settingsLlmUseResponses');
@@ -1588,8 +1569,6 @@
       const llmTextVerbosity = document.getElementById('settingsLlmTextVerbosity');
       const llmProMode = document.getElementById('settingsLlmProMode');
       const llmGpt56Hint = document.getElementById('settingsLlmGpt56Hint');
-      const llmCustomKeyWrap = document.getElementById('settingsLlmCustomKeyWrap');
-      const llmCustomRequiresApiKey = document.getElementById('settingsLlmCustomRequiresApiKey');
       const llmDetectBtn = document.getElementById('settingsLlmDetect');
       const llmDetectLabel = document.getElementById('settingsLlmDetectLabel');
       const llmModelHint = document.getElementById('settingsLlmModelHint');
@@ -1597,21 +1576,21 @@
       const llmTestResult = document.getElementById('settingsLlmTestResult');
       const providerDefaults = {
         openai: {
-          baseURL: 'https://api.openai.com/v1',
+          baseURL: '/api/ai/openai',
           model: 'gpt-5.6-terra',
           apiKey: '',
-          requiresApiKey: true,
+          requiresApiKey: false,
           supportsResponsesApi: true,
         },
         local: {
-          baseURL: 'http://localhost:1234/v1',
+          baseURL: '/api/ai/local',
           model: 'llama3.1',
           apiKey: '',
           requiresApiKey: false,
           supportsResponsesApi: false,
         },
         custom: {
-          baseURL: 'http://localhost:1234/v1',
+          baseURL: '/api/ai/custom',
           model: '',
           apiKey: '',
           requiresApiKey: false,
@@ -1624,21 +1603,21 @@
         const fallback = {
           openai: {
             id: 'openai',
-            label: 'OpenAI',
+            label: 'OpenAI via LiveCalc backend',
             baseURL: providerDefaults.openai.baseURL,
-            requiresApiKey: true,
+            requiresApiKey: false,
             supportsResponsesApi: true,
           },
           local: {
             id: 'local',
-            label: 'Local OpenAI-Compatible',
+            label: 'Local provider via LiveCalc backend',
             baseURL: providerDefaults.local.baseURL,
             requiresApiKey: false,
             supportsResponsesApi: false,
           },
           custom: {
             id: 'custom',
-            label: 'Custom OpenAI-Compatible',
+            label: 'Custom provider via LiveCalc backend',
             baseURL: providerDefaults.custom.baseURL,
             requiresApiKey: false,
             supportsResponsesApi: false,
@@ -1661,7 +1640,7 @@
         }
         const incoming = raw && typeof raw === 'object' ? raw : {};
         return {
-          providerId: incoming.providerId || 'local',
+          providerId: incoming.providerId || 'openai',
           streaming: incoming.streaming !== undefined ? !!incoming.streaming : true,
           preferResponsesApi: incoming.preferResponsesApi !== undefined ? !!incoming.preferResponsesApi : true,
           reasoningEffort: ['none', 'low', 'medium', 'high', 'xhigh', 'max'].includes(incoming.reasoningEffort)
@@ -1670,11 +1649,15 @@
           textVerbosity: ['low', 'medium', 'high'].includes(incoming.textVerbosity) ? incoming.textVerbosity : 'medium',
           reasoningMode: incoming.reasoningMode === 'pro' ? 'pro' : 'standard',
           timeoutMs: incoming.timeoutMs || 45000,
-          providers: {
-            openai: Object.assign({}, providerDefaults.openai, (incoming.providers && incoming.providers.openai) || {}),
-            local: Object.assign({}, providerDefaults.local, (incoming.providers && incoming.providers.local) || {}),
-            custom: Object.assign({}, providerDefaults.custom, (incoming.providers && incoming.providers.custom) || {}),
-          },
+          providers: ['openai', 'local', 'custom'].reduce((result, providerId) => {
+            const saved = (incoming.providers && incoming.providers[providerId]) || {};
+            result[providerId] = Object.assign({}, providerDefaults[providerId], {
+              model: typeof saved.model === 'string' ? saved.model : providerDefaults[providerId].model,
+              apiKey: '',
+              requiresApiKey: false,
+            });
+            return result;
+          }, {}),
         };
       }
 
@@ -1685,7 +1668,7 @@
             : normalizeLlmSettings(null);
         llmDraft = normalizeLlmSettings(current);
         if (llmProvider && llmDraft.providers && !llmDraft.providers[llmDraft.providerId]) {
-          llmDraft.providerId = 'local';
+          llmDraft.providerId = 'openai';
         }
       }
 
@@ -1696,21 +1679,19 @@
 
       function getSelectedProviderId() {
         const draft = ensureLlmDraft();
-        const providerId = llmProvider && llmProvider.value ? llmProvider.value : draft.providerId || 'local';
+        const providerId = llmProvider && llmProvider.value ? llmProvider.value : draft.providerId || 'openai';
         if (draft.providers[providerId]) return providerId;
-        return 'local';
+        return 'openai';
       }
 
       function persistActiveProviderToDraft(providerIdOverride) {
         const draft = ensureLlmDraft();
         const providerId = providerIdOverride || getSelectedProviderId();
         const target = draft.providers[providerId] || providerDefaults[providerId];
-        if (llmBaseURL) target.baseURL = llmBaseURL.value.trim();
         if (llmModel) target.model = llmModel.value.trim();
-        if (llmApiKey) target.apiKey = llmApiKey.value.trim();
-        if (providerId === 'custom' && llmCustomRequiresApiKey) {
-          target.requiresApiKey = !!llmCustomRequiresApiKey.checked;
-        }
+        target.baseURL = providerDefaults[providerId].baseURL;
+        target.apiKey = '';
+        target.requiresApiKey = false;
         draft.providers[providerId] = target;
         draft.providerId = providerId;
         draft.streaming = llmStreaming ? !!llmStreaming.checked : draft.streaming;
@@ -1724,34 +1705,21 @@
         const draft = ensureLlmDraft();
         const catalog = getProviderCatalogMap();
         const providerId = getSelectedProviderId();
-        const providerMeta = catalog[providerId] || catalog.local;
+        const providerMeta = catalog[providerId] || catalog.openai;
         const providerCfg = draft.providers[providerId] || providerDefaults[providerId];
         if (llmProvider) llmProvider.value = providerId;
         if (llmBaseURL) {
           llmBaseURL.value = providerCfg.baseURL || providerMeta.baseURL || '';
-          llmBaseURL.placeholder = providerMeta.baseURL || 'http://localhost:1234/v1';
+          llmBaseURL.readOnly = true;
         }
         if (llmModel) llmModel.value = providerCfg.model || '';
-        if (llmApiKey) llmApiKey.value = providerCfg.apiKey || '';
         if (llmStreaming) llmStreaming.checked = !!draft.streaming;
         if (llmUseResponses) {
           llmUseResponses.checked = !!draft.preferResponsesApi;
           llmUseResponses.disabled = !providerMeta.supportsResponsesApi;
         }
         if (llmProviderHint) {
-          llmProviderHint.textContent = `Using ${providerMeta.label}. Base URL should point to an OpenAI-compatible API (for example ${providerMeta.baseURL}).`;
-        }
-        if (llmApiKeyHint) {
-          const keyRequired = providerId === 'custom' ? !!providerCfg.requiresApiKey : !!providerMeta.requiresApiKey;
-          llmApiKeyHint.textContent = keyRequired
-            ? 'API key required for this provider.'
-            : 'API key optional for this provider.';
-        }
-        if (llmCustomKeyWrap) {
-          llmCustomKeyWrap.classList.toggle('hidden', providerId !== 'custom');
-        }
-        if (llmCustomRequiresApiKey) {
-          llmCustomRequiresApiKey.checked = !!draft.providers.custom.requiresApiKey;
+          llmProviderHint.textContent = `Using ${providerMeta.label}. Configure its upstream URL and credentials in the LiveCalc server environment; they are never sent from this browser.`;
         }
         renderGpt56Options();
       }
@@ -1795,10 +1763,11 @@
       const llmModelCache = {};
 
       function buildModelCacheKey(providerId, providerCfg) {
-        return [providerId || '', providerCfg && providerCfg.baseURL ? providerCfg.baseURL : '', providerCfg && providerCfg.apiKey ? '1' : '0'].join('|');
+        return [providerId || '', providerCfg && providerCfg.baseURL ? providerCfg.baseURL : ''].join('|');
       }
 
       function renderModelSuggestions(models, providerMeta, providerCfg, autoFill) {
+        const activeProviderId = getSelectedProviderId();
         const currentValue = llmModel ? llmModel.value.trim() : '';
         const detectedModels = Array.from(
           new Set((Array.isArray(models) ? models : []).map((model) => String(model || '').trim()).filter(Boolean))
@@ -1807,7 +1776,7 @@
 
         if (providerCfg && providerCfg.model) fallbackModels.push(providerCfg.model);
         if (providerMeta && providerMeta.defaultModel) fallbackModels.push(providerMeta.defaultModel);
-        if (providerId === 'openai') {
+        if (activeProviderId === 'openai') {
           const presets =
             window.livecalcLLM && typeof window.livecalcLLM.getOpenAIModelPresets === 'function'
               ? window.livecalcLLM.getOpenAIModelPresets()
@@ -1873,24 +1842,13 @@
         const draft = ensureLlmDraft();
         const providerId = getSelectedProviderId();
         const catalog = getProviderCatalogMap();
-        const providerMeta = catalog[providerId] || catalog.local;
+        const providerMeta = catalog[providerId] || catalog.openai;
         const providerCfg = draft.providers[providerId] || providerDefaults[providerId];
         const cacheKey = buildModelCacheKey(providerId, providerCfg);
 
         if (!providerCfg || !providerCfg.baseURL) {
           renderModelSuggestions([], providerMeta, providerCfg, autoFill);
           return [];
-        }
-
-        if ((providerMeta && providerMeta.requiresApiKey) || (providerCfg && providerCfg.requiresApiKey)) {
-          if (!providerCfg.apiKey) {
-            renderModelSuggestions([], providerMeta, providerCfg, autoFill);
-            if (llmModelHint) {
-              llmModelHint.textContent = 'API key required before model detection.';
-              llmModelHint.className = 'text-[10px] text-gray-400 mt-0.5';
-            }
-            return [];
-          }
         }
 
         if (!force && llmModelCache[cacheKey]) {
@@ -1955,22 +1913,12 @@
 
       if (llmProvider) {
         llmProvider.addEventListener('change', function () {
-          const previousProviderId = llmDraft && llmDraft.providerId ? llmDraft.providerId : 'local';
+          const previousProviderId = llmDraft && llmDraft.providerId ? llmDraft.providerId : 'openai';
           persistActiveProviderToDraft(previousProviderId);
           if (llmDraft) llmDraft.providerId = llmProvider.value;
           renderProviderUi();
           resetLlmModelHint();
           scheduleModelRefresh({ autoFill: true });
-        });
-      }
-
-      if (llmBaseURL) {
-        llmBaseURL.addEventListener('change', function () {
-          persistActiveProviderToDraft();
-          scheduleModelRefresh({ autoFill: false });
-        });
-        llmBaseURL.addEventListener('input', function () {
-          scheduleModelRefresh({ autoFill: false });
         });
       }
 
@@ -1997,7 +1945,7 @@
           const currentProviderCfg = llmCfg.providers[activeProvider];
           if (!currentProviderCfg || !currentProviderCfg.baseURL) {
             if (llmModelHint) {
-              llmModelHint.textContent = 'Error: Enter a Base URL first.';
+              llmModelHint.textContent = 'Error: The LiveCalc backend route is unavailable.';
               llmModelHint.className = 'text-[10px] text-red-500 mt-0.5';
             }
             return;
@@ -2033,7 +1981,7 @@
           const activeProvider = llmCfg.providerId;
           const currentProviderCfg = llmCfg.providers[activeProvider];
           if (!currentProviderCfg || !currentProviderCfg.baseURL) {
-            showLlmResult('Warning: Enter a Base URL first.', 'warn');
+            showLlmResult('Warning: The LiveCalc backend route is unavailable.', 'warn');
             return;
           }
           llmTestBtn.disabled = true;

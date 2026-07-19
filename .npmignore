@@ -1,0 +1,13 @@
+# Local configuration and generated development material
+.env
+.env.*
+.DS_Store
+node_modules/
+tools/
+-trash/
+coverage-summary.json
+*.tgz
+
+# Test sources are kept in the repository but are not runtime package files.
+tests/
+backend/golang/*_test.go

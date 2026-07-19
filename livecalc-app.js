@@ -602,26 +602,26 @@ const app = (() => {
 
   const LLM_PROVIDER_DEFAULTS = {
     openai: {
-      baseURL: 'https://api.openai.com/v1',
+      baseURL: '/api/ai/openai',
       model: 'gpt-5.6-terra',
       apiKey: '',
-      requiresApiKey: true,
+      requiresApiKey: false,
     },
     local: {
-      baseURL: 'http://localhost:1234/v1',
+      baseURL: '/api/ai/local',
       model: 'llama3.1',
       apiKey: '',
       requiresApiKey: false,
     },
     custom: {
-      baseURL: 'http://localhost:1234/v1',
+      baseURL: '/api/ai/custom',
       model: '',
       apiKey: '',
       requiresApiKey: false,
     },
   };
   const LLM_DEFAULT_SETTINGS = {
-    providerId: 'local',
+    providerId: 'openai',
     streaming: true,
     preferResponsesApi: true,
     reasoningEffort: 'medium',
@@ -689,7 +689,6 @@ const app = (() => {
     const raw = rawLlm && typeof rawLlm === 'object' ? rawLlm : {};
     const legacyEndpoint = typeof raw.endpoint === 'string' ? raw.endpoint.trim() : '';
     const legacyModel = typeof raw.model === 'string' ? raw.model.trim() : '';
-    const legacyApiKey = typeof raw.apiKey === 'string' ? raw.apiKey.trim() : '';
     const migratedBaseURL = legacyEndpoint ? deriveLegacyBaseURL(legacyEndpoint) : '';
     const migratedProvider = legacyEndpoint ? inferProviderFromBaseURL(migratedBaseURL) : null;
 
@@ -717,11 +716,12 @@ const app = (() => {
         const next = raw.providers[providerId];
         if (!next || typeof next !== 'object') return;
         result.providers[providerId] = {
-          baseURL: sanitizeBaseURL(next.baseURL, defaults.providers[providerId].baseURL),
+          // The client persists a provider choice and model only. URLs and
+          // credentials are intentionally server-side configuration.
+          baseURL: defaults.providers[providerId].baseURL,
           model: typeof next.model === 'string' ? next.model.trim() : defaults.providers[providerId].model,
-          apiKey: typeof next.apiKey === 'string' ? next.apiKey.trim() : defaults.providers[providerId].apiKey,
-          requiresApiKey:
-            providerId === 'custom' ? !!next.requiresApiKey : !!defaults.providers[providerId].requiresApiKey,
+          apiKey: '',
+          requiresApiKey: false,
         };
       });
     }
@@ -729,20 +729,16 @@ const app = (() => {
     if (legacyEndpoint) {
       const providerId = migratedProvider || result.providerId;
       const target = result.providers[providerId] || result.providers.custom;
-      target.baseURL = sanitizeBaseURL(migratedBaseURL, target.baseURL);
       if (legacyModel) target.model = legacyModel;
-      if (legacyApiKey) target.apiKey = legacyApiKey;
       result.providerId = providerId;
     }
 
     ['openai', 'local', 'custom'].forEach((providerId) => {
       const p = result.providers[providerId];
-      p.baseURL = sanitizeBaseURL(p.baseURL, defaults.providers[providerId].baseURL);
+      p.baseURL = defaults.providers[providerId].baseURL;
       if (typeof p.model !== 'string') p.model = defaults.providers[providerId].model;
-      if (typeof p.apiKey !== 'string') p.apiKey = '';
-      if (providerId !== 'custom') {
-        p.requiresApiKey = !!defaults.providers[providerId].requiresApiKey;
-      }
+      p.apiKey = '';
+      p.requiresApiKey = false;
     });
 
     return result;
@@ -878,6 +874,16 @@ const app = (() => {
       const merged = Object.assign({}, defaultSettings, parsed || {});
       merged.accessibility = Object.assign({}, defaultSettings.accessibility, (parsed && parsed.accessibility) || {});
       merged.llm = normalizeLlmSettings(parsed && parsed.llm);
+      const hasLegacyTopLevelLlmSecret = ['apiKey', 'endpoint', 'model'].some((key) =>
+        Object.prototype.hasOwnProperty.call(merged, key)
+      );
+      ['apiKey', 'endpoint', 'model'].forEach((key) => delete merged[key]);
+      // Migrate any earlier browser-side API key or endpoint setting away as
+      // soon as it is read. The normalized LLM state contains only a provider
+      // ID, a model preference, and non-secret request preferences.
+      if (hasLegacyTopLevelLlmSecret || JSON.stringify((parsed && parsed.llm) || {}) !== JSON.stringify(merged.llm)) {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
+      }
       return merged;
     } catch (e) {
       return Object.assign({}, defaultSettings, { llm: normalizeLlmSettings(defaultSettings.llm) });
@@ -886,8 +892,8 @@ const app = (() => {
 
   function saveSettings() {
     try {
-      // UX tradeoff: user-entered LLM API keys are persisted locally in browser storage.
-      // Do not use this behavior on shared/untrusted devices.
+      // Provider selection and model preferences are browser settings. Provider
+      // URLs and API keys never persist here; the backend owns both.
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (e) {}
   }
@@ -2916,13 +2922,11 @@ f(x) = x^2 - 5*x`;
       const llmProvider = document.getElementById('settingsLlmProvider');
       const llmBaseURL = document.getElementById('settingsLlmBaseUrl');
       const llmModel = document.getElementById('settingsLlmModel');
-      const llmApiKey = document.getElementById('settingsLlmApiKey');
       const llmStreaming = document.getElementById('settingsLlmStreaming');
       const llmResponses = document.getElementById('settingsLlmUseResponses');
-      const llmCustomRequiresApiKey = document.getElementById('settingsLlmCustomRequiresApiKey');
       const llmCfg = normalizeLlmSettings(settings && settings.llm);
-      const providerId = llmCfg.providerId || 'local';
-      const providerCfg = llmCfg.providers[providerId] || llmCfg.providers.local;
+      const providerId = llmCfg.providerId || 'openai';
+      const providerCfg = llmCfg.providers[providerId] || llmCfg.providers.openai;
 
       // Populate language dropdown from LCi18n's available locales (once,
       // idempotent — it's safe to re-build to reflect new options).
@@ -2960,10 +2964,8 @@ f(x) = x^2 - 5*x`;
       if (llmProvider) llmProvider.value = providerId;
       if (llmBaseURL) llmBaseURL.value = providerCfg.baseURL || '';
       if (llmModel) llmModel.value = providerCfg.model || '';
-      if (llmApiKey) llmApiKey.value = providerCfg.apiKey || '';
       if (llmStreaming) llmStreaming.checked = !!llmCfg.streaming;
       if (llmResponses) llmResponses.checked = !!llmCfg.preferResponsesApi;
-      if (llmCustomRequiresApiKey) llmCustomRequiresApiKey.checked = !!llmCfg.providers.custom.requiresApiKey;
       const decSepSel = document.getElementById('settingsDecimalSeparator');
       const csvDelimSel = document.getElementById('settingsCsvDelimiter');
       if (decSepSel) decSepSel.value = (settings && settings.decimalSeparator) || '.';
@@ -2993,10 +2995,8 @@ f(x) = x^2 - 5*x`;
       const llmProvider = document.getElementById('settingsLlmProvider');
       const llmBaseURL = document.getElementById('settingsLlmBaseUrl');
       const llmModel = document.getElementById('settingsLlmModel');
-      const llmApiKey = document.getElementById('settingsLlmApiKey');
       const llmStreaming = document.getElementById('settingsLlmStreaming');
       const llmResponses = document.getElementById('settingsLlmUseResponses');
-      const llmCustomRequiresApiKey = document.getElementById('settingsLlmCustomRequiresApiKey');
       const next = {};
       if (roundInput) {
         const v = roundInput.value.trim();
@@ -3017,13 +3017,11 @@ f(x) = x^2 - 5*x`;
       llmNext.providerId = providerId;
       llmNext.streaming = llmStreaming ? !!llmStreaming.checked : llmNext.streaming;
       llmNext.preferResponsesApi = llmResponses ? !!llmResponses.checked : llmNext.preferResponsesApi;
-      const providerCfg = llmNext.providers[providerId] || llmNext.providers.local;
-      if (llmBaseURL) providerCfg.baseURL = llmBaseURL.value.trim();
+      const providerCfg = llmNext.providers[providerId] || llmNext.providers.openai;
+      providerCfg.baseURL = LLM_PROVIDER_DEFAULTS[providerId].baseURL;
       if (llmModel) providerCfg.model = llmModel.value.trim();
-      if (llmApiKey) providerCfg.apiKey = llmApiKey.value.trim();
-      if (llmCustomRequiresApiKey) {
-        llmNext.providers.custom.requiresApiKey = !!llmCustomRequiresApiKey.checked;
-      }
+      providerCfg.apiKey = '';
+      providerCfg.requiresApiKey = false;
       next.llm = normalizeLlmSettings(llmNext);
       const decSepSel = document.getElementById('settingsDecimalSeparator');
       const csvDelimSel = document.getElementById('settingsCsvDelimiter');

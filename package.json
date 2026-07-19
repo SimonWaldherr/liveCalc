@@ -1,0 +1,40 @@
+{
+  "name": "livecalc",
+  "version": "1.0.0",
+  "description": "Inspectable, editable, and shareable calculation models.",
+  "main": "backend/node/server.js",
+  "scripts": {
+    "start": "npm run start:node",
+    "start:node": "node backend/node/server.js",
+    "dev": "node --watch backend/node/server.js",
+    "test": "node --test tests/*.test.js",
+    "format": "prettier --write \"*.js\" \"*.html\" \"*.css\" --ignore-path .prettierignore",
+    "format:check": "prettier --check \"*.js\" \"*.html\" \"*.css\" --ignore-path .prettierignore",
+    "build": "node build-tailwind.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SimonWaldherr/liveCalc.git"
+  },
+  "keywords": [
+    "calculation",
+    "notebook",
+    "ai",
+    "openai",
+    "visualization"
+  ],
+  "author": "Simon Waldherr",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "bugs": {
+    "url": "https://github.com/SimonWaldherr/liveCalc/issues"
+  },
+  "homepage": "https://github.com/SimonWaldherr/liveCalc#readme",
+  "devDependencies": {
+    "prettier": "^3.3.0",
+    "puppeteer": "^24.31.0"
+  }
+}

@@ -14,10 +14,12 @@
   const PROVIDERS = Object.freeze({
     openai: {
       id: 'openai',
-      label: 'OpenAI',
-      baseURL: 'https://api.openai.com/v1',
+      label: 'OpenAI via LiveCalc backend',
+      baseURL: '/api/ai/openai',
       apiStyle: 'openai-compatible',
-      requiresApiKey: true,
+      // Provider credentials and upstream URLs are configured only on the
+      // LiveCalc server. The browser always talks to its own origin.
+      requiresApiKey: false,
       // Terra is the balanced interactive default. The gpt-5.6 alias and
       // both other family tiers remain available in the Settings picker.
       defaultModel: 'gpt-5.6-terra',
@@ -28,8 +30,8 @@
     },
     local: {
       id: 'local',
-      label: 'Local OpenAI-Compatible',
-      baseURL: 'http://localhost:1234/v1',
+      label: 'Local provider via LiveCalc backend',
+      baseURL: '/api/ai/local',
       apiStyle: 'openai-compatible',
       requiresApiKey: false,
       defaultModel: 'llama3.1',
@@ -40,8 +42,8 @@
     },
     custom: {
       id: 'custom',
-      label: 'Custom OpenAI-Compatible',
-      baseURL: 'http://localhost:1234/v1',
+      label: 'Custom provider via LiveCalc backend',
+      baseURL: '/api/ai/custom',
       apiStyle: 'openai-compatible',
       requiresApiKey: false,
       defaultModel: '',
@@ -58,7 +60,7 @@
 
   function createDefaultLlmSettings() {
     return {
-      providerId: 'local',
+      providerId: 'openai',
       streaming: true,
       preferResponsesApi: true,
       // GPT-5.6 defaults to medium when omitted. Keep this explicit so a
@@ -72,7 +74,7 @@
           baseURL: PROVIDERS.openai.baseURL,
           model: PROVIDERS.openai.defaultModel,
           apiKey: '',
-          requiresApiKey: true,
+          requiresApiKey: false,
         },
         local: {
           baseURL: PROVIDERS.local.baseURL,
@@ -145,7 +147,6 @@
 
     const legacyEndpoint = typeof raw.endpoint === 'string' ? raw.endpoint.trim() : '';
     const legacyModel = typeof raw.model === 'string' ? raw.model.trim() : '';
-    const legacyApiKey = typeof raw.apiKey === 'string' ? raw.apiKey.trim() : '';
     const migratedBaseURL = legacyEndpoint ? deriveLegacyBaseURL(legacyEndpoint) : '';
     const migratedProvider = legacyEndpoint ? inferProviderFromBaseURL(migratedBaseURL) : null;
 
@@ -170,11 +171,12 @@
         const incoming = raw.providers[providerId];
         if (!incoming || typeof incoming !== 'object') return;
         result.providers[providerId] = {
-          baseURL: sanitizeBaseURL(incoming.baseURL, defaults.providers[providerId].baseURL),
+          // Never retain a browser-configured upstream endpoint. The route is
+          // selected by provider ID and terminates at the same-origin backend.
+          baseURL: defaults.providers[providerId].baseURL,
           model: typeof incoming.model === 'string' ? incoming.model.trim() : defaults.providers[providerId].model,
-          apiKey: typeof incoming.apiKey === 'string' ? incoming.apiKey.trim() : defaults.providers[providerId].apiKey,
-          requiresApiKey:
-            providerId === 'custom' ? !!incoming.requiresApiKey : !!defaults.providers[providerId].requiresApiKey,
+          apiKey: '',
+          requiresApiKey: false,
         };
       });
     }
@@ -182,18 +184,16 @@
     if (legacyEndpoint) {
       const providerId = migratedProvider || result.providerId;
       const target = result.providers[providerId] || result.providers.custom;
-      target.baseURL = sanitizeBaseURL(migratedBaseURL, target.baseURL);
       if (legacyModel) target.model = legacyModel;
-      if (legacyApiKey) target.apiKey = legacyApiKey;
       result.providerId = providerId;
     }
 
     Object.keys(defaults.providers).forEach((providerId) => {
       const p = result.providers[providerId];
-      p.baseURL = sanitizeBaseURL(p.baseURL, defaults.providers[providerId].baseURL);
+      p.baseURL = defaults.providers[providerId].baseURL;
       if (typeof p.model !== 'string') p.model = defaults.providers[providerId].model;
-      if (typeof p.apiKey !== 'string') p.apiKey = '';
-      if (providerId !== 'custom') p.requiresApiKey = !!defaults.providers[providerId].requiresApiKey;
+      p.apiKey = '';
+      p.requiresApiKey = false;
     });
 
     if (!result.providers[result.providerId]) result.providerId = defaults.providerId;
@@ -521,12 +521,23 @@
     return compact.slice(0, 300);
   }
 
+  function getBackendErrorMessage(text) {
+    try {
+      const parsed = JSON.parse(text);
+      const message = parsed && parsed.error && parsed.error.message;
+      return typeof message === 'string' && message.trim() ? message.trim().slice(0, 300) : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
   function mapHttpError(status, bodyText, url) {
     const snippet = parseErrorSnippet(bodyText);
+    const backendMessage = getBackendErrorMessage(bodyText);
     if (status === 401 || status === 403) {
       return new LLMRequestError(
         status === 401 ? 'HTTP_401' : 'HTTP_403',
-        lct('llm.error.auth', 'Authentication failed. Check API key and permissions.'),
+        backendMessage || lct('llm.error.auth', 'Authentication failed. Check the server-side provider credentials and permissions.'),
         {
           status,
           details: { url, bodyText: snippet },
@@ -534,24 +545,28 @@
       );
     }
     if (status === 404) {
-      return new LLMRequestError('HTTP_404', lct('llm.error.notFound', 'Endpoint not found (404). Check base URL and API path.'), {
+      return new LLMRequestError('HTTP_404', backendMessage || lct('llm.error.notFound', 'Endpoint not found (404). Check base URL and API path.'), {
         status,
         details: { url, bodyText: snippet },
       });
     }
     if (status === 429) {
-      return new LLMRequestError('HTTP_429', lct('llm.error.rateLimit', 'Rate limit reached (429). Please try again later.'), {
+      return new LLMRequestError('HTTP_429', backendMessage || lct('llm.error.rateLimit', 'Rate limit reached (429). Please try again later.'), {
         status,
         details: { url, bodyText: snippet },
       });
     }
     if (status >= 500) {
-      return new LLMRequestError('HTTP_5XX', lct('llm.error.server', 'Provider error ({status}). Please try again later.', { status: status }), {
-        status,
-        details: { url, bodyText: snippet },
-      });
+      return new LLMRequestError(
+        'HTTP_5XX',
+        backendMessage || lct('llm.error.server', 'Provider error ({status}). Please try again later.', { status: status }),
+        {
+          status,
+          details: { url, bodyText: snippet },
+        }
+      );
     }
-    return new LLMRequestError(`HTTP_${status}`, lct('llm.error.generic', 'LLM request failed ({status}).', { status: status }), {
+    return new LLMRequestError(`HTTP_${status}`, backendMessage || lct('llm.error.generic', 'LLM request failed ({status}).', { status: status }), {
       status,
       details: { url, bodyText: snippet },
     });
@@ -893,13 +908,13 @@
   function resolveProviderRuntime(llmSettings) {
     const normalized = normalizeLlmSettings(llmSettings);
     const providerId = normalized.providerId;
-    const provider = PROVIDERS[providerId] || PROVIDERS.local;
+    const provider = PROVIDERS[providerId] || PROVIDERS.openai;
     const cfg = normalized.providers[provider.id] || {};
 
     const baseURL = sanitizeBaseURL(cfg.baseURL, provider.baseURL);
     const model = String(cfg.model || '').trim() || provider.defaultModel;
-    const apiKey = String(cfg.apiKey || '').trim();
-    const requiresApiKey = provider.id === 'custom' ? !!cfg.requiresApiKey : !!provider.requiresApiKey;
+    const apiKey = '';
+    const requiresApiKey = false;
 
     return {
       normalized,
@@ -931,10 +946,6 @@
 
     if (!runtime.model) {
       throw new LLMRequestError('INVALID_CONFIG', 'Kein Modellname konfiguriert.', {});
-    }
-
-    if (runtime.requiresApiKey && !runtime.apiKey) {
-      throw new LLMRequestError('AUTH_REQUIRED', 'Für diesen Provider ist ein API-Key erforderlich.', {});
     }
 
     const requestOpts = {
@@ -972,12 +983,7 @@
       throw new LLMRequestError('INVALID_CONFIG', 'Keine Base-URL für den LLM-Provider konfiguriert.', {});
     }
 
-    if (runtime.requiresApiKey && !runtime.apiKey) {
-      throw new LLMRequestError('AUTH_REQUIRED', 'Für diesen Provider ist ein API-Key erforderlich.', {});
-    }
-
     const headers = { 'Content-Type': 'application/json' };
-    if (runtime.apiKey) headers.Authorization = 'Bearer ' + runtime.apiKey;
 
     const candidates = [];
     candidates.push(buildUrl(runtime.baseURL, '/models'));

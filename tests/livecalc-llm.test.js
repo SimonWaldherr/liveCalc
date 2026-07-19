@@ -16,6 +16,24 @@ test('normalizes GPT-5.6 request controls to safe explicit defaults', () => {
   assert.equal(settings.reasoningMode, 'standard');
 });
 
+test('migrates browser-side provider URLs and credentials to the same-origin backend', () => {
+  const settings = llm.normalizeLlmSettings({
+    providerId: 'openai',
+    providers: {
+      openai: {
+        baseURL: 'https://api.openai.com/v1',
+        apiKey: 'old-browser-key',
+        model: 'gpt-5.6-sol',
+      },
+    },
+  });
+
+  assert.equal(settings.providers.openai.baseURL, '/api/ai/openai');
+  assert.equal(settings.providers.openai.apiKey, '');
+  assert.equal(settings.providers.openai.requiresApiKey, false);
+  assert.equal(settings.providers.openai.model, 'gpt-5.6-sol');
+});
+
 test('builds the documented GPT-5.6 Responses request shape', () => {
   const runtime = llm.resolveProviderRuntime({
     providerId: 'openai',

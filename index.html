@@ -1,3 +1,4 @@
+<!doctype html>
 <html lang="en" class="light">
   <head>
     <script src="./livecalc-i18n.js"></script>
@@ -45,14 +46,14 @@
             LiveCalc
             <span class="text-blue-600">Pro</span>
           </h1>
-          <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide uppercase" data-i18n="app.tagline">
+          <span class="app-tagline text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-wide uppercase" data-i18n="app.tagline">
             Interactive Math Studio
           </span>
         </div>
       </a>
 
       <!-- Toolbar -->
-      <div class="flex items-center gap-2">
+      <div class="header-actions flex items-center gap-2">
         <!-- Helper Toolbar (Desktop) -->
         <div
           class="hidden md:flex items-center gap-1 mr-4 border-r border-gray-200 dark:border-gray-700 pr-4"
@@ -282,6 +283,7 @@
           />
           <span class="material-symbols-outlined">upload_file</span>
         </label>
+        <span class="header-divider" aria-hidden="true"></span>
         <button
           onclick="app.clear()"
           class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
@@ -896,7 +898,7 @@
               <span data-i18n="ai.section">AI Assistant</span>
             </span>
             <div class="flex items-center gap-2">
-              <span id="aiChatStatus" class="text-[10px] text-green-500" data-i18n="ai.status.connected">Connected</span>
+              <span id="aiChatStatus" class="text-[10px] text-gray-400" data-i18n="ai.status.checking">Checking…</span>
               <span id="aiChatToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
                 expand_less
               </span>

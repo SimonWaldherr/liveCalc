@@ -212,29 +212,58 @@
     return true;
   }
 
-  function updateVisibility() {
-    let hasProvider = false;
-    try {
-      const runtime = getLlmCore().resolveProviderRuntime(getLlmSettings());
-      hasProvider = !!(runtime && runtime.baseURL);
-    } catch (e) {
-      hasProvider = false;
-    }
+  // /api/health reports which providers actually have credentials configured
+  // on the server (never the credentials themselves). Cached for the page
+  // lifetime — configuration doesn't change without a server restart, and
+  // updateVisibility() can be called often (init, settings save, locale change).
+  let healthRequest = null;
 
+  function fetchHealth() {
+    if (healthRequest) return healthRequest;
+    healthRequest = fetch('/api/health', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+    return healthRequest;
+  }
+
+  function isProviderConfigured(health, providerId) {
+    if (!health || !Array.isArray(health.providers)) return false;
+    const entry = health.providers.find((p) => p && p.id === providerId);
+    return !!(entry && entry.configured);
+  }
+
+  function updateVisibility() {
     const section = document.getElementById('aiChatSection');
     const headerBtn = document.getElementById('aiChatToggleBtn');
     const sidebar = document.getElementById('sidebar');
-    const graphSection = sidebar ? sidebar.firstElementChild : null;
 
-    if (section) {
-      section.classList.toggle('hidden', !hasProvider);
-      if (hasProvider && sidebar && graphSection && graphSection !== section) {
-        sidebar.insertBefore(section, graphSection);
+    fetchHealth().then((health) => {
+      let providerId = 'openai';
+      try {
+        const settings = getLlmSettings();
+        providerId = (settings && settings.providerId) || 'openai';
+      } catch (e) {}
+
+      // Fail closed: if the health check itself failed (offline, backend
+      // down), don't claim the AI assistant is available.
+      const hasProvider = isProviderConfigured(health, providerId);
+      const graphSection = sidebar ? sidebar.firstElementChild : null;
+
+      if (section) {
+        section.classList.toggle('hidden', !hasProvider);
+        if (hasProvider && sidebar && graphSection && graphSection !== section) {
+          sidebar.insertBefore(section, graphSection);
+        }
       }
-    }
-    if (headerBtn) {
-      headerBtn.classList.toggle('hidden', !hasProvider);
-    }
+      if (headerBtn) {
+        headerBtn.classList.toggle('hidden', !hasProvider);
+      }
+      if (hasProvider) {
+        setStatus(lct('ai.status.ready', 'Ready'), 'text-gray-400');
+      } else {
+        setStatus(lct('ai.status.notConfigured', 'Not configured'), 'text-gray-400');
+      }
+    });
   }
 
   function togglePanel() {

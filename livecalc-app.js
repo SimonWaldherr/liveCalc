@@ -13,6 +13,7 @@ const app = (() => {
       ? window.LiveCalcModel.createRuntime({ math: typeof math !== 'undefined' ? math : null })
       : null;
 
+  const headerEl = document.querySelector('header');
   const DESKTOP_SIDEBAR_MEDIA = '(min-width: 1024px)';
   const SIDEBAR_WIDTH_KEY = 'livecalc:sidebarWidth';
   const DEFAULT_SIDEBAR_WIDTH = 300;
@@ -304,6 +305,26 @@ const app = (() => {
 
   function syncSidebarWidth() {
     applySidebarWidth(getStoredSidebarWidth(), false);
+  }
+
+  // Keeps --header-h in sync with the header's real rendered height, since
+  // the header can wrap onto multiple lines on narrow viewports. Layout
+  // that depends on the header height (grid-layout, mobile sidebar overlay)
+  // reads this variable instead of assuming a fixed 64px.
+  function initHeaderHeightTracking() {
+    if (!headerEl) return;
+    const update = () => {
+      const h = headerEl.getBoundingClientRect().height;
+      if (h > 0) {
+        document.documentElement.style.setProperty('--header-h', h + 'px');
+      }
+    };
+    update();
+    if (typeof ResizeObserver === 'function') {
+      new ResizeObserver(update).observe(headerEl);
+    } else {
+      window.addEventListener('resize', update);
+    }
   }
 
   function initSidebarResize() {
@@ -1524,6 +1545,7 @@ sum`;
       });
     } catch (e) {}
 
+    initHeaderHeightTracking();
     initSidebarResize();
     restoreSidebarState();
     window.addEventListener('resize', () => {
@@ -2480,9 +2502,10 @@ sum`;
     sidebar.setAttribute('aria-hidden', visible ? 'false' : 'true');
 
     if (toggleBtn) {
+      const label = visible ? t('header.hideSidebar', 'Hide sidebar') : t('header.showSidebar', 'Show sidebar');
       toggleBtn.setAttribute('aria-expanded', visible ? 'true' : 'false');
-      toggleBtn.setAttribute('aria-label', visible ? 'Hide sidebar' : 'Show sidebar');
-      toggleBtn.title = visible ? 'Hide sidebar' : 'Show sidebar';
+      toggleBtn.setAttribute('aria-label', label);
+      toggleBtn.title = label;
     }
 
     if (toggleIcon) {
@@ -2774,7 +2797,7 @@ sum`;
   }
 
   function clear() {
-    if (confirm('Clear all text?')) {
+    if (confirm(t('confirm.clearAll', 'Clear all text?'))) {
       editor.value = '';
       handleInput();
     }

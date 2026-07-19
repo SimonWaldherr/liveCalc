@@ -109,8 +109,9 @@
   display: grid;
   grid-template-columns: 40px 1fr 8px var(--sidebar-width, 300px);
   /* LineNums | Editor | Resizer | Sidebar */
-  height: calc(100vh - 64px);
-  /* Minus header */
+  height: calc(100vh - var(--header-h, 64px));
+  /* Minus header — --header-h is kept in sync with the header's real
+     rendered height by JS, since the header can wrap on narrow viewports. */
   transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -271,7 +272,7 @@
            so CSS transitions work. Always rendered as flex, just off-screen. */
     position: fixed;
     right: 0;
-    top: 64px;
+    top: var(--header-h, 64px);
     bottom: 0;
     width: min(300px, 85vw);
     z-index: 50;
@@ -296,6 +297,42 @@
     background: #111827;
     border-color: #1f2937;
   }
+}
+
+/* Header: on narrow viewports the logo text plus the full action-icon row
+   no longer fit on one line. Let the header grow instead of clipping/
+   overlapping the editor below it (--header-h, kept in sync by JS, feeds
+   the layout rules above so nothing else needs to know the exact height). */
+@media (max-width: 640px) {
+  header.h-16 {
+    height: auto;
+    min-height: 4rem;
+    flex-wrap: wrap;
+    row-gap: 0.375rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  header .app-tagline {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 0.125rem;
+  }
+}
+
+/* Visual separation before a destructive action so it isn't a misclick
+   away from routine buttons like Upload. */
+.header-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.25rem 0.25rem 0.25rem 0.5rem;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dark .header-divider {
+  background-color: rgba(255, 255, 255, 0.12);
 }
 
 *,

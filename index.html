@@ -118,7 +118,7 @@
         <button
           id="aiChatToggleBtn"
           onclick="lcAI && lcAI.togglePanel()"
-          class="hidden p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+          class="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
           title="AI Chat"
           aria-label="Toggle AI Chat"
           data-i18n-attr="title:header.aiChat,aria-label:header.aiChatToggle"
@@ -243,7 +243,7 @@
         </div>
         <button
           onclick="downloadMath()"
-          class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          class="hide-on-phone p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
           title="Download"
           aria-label="Download math as text"
           data-i18n-attr="title:header.download,aria-label:header.downloadAria"
@@ -261,7 +261,7 @@
         </button>
         <button
           onclick="copyURLtoClipboard()"
-          class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          class="hide-on-phone p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
           title="Copy link"
           aria-label="Copy link to clipboard"
           data-i18n-attr="title:header.copyLink,aria-label:header.copyLinkAria"
@@ -270,7 +270,7 @@
         </button>
         <label
           for="dataFileInput"
-          class="ml-2 p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+          class="hide-on-phone ml-2 p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
           title="Upload data file"
           aria-label="Upload data file"
           data-i18n-attr="title:header.uploadData,aria-label:header.uploadData"
@@ -283,6 +283,66 @@
           />
           <span class="material-symbols-outlined">upload_file</span>
         </label>
+        <!-- Phone-only overflow menu: Download / Copy link / Upload move here
+             below 640px so the header fits without wrapping. -->
+        <div class="relative header-more-wrapper" id="headerMoreWrapper">
+          <button
+            id="headerMoreBtn"
+            onclick="
+              toggleHeaderMoreMenu();
+              return false;
+            "
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="headerMoreMenu"
+            class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            title="More actions"
+            aria-label="More actions"
+            data-i18n-attr="title:header.more,aria-label:header.more"
+          >
+            <span class="material-symbols-outlined">more_vert</span>
+          </button>
+          <div
+            id="headerMoreMenu"
+            role="menu"
+            aria-hidden="true"
+            class="hidden absolute bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded shadow-md z-40"
+          >
+            <button
+              role="menuitem"
+              class="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
+                downloadMath();
+                toggleHeaderMoreMenu(false);
+              "
+            >
+              <span class="material-symbols-outlined text-[18px]">download</span>
+              <span data-i18n="header.download">Download</span>
+            </button>
+            <button
+              role="menuitem"
+              class="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
+                copyURLtoClipboard();
+                toggleHeaderMoreMenu(false);
+              "
+            >
+              <span class="material-symbols-outlined text-[18px]">content_copy</span>
+              <span data-i18n="header.copyLink">Copy link</span>
+            </button>
+            <button
+              role="menuitem"
+              class="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+              onclick="
+                document.getElementById('dataFileInput').click();
+                toggleHeaderMoreMenu(false);
+              "
+            >
+              <span class="material-symbols-outlined text-[18px]">upload_file</span>
+              <span data-i18n="header.uploadData">Upload data file</span>
+            </button>
+          </div>
+        </div>
         <span class="header-divider" aria-hidden="true"></span>
         <button
           onclick="app.clear()"
@@ -421,7 +481,7 @@
               </span>
             </div>
           </div>
-          <div id="graphContent" class="h-[250px] flex flex-col transition-all duration-300 overflow-hidden">
+          <div id="graphContent" class="graph-h-medium flex flex-col transition-all duration-300 overflow-hidden">
             <div class="absolute top-10 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onclick="app.resetGraph()"
@@ -863,6 +923,17 @@
                 <span class="material-symbols-outlined text-[14px]">save</span>
                 <span data-i18n="sidebar.history.save">Save</span>
               </button>
+              <button
+                onclick="
+                  app.clearHistory();
+                  event.stopPropagation();
+                "
+                class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 flex items-center gap-1 transition-colors"
+                title="Clear all"
+                data-i18n-attr="title:history.clearAll"
+              >
+                <span class="material-symbols-outlined text-[14px]">delete_sweep</span>
+              </button>
               <span id="historyToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
                 expand_less
               </span>
@@ -899,6 +970,19 @@
             </span>
             <div class="flex items-center gap-2">
               <span id="aiChatStatus" class="text-[10px] text-gray-400" data-i18n="ai.status.checking">Checking…</span>
+              <button
+                type="button"
+                onclick="
+                  lcAI && lcAI.clearChat();
+                  event.stopPropagation();
+                "
+                class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                title="Clear chat"
+                aria-label="Clear chat"
+                data-i18n-attr="title:ai.clearChat,aria-label:ai.clearChat"
+              >
+                <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+              </button>
               <span id="aiChatToggleIcon" class="material-symbols-outlined text-[16px]" aria-hidden="true">
                 expand_less
               </span>
@@ -1198,6 +1282,45 @@
         if (menu && !menu.classList.contains('hidden')) toggleExamplesMenu(false);
       }
     });
+
+    // Header "more actions" overflow menu (phone-width screens) — same
+    // open/close/focus/outside-click pattern as the Examples menu above.
+    function toggleHeaderMoreMenu(force) {
+      const wrap = document.getElementById('headerMoreWrapper');
+      const menu = document.getElementById('headerMoreMenu');
+      const toggle = document.getElementById('headerMoreBtn');
+      if (!menu || !toggle) return;
+      const isOpen = !menu.classList.contains('hidden');
+      const open = typeof force === 'boolean' ? force : !isOpen;
+      if (open) {
+        menu.classList.remove('hidden');
+        menu.setAttribute('aria-hidden', 'false');
+        toggle.setAttribute('aria-expanded', 'true');
+        const first = menu.querySelector('[role="menuitem"]');
+        if (first) first.focus();
+        setTimeout(() => {
+          document.addEventListener('click', outsideHeaderMoreMenu);
+        }, 10);
+      } else {
+        menu.classList.add('hidden');
+        menu.setAttribute('aria-hidden', 'true');
+        toggle.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('click', outsideHeaderMoreMenu);
+      }
+    }
+
+    function outsideHeaderMoreMenu(e) {
+      const wrap = document.getElementById('headerMoreWrapper');
+      if (!wrap) return;
+      if (!wrap.contains(e.target)) toggleHeaderMoreMenu(false);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const menu = document.getElementById('headerMoreMenu');
+        if (menu && !menu.classList.contains('hidden')) toggleHeaderMoreMenu(false);
+      }
+    });
   </script>
   <!-- Settings Modal -->
   <style>
@@ -1343,6 +1466,9 @@
               </select>
             </div>
           </div>
+          <p class="text-[10px] text-gray-400 -mt-2" data-i18n="settings.decimalSeparator.note">
+            With comma selected, a bare 5,5 you type is read as 5.5. Inside parentheses or brackets — like max(3,7) or [1,2,3] — commas still separate arguments and list items, so they are left alone.
+          </p>
           <div>
             <label class="block text-xs font-medium text-gray-500" data-i18n="settings.unitSystem">Unit system</label>
             <select
@@ -1379,6 +1505,9 @@
               <option value="solarized" data-i18n="settings.color.solarized">Solarized</option>
               <option value="ocean" data-i18n="settings.color.ocean">Ocean</option>
               <option value="monochrome" data-i18n="settings.color.monochrome">Monochrome</option>
+              <option value="forest" data-i18n="settings.color.forest">Forest</option>
+              <option value="rose" data-i18n="settings.color.rose">Rose</option>
+              <option value="nord" data-i18n="settings.color.nord">Nord</option>
             </select>
             <div id="settingsPalettePreview" class="settings-palette" aria-hidden="true"></div>
           </div>
@@ -1391,6 +1520,23 @@
               <option value="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" data-i18n="settings.font.system">System UI</option>
             </select>
           </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500" data-i18n="settings.graphHeight">Graph panel height</label>
+              <select id="settingsGraphHeight" class="mt-1 w-full rounded border px-2 py-1.5 bg-white dark:bg-gray-800 text-sm">
+                <option value="small" data-i18n="settings.graphHeight.small">Small</option>
+                <option value="medium" data-i18n="settings.graphHeight.medium">Medium</option>
+                <option value="large" data-i18n="settings.graphHeight.large">Large</option>
+              </select>
+            </div>
+            <div>
+              <label class="flex items-center gap-2 cursor-pointer mt-1 h-[34px]">
+                <input id="settingsDensity" type="checkbox" class="form-checkbox" />
+                <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.density">Compact sidebar</span>
+              </label>
+              <p class="text-[10px] text-gray-400" data-i18n="settings.density.hint">Tighter spacing for small screens or long notebooks.</p>
+            </div>
+          </div>
           <div class="flex items-center gap-4 pt-1">
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="settingsLargeText" type="checkbox" class="form-checkbox" />
@@ -1400,6 +1546,13 @@
               <input id="settingsHighContrast" type="checkbox" class="form-checkbox" />
               <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.highContrast">High contrast</span>
             </label>
+          </div>
+          <div class="pt-1 border-t border-gray-100 dark:border-gray-800">
+            <label class="flex items-center gap-2 cursor-pointer mt-2">
+              <input id="settingsAutosave" type="checkbox" class="form-checkbox" checked />
+              <span class="text-xs text-gray-600 dark:text-gray-400" data-i18n="settings.autosave">Autosave draft</span>
+            </label>
+            <p class="text-[10px] text-gray-400 mt-0.5" data-i18n="settings.autosave.hint">Keeps your current, unsaved notebook in this browser so a reload or crash doesn’t lose it.</p>
           </div>
         </div>
 
@@ -2002,14 +2155,13 @@
         });
       }
 
-      const palettes = {
-        default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
-        warm: ['#c2410c', '#b45309', '#92400e', '#78350f', '#4b2e05'],
-        midnight: ['#0ea5e9', '#7c3aed', '#60a5fa', '#94a3b8', '#111827'],
-        solarized: ['#268bd2', '#2aa198', '#b58900', '#cb4b16', '#6c71c4'],
-        ocean: ['#2b6cb0', '#38b2ac', '#2c7a7b', '#2a4365', '#81e6d9'],
-        monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db'],
-      };
+      // Single source of truth lives in app.js (THEME_PALETTES) so the live
+      // swatch preview here can never drift out of sync with the palette
+      // actually applied to the editor/graph.
+      const palettes =
+        (window.app && typeof window.app.getThemePalettes === 'function' && window.app.getThemePalettes()) || {
+          default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
+        };
 
       function hide() {
         modal.classList.add('hidden');
@@ -2049,14 +2201,32 @@
           cfg.llm = buildLlmConfigFromForm();
           const decSepSel = document.getElementById('settingsDecimalSeparator');
           const csvDelimSel = document.getElementById('settingsCsvDelimiter');
+          const langSel = document.getElementById('settingsLanguage');
+          const unitSysSel = document.getElementById('settingsUnitSystem');
+          const thouSepSel = document.getElementById('settingsThousandsSeparator');
+          const graphHeightSel = document.getElementById('settingsGraphHeight');
+          const densityChk = document.getElementById('settingsDensity');
+          const autosaveChk = document.getElementById('settingsAutosave');
           cfg.decimalSeparator = decSepSel ? decSepSel.value : '.';
           cfg.csvDelimiter = csvDelimSel ? csvDelimSel.value : 'auto';
+          if (langSel && langSel.value) cfg.language = langSel.value;
+          if (unitSysSel && unitSysSel.value) cfg.unitSystem = unitSysSel.value;
+          if (thouSepSel) cfg.thousandsSeparator = typeof thouSepSel.value === 'string' ? thouSepSel.value : '';
+          cfg.graphHeight = graphHeightSel && graphHeightSel.value ? graphHeightSel.value : 'medium';
+          cfg.density = densityChk && densityChk.checked ? 'compact' : 'comfortable';
+          cfg.autosaveDraft = !autosaveChk || autosaveChk.checked;
           if (window.app && typeof window.app.setSettings === 'function') {
             window.app.setSettings(cfg);
             try {
+              if (window.LCi18n && cfg.language) window.LCi18n.setLocale(cfg.language);
+            } catch (e) {}
+            try {
               if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility();
             } catch (e) {}
-            showToast('Settings saved');
+            try {
+              if (typeof window.app.refreshLocaleDependentUI === 'function') window.app.refreshLocaleDependentUI();
+            } catch (e) {}
+            showToast(lct('toast.settingsSaved', 'Settings saved'));
           }
           hide();
         });
@@ -2072,6 +2242,9 @@
             colorScheme: 'default',
             font: "'Fira Code', 'Menlo', 'Monaco', monospace",
             accessibility: { largeText: false, highContrast: false },
+            graphHeight: 'medium',
+            density: 'comfortable',
+            autosaveDraft: true,
             llm: currentLlm,
           };
           if (window.app && typeof window.app.setSettings === 'function') {
@@ -2083,13 +2256,25 @@
             if (highContrast) highContrast.checked = def.accessibility.highContrast;
             const decSepSel = document.getElementById('settingsDecimalSeparator');
             const csvDelimSel = document.getElementById('settingsCsvDelimiter');
+            const graphHeightSel = document.getElementById('settingsGraphHeight');
+            const densityChk = document.getElementById('settingsDensity');
+            const autosaveChk = document.getElementById('settingsAutosave');
             if (decSepSel) decSepSel.value = '.';
             if (csvDelimSel) csvDelimSel.value = 'auto';
+            if (graphHeightSel) graphHeightSel.value = def.graphHeight;
+            if (densityChk) densityChk.checked = false;
+            if (autosaveChk) autosaveChk.checked = true;
             llmDraft = normalizeLlmSettings(currentLlm);
             renderProviderUi();
             resetLlmModelHint();
             renderPreview(def.colorScheme);
-            showToast('Settings reset to defaults');
+            try {
+              if (typeof window.lcAI !== 'undefined') window.lcAI.updateVisibility();
+            } catch (e) {}
+            try {
+              if (typeof window.app.refreshLocaleDependentUI === 'function') window.app.refreshLocaleDependentUI();
+            } catch (e) {}
+            showToast(lct('toast.settingsReset', 'Settings reset to defaults'));
           }
         });
 

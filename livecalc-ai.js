@@ -8,8 +8,30 @@
   'use strict';
 
   const HISTORY_LIMIT = 40;
+  const STORAGE_LIMIT = 60; // kept a little larger than HISTORY_LIMIT (the LLM context window) purely for display/scrollback
+  const CHAT_STORAGE_KEY = 'livecalc:aiChatHistory';
   let chatHistory = []; // { role: 'user'|'assistant', content: string }
   let activeAbortController = null;
+
+  // Chat is ephemeral in-memory state by default, lost on reload — persist
+  // it so a conversation survives a refresh the same way the notebook draft
+  // does. Errors/cancellations are not part of chatHistory and so are not
+  // replayed, matching what the LLM itself would see as prior context.
+  function saveChatHistory() {
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatHistory.slice(-STORAGE_LIMIT)));
+    } catch (e) {}
+  }
+
+  function loadChatHistory() {
+    try {
+      const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string') : [];
+    } catch (e) {
+      return [];
+    }
+  }
 
   function getLlmCore() {
     if (!window.livecalcLLM) {
@@ -232,9 +254,13 @@
     return !!(entry && entry.configured);
   }
 
+  // Cached by updateVisibility() so togglePanel() (a plain click handler,
+  // no time to await a fetch) knows whether to open the chat or send the
+  // user to Settings instead.
+  let providerConfigured = false;
+
   function updateVisibility() {
     const section = document.getElementById('aiChatSection');
-    const headerBtn = document.getElementById('aiChatToggleBtn');
     const sidebar = document.getElementById('sidebar');
 
     fetchHealth().then((health) => {
@@ -247,6 +273,7 @@
       // Fail closed: if the health check itself failed (offline, backend
       // down), don't claim the AI assistant is available.
       const hasProvider = isProviderConfigured(health, providerId);
+      providerConfigured = hasProvider;
       const graphSection = sidebar ? sidebar.firstElementChild : null;
 
       if (section) {
@@ -255,9 +282,9 @@
           sidebar.insertBefore(section, graphSection);
         }
       }
-      if (headerBtn) {
-        headerBtn.classList.toggle('hidden', !hasProvider);
-      }
+      // The header toggle button stays visible either way (see index.html)
+      // so the assistant is discoverable — togglePanel() branches on
+      // providerConfigured to either open the chat or deep-link to Settings.
       if (hasProvider) {
         setStatus(lct('ai.status.ready', 'Ready'), 'text-gray-400');
       } else {
@@ -267,6 +294,17 @@
   }
 
   function togglePanel() {
+    if (!providerConfigured) {
+      try {
+        if (typeof showToast === 'function') showToast(lct('ai.notConfiguredHint', 'No AI provider is configured yet. Opening AI settings…'));
+      } catch (e) {}
+      try {
+        if (window.app && typeof window.app.openSettings === 'function') window.app.openSettings();
+        if (typeof window.switchSettingsTab === 'function') window.switchSettingsTab('ai');
+      } catch (e) {}
+      return;
+    }
+
     const section = document.getElementById('aiChatSection');
     if (!section) return;
 
@@ -481,6 +519,7 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
     ];
 
     chatHistory.push({ role: 'user', content: userText });
+    saveChatHistory();
 
     const thinking = renderThinking();
     const streamBuffer = { text: '' };
@@ -511,6 +550,7 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
       } else {
         renderMessage('assistant', finalText);
         chatHistory.push({ role: 'assistant', content: finalText });
+        saveChatHistory();
       }
 
       setStatus(lct('ai.status.connected', 'Connected'), 'text-green-500');
@@ -540,7 +580,28 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
     }
   }
 
+  function clearChat() {
+    if (chatHistory.length && !confirm(lct('ai.clearChatConfirm', 'Clear the current conversation?'))) return;
+    cancelActiveRequest();
+    chatHistory = [];
+    saveChatHistory();
+    const msgs = document.getElementById('aiChatMessages');
+    if (msgs) {
+      msgs.innerHTML = `<div class="text-gray-400 text-center py-2 text-[11px]" id="aiChatPlaceholder">${escapeHtml(
+        lct('ai.placeholder', 'Ask the AI about your calculation…')
+      )}</div>`;
+    }
+  }
+
+  function restoreChatHistory() {
+    const restored = loadChatHistory();
+    if (!restored.length) return;
+    chatHistory = restored;
+    restored.forEach((m) => renderMessage(m.role, m.content));
+  }
+
   function init() {
+    restoreChatHistory();
     updateVisibility();
     setTimeout(updateVisibility, 800);
   }
@@ -553,6 +614,7 @@ Keep responses concise and focused on math/calculations. Use math.js syntax (e.g
     fetchModels,
     testConnection,
     cancel: cancelActiveRequest,
+    clearChat,
   };
 
   if (document.readyState === 'loading') {

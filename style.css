@@ -320,6 +320,22 @@
   .header-actions {
     gap: 0.125rem;
   }
+
+  /* Download / Copy link / Upload move into the "more actions" overflow
+     menu below 640px instead of adding to the icons that must fit inline. */
+  .hide-on-phone {
+    display: none !important;
+  }
+
+  .header-more-wrapper {
+    display: inline-flex !important;
+  }
+}
+
+/* Overflow menu button/panel are desktop-hidden by default; only the
+   phone-width media query above turns the button back on. */
+.header-more-wrapper {
+  display: none;
 }
 
 /* Visual separation before a destructive action so it isn't a misclick
@@ -333,6 +349,73 @@
 
 .dark .header-divider {
   background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Graph panel height — a user-facing setting (Settings → Appearance →
+   Graph panel height). The markup used to carry a Tailwind arbitrary-value
+   class (h-[250px]) that has no matching rule in either compiled CSS file
+   here, so the panel's height was never actually fixed at 250px; these are
+   the first rules that really apply it. */
+#graphContent.graph-h-small {
+  height: 160px;
+}
+
+#graphContent.graph-h-medium {
+  height: 250px;
+}
+
+#graphContent.graph-h-large {
+  height: 400px;
+}
+
+/* Compact sidebar density (Settings → Appearance → Compact sidebar) —
+   tightens row padding/gaps without changing font size, mainly useful on
+   small screens or notebooks with many variables/history entries. */
+.sidebar.sidebar-compact .section-header {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+.sidebar.sidebar-compact #variablesList > div,
+.sidebar.sidebar-compact #historyContent > div,
+.sidebar.sidebar-compact #datasetPreviewInner {
+  padding: 0.25rem;
+}
+
+.sidebar.sidebar-compact #variablesList {
+  gap: 0.125rem;
+}
+
+/* Graph (function-plot) dark-mode fix — the library hard-codes its axis
+   domain line, tick lines, and origin crosshair as stroke="black" at
+   10–20% opacity. On the near-black dark-mode background that is
+   effectively invisible; CSS wins over SVG presentation attributes, so a
+   plain selector is enough to recolor them without touching the library. */
+.dark #plot .domain,
+.dark #plot .tick line,
+.dark #plot .origin {
+  stroke: #64748b;
+  opacity: 0.5;
+}
+
+/* The active theme's accent color (see THEME_PALETTES in livecalc-app.js)
+   is otherwise only used for editor token colors — extend it to the caret
+   so switching themes is visible beyond syntax highlighting alone.
+   !important because the textarea also carries Tailwind's
+   caret-blue-600/dark:caret-blue-400 utility classes, and the dark:
+   variant's :is(.dark *) selector otherwise outranks a plain class rule. */
+.transparent-input {
+  caret-color: var(--lc-accent, currentColor) !important;
+}
+
+/* Header overflow ("more actions") menu — small screens hide secondary
+   actions behind this instead of wrapping the full icon row onto extra
+   lines. Reuses the same dropdown look as the Examples menu. */
+#headerMoreMenu {
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  min-width: 180px;
 }
 
 *,

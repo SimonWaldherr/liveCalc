@@ -47,6 +47,7 @@
       'header.copyLinkAria': 'Copy link to clipboard',
       'header.uploadData': 'Upload data file',
       'header.clearAll': 'Clear All',
+      'header.more': 'More actions',
 
       // Helper toolbar
       'helper.sqrt': 'Square Root',
@@ -109,6 +110,8 @@
       'sidebar.history.empty': 'No history saved yet',
       'sidebar.variables.empty': 'No variables defined yet.',
       'history.delete': 'Delete',
+      'history.clearAll': 'Clear all',
+      'history.clearAllConfirm': 'Delete all {count} saved history entries?',
 
       // AI panel
       'ai.section': 'AI Assistant',
@@ -116,6 +119,8 @@
       'ai.input.placeholder': 'Ask a question or describe what to calculate…',
       'ai.send': 'Send (Ctrl+Enter)',
       'ai.cancel': 'Cancel request',
+      'ai.clearChat': 'Clear chat',
+      'ai.clearChatConfirm': 'Clear the current conversation?',
       'ai.help': 'Ctrl+Enter to send • The AI sees your current calculation',
       'ai.status.connected': 'Connected',
       'ai.status.ready': 'Ready',
@@ -132,6 +137,8 @@
       'ai.error.noBaseUrl': 'The LiveCalc AI backend route is unavailable.',
       'ai.error.noModel': 'Please set a model name in Settings.',
       'ai.error.configure': 'Please configure LLM settings first.',
+      'ai.notConfiguredHint': 'No AI provider is configured yet. Opening AI settings…',
+      'error.decimalCommaHint': 'Tip: use "." for decimals in expressions — "," separates function arguments and list items (e.g. write 5.5, not 5,5).',
       'ai.error.prefix': 'Error: {message}',
 
       // LLM transport errors
@@ -155,6 +162,7 @@
       'toast.parseFileFailed': 'Failed to parse file',
       'toast.importedAs': 'Imported {name} as {dsName}',
       'toast.settingsSaved': 'Settings saved',
+      'toast.settingsReset': 'Settings reset to defaults',
       'toast.nothingToSave': 'Nothing to save',
       'toast.savedToHistory': 'Saved to history',
       'toast.loadedFromHistory': 'Loaded from history',
@@ -196,6 +204,7 @@
       'settings.decimalSeparator': 'Decimal separator',
       'settings.decimalSeparator.dot': 'Dot (1.23)',
       'settings.decimalSeparator.comma': 'Comma (1,23)',
+      'settings.decimalSeparator.note': 'With comma selected, a bare 5,5 you type is read as 5.5. Inside parentheses or brackets — like max(3,7) or [1,2,3] — commas still separate arguments and list items, so they are left alone.',
       'settings.thousandsSeparator': 'Thousands separator',
       'settings.thousandsSeparator.none': 'None (1234567)',
       'settings.thousandsSeparator.space': 'Space (1 234 567)',
@@ -221,6 +230,9 @@
       'settings.color.solarized': 'Solarized',
       'settings.color.ocean': 'Ocean',
       'settings.color.monochrome': 'Monochrome',
+      'settings.color.forest': 'Forest',
+      'settings.color.rose': 'Rose',
+      'settings.color.nord': 'Nord',
       'settings.font': 'Editor font',
       'settings.font.firaCode': 'Fira Code',
       'settings.font.menlo': 'Menlo / Mono',
@@ -228,6 +240,14 @@
       'settings.font.system': 'System UI',
       'settings.largeText': 'Large text',
       'settings.highContrast': 'High contrast',
+      'settings.density': 'Compact sidebar',
+      'settings.density.hint': 'Tighter spacing for small screens or long notebooks.',
+      'settings.graphHeight': 'Graph panel height',
+      'settings.graphHeight.small': 'Small',
+      'settings.graphHeight.medium': 'Medium',
+      'settings.graphHeight.large': 'Large',
+      'settings.autosave': 'Autosave draft',
+      'settings.autosave.hint': 'Keeps your current, unsaved notebook in this browser so a reload or crash doesn’t lose it.',
 
       'settings.llm.provider': 'Provider',
       'settings.llm.provider.openai': 'OpenAI',
@@ -285,6 +305,7 @@
       'header.copyLinkAria': 'Link in die Zwischenablage kopieren',
       'header.uploadData': 'Datendatei hochladen',
       'header.clearAll': 'Alles löschen',
+      'header.more': 'Weitere Aktionen',
 
       'helper.sqrt': 'Quadratwurzel',
       'helper.power': 'Potenz',
@@ -342,12 +363,16 @@
       'sidebar.history.empty': 'Noch kein Verlauf gespeichert',
       'sidebar.variables.empty': 'Noch keine Variablen definiert.',
       'history.delete': 'Löschen',
+      'history.clearAll': 'Alle löschen',
+      'history.clearAllConfirm': 'Alle {count} gespeicherten Verlaufseinträge löschen?',
 
       'ai.section': 'KI-Assistent',
       'ai.placeholder': 'Frag die KI zu deiner Berechnung…',
       'ai.input.placeholder': 'Frage stellen oder beschreiben, was berechnet werden soll…',
       'ai.send': 'Senden (Strg+Enter)',
       'ai.cancel': 'Anfrage abbrechen',
+      'ai.clearChat': 'Chat leeren',
+      'ai.clearChatConfirm': 'Aktuelle Unterhaltung löschen?',
       'ai.help': 'Strg+Enter zum Senden • Die KI sieht deine aktuelle Berechnung',
       'ai.status.connected': 'Verbunden',
       'ai.status.ready': 'Bereit',
@@ -364,6 +389,8 @@
       'ai.error.noBaseUrl': 'Die Route zum LiveCalc-KI-Backend ist nicht verfügbar.',
       'ai.error.noModel': 'Bitte einen Modellnamen in den Einstellungen setzen.',
       'ai.error.configure': 'Bitte zuerst die LLM-Einstellungen konfigurieren.',
+      'ai.notConfiguredHint': 'Es ist noch kein KI-Anbieter konfiguriert. KI-Einstellungen werden geöffnet…',
+      'error.decimalCommaHint': 'Tipp: In Ausdrücken "." für Dezimalzahlen verwenden — "," trennt Funktionsargumente und Listenelemente (also 5.5 statt 5,5 schreiben).',
       'ai.error.prefix': 'Fehler: {message}',
 
       'llm.error.mixedContent':
@@ -386,6 +413,7 @@
       'toast.parseFileFailed': 'Datei konnte nicht gelesen werden',
       'toast.importedAs': '{name} als {dsName} importiert',
       'toast.settingsSaved': 'Einstellungen gespeichert',
+      'toast.settingsReset': 'Einstellungen zurückgesetzt',
       'toast.nothingToSave': 'Nichts zu speichern',
       'toast.savedToHistory': 'In Verlauf gespeichert',
       'toast.loadedFromHistory': 'Aus Verlauf geladen',
@@ -425,6 +453,7 @@
       'settings.decimalSeparator': 'Dezimaltrennzeichen',
       'settings.decimalSeparator.dot': 'Punkt (1.23)',
       'settings.decimalSeparator.comma': 'Komma (1,23)',
+      'settings.decimalSeparator.note': 'Bei Komma wird ein eingegebenes, alleinstehendes 5,5 als 5.5 gelesen. Innerhalb von Klammern — etwa bei max(3,7) oder [1,2,3] — trennt das Komma weiterhin Argumente bzw. Listenelemente und bleibt unverändert.',
       'settings.thousandsSeparator': 'Tausendertrennzeichen',
       'settings.thousandsSeparator.none': 'Keins (1234567)',
       'settings.thousandsSeparator.space': 'Leerzeichen (1 234 567)',
@@ -450,6 +479,9 @@
       'settings.color.solarized': 'Solarized',
       'settings.color.ocean': 'Ozean',
       'settings.color.monochrome': 'Monochrom',
+      'settings.color.forest': 'Wald',
+      'settings.color.rose': 'Rosé',
+      'settings.color.nord': 'Nord',
       'settings.font': 'Editor-Schrift',
       'settings.font.firaCode': 'Fira Code',
       'settings.font.menlo': 'Menlo / Mono',
@@ -457,6 +489,14 @@
       'settings.font.system': 'System-UI',
       'settings.largeText': 'Große Schrift',
       'settings.highContrast': 'Hoher Kontrast',
+      'settings.density': 'Kompakte Seitenleiste',
+      'settings.density.hint': 'Engerer Abstand für kleine Bildschirme oder lange Notizbücher.',
+      'settings.graphHeight': 'Höhe des Graph-Panels',
+      'settings.graphHeight.small': 'Klein',
+      'settings.graphHeight.medium': 'Mittel',
+      'settings.graphHeight.large': 'Groß',
+      'settings.autosave': 'Entwurf automatisch speichern',
+      'settings.autosave.hint': 'Sichert dein aktuelles, ungespeichertes Notizbuch in diesem Browser, damit ein Neuladen oder Absturz nichts verloren geht.',
 
       'settings.llm.provider': 'Anbieter',
       'settings.llm.provider.openai': 'OpenAI',
@@ -672,8 +712,10 @@
   function applyLocaleSeparators(str, decSep, thouSep) {
     if (str === null || str === undefined) return '';
     var s = String(str);
-    // Match leading numeric token (with optional exponent) and reformat it.
-    return s.replace(/(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/, function (m) {
+    // Match every numeric token (with optional exponent) and reformat each —
+    // matrix/array results like "[1.5, 2.25, 3]" contain more than one
+    // number, and a non-global match would silently leave the rest unlocalized.
+    return s.replace(/(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, function (m) {
       // Don't touch if exponent present (rare) — just swap decimal sep.
       if (/[eE]/.test(m)) {
         return decSep === '.' ? m : m.replace('.', decSep);

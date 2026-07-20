@@ -22,9 +22,16 @@ const app = (() => {
   const MIN_EDITOR_WIDTH = 360;
 
   // -- Configuration --
-  let isDark =
-    localStorage.getItem('theme') === 'dark' ||
-    (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  let isDark = (function () {
+    try {
+      return (
+        localStorage.getItem('theme') === 'dark' ||
+        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      );
+    } catch (e) {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+  })();
   // Small HTML-escape helper used by highlight/preview rendering
   function escapeHtml(s) {
     if (s === null || s === undefined) return '';
@@ -344,6 +351,12 @@ const app = (() => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', stopDragging);
       window.removeEventListener('pointercancel', stopDragging);
+      // The graph's SVG width/height are set once per plotFunctions() call;
+      // a drag never triggered one, so the chart stayed at its pre-drag
+      // pixel size until some unrelated edit or window resize fixed it.
+      try {
+        plotFunctions();
+      } catch (e) {}
     };
 
     const onPointerMove = (event) => {
@@ -375,6 +388,9 @@ const app = (() => {
 
     handle.addEventListener('dblclick', () => {
       applySidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+      try {
+        plotFunctions();
+      } catch (e) {}
     });
   }
 
@@ -765,6 +781,24 @@ const app = (() => {
     return result;
   }
 
+  // Single source of truth for named color schemes: [accent/number, result,
+  // keyword, muted, swatch-only]. Consumed by applySettings() (editor token
+  // colors + --lc-accent), exposed via app.getThemePalettes() for the
+  // Settings modal's live swatch preview, and by the graph so plotted
+  // function colors match the active theme instead of a random hue.
+  const THEME_PALETTES = {
+    default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
+    warm: ['#c2410c', '#b45309', '#92400e', '#78350f', '#4b2e05'],
+    midnight: ['#0ea5e9', '#7c3aed', '#60a5fa', '#94a3b8', '#111827'],
+    solarized: ['#268bd2', '#2aa198', '#b58900', '#cb4b16', '#6c71c4'],
+    ocean: ['#2b6cb0', '#38b2ac', '#2c7a7b', '#2a4365', '#81e6d9'],
+    monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db'],
+    forest: ['#16a34a', '#65a30d', '#166534', '#4d7c0f', '#052e16'],
+    rose: ['#e11d48', '#f43f5e', '#9f1239', '#fb7185', '#4c0519'],
+    nord: ['#5e81ac', '#88c0d0', '#b48ead', '#4c566a', '#2e3440'],
+  };
+  let activeThemePalette = THEME_PALETTES.default;
+
   const defaultSettings = {
     language: 'en', // 'en' | 'de' (UI language); auto-detected on first run
     roundDecimals: null, // null = auto-detect from input; number = fixed decimal places
@@ -772,12 +806,15 @@ const app = (() => {
     thousandsSeparator: '', // '', ' ', ',', '.', "'"
     unitSystem: 'metric', // 'metric' (SI), 'imperial', 'all'
     csvDelimiter: 'auto', // 'auto', 'comma', 'semicolon', 'tab', 'pipe'
-    colorScheme: 'default', // options: default, warm, midnight, solarized, ocean, monochrome
+    colorScheme: 'default', // see THEME_PALETTES for available options
     font: "'Fira Code', 'Menlo', 'Monaco', monospace",
     accessibility: {
       largeText: false,
       highContrast: false,
     },
+    autosaveDraft: true, // keep the current unsaved notebook in localStorage
+    graphHeight: 'medium', // 'small' | 'medium' | 'large'
+    density: 'comfortable', // 'comfortable' | 'compact' sidebar row spacing
     llm: clone(LLM_DEFAULT_SETTINGS),
   };
   // First-run i18n bootstrap: pick a sensible language + locale defaults
@@ -803,6 +840,20 @@ const app = (() => {
 
   // Prevent updateHash from overwriting an incoming shared hash during initial load.
   let suppressHashUpdate = false;
+  let draftSaveTimer = null;
+
+  // Debounced autosave of the current, unsaved notebook — distinct from the
+  // explicit "Save" button in History. Lets a reload or crash recover the
+  // in-progress draft instead of losing it silently.
+  function scheduleDraftSave() {
+    if (!settings || settings.autosaveDraft === false) return;
+    if (draftSaveTimer) clearTimeout(draftSaveTimer);
+    draftSaveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem('livecalc:draft', editor.value);
+      } catch (e) {}
+    }, 600);
+  }
 
   // Cache for auto-detected decimal places (updated on every handleInput call)
   let _autoDecimalPlaces = null;
@@ -936,15 +987,8 @@ const app = (() => {
       if (_schemeStyleEl) _schemeStyleEl.remove();
       _schemeStyleEl = document.createElement('style');
       _schemeStyleEl.id = 'livecalc-scheme-style';
-      const palettes = {
-        default: ['#2563eb', '#10b981', '#ec4899', '#64748b', '#8b5cf6'],
-        warm: ['#c2410c', '#b45309', '#92400e', '#78350f', '#4b2e05'],
-        midnight: ['#0ea5e9', '#7c3aed', '#60a5fa', '#94a3b8', '#111827'],
-        solarized: ['#268bd2', '#2aa198', '#b58900', '#cb4b16', '#6c71c4'],
-        ocean: ['#2b6cb0', '#38b2ac', '#2c7a7b', '#2a4365', '#81e6d9'],
-        monochrome: ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db'],
-      };
-      const p = palettes[settings.colorScheme] || palettes.default;
+      const p = THEME_PALETTES[settings.colorScheme] || THEME_PALETTES.default;
+      activeThemePalette = p;
       // set CSS variables for use in UI or for palette preview
       let css = `:root { --lc-accent: ${p[0]}; --lc-accent-2: ${p[1]}; --lc-muted: ${p[3]}; }
         .token-keyword { color: ${p[2]} !important; }
@@ -954,6 +998,19 @@ const app = (() => {
       // high-contrast overrides handled elsewhere (class toggle)
       _schemeStyleEl.textContent = css;
       document.head.appendChild(_schemeStyleEl);
+    } catch (e) {}
+
+    // Graph panel height + sidebar density are plain layout knobs, applied
+    // as classes so style.css owns the actual pixel values.
+    try {
+      const graphContent = document.getElementById('graphContent');
+      if (graphContent) {
+        graphContent.classList.remove('graph-h-small', 'graph-h-medium', 'graph-h-large');
+        graphContent.classList.add('graph-h-' + (settings.graphHeight || 'medium'));
+      }
+      if (sidebar) {
+        sidebar.classList.toggle('sidebar-compact', settings.density === 'compact');
+      }
     } catch (e) {}
 
     // Accessibility: large text and high contrast
@@ -1033,6 +1090,32 @@ const app = (() => {
     return true;
   }
 
+  // Parses a CSV/XML cell value as a number, tolerant of both US-style
+  // "1,234.56" and European-style "1.234,56" formatting. Returns NaN for
+  // anything that doesn't look like a plain number, so the caller falls
+  // back to keeping the original text. Naively stripping every comma (the
+  // old behavior) silently mangled European decimals: "12,5" became 125.
+  function parseLocaleNumber(raw) {
+    const v = String(raw).trim();
+    if (v === '' || !/^[+-]?[\d.,]+$/.test(v)) return NaN;
+
+    const hasDot = v.indexOf('.') !== -1;
+    const hasComma = v.indexOf(',') !== -1;
+
+    if (hasDot && hasComma) {
+      // Whichever separator appears last is the decimal separator.
+      return v.lastIndexOf(',') > v.lastIndexOf('.')
+        ? Number(v.replace(/\./g, '').replace(',', '.'))
+        : Number(v.replace(/,/g, ''));
+    }
+    if (hasComma) {
+      // "1,234" (a single three-digit group) reads as US thousands;
+      // anything else ("12,5", "1234,56") reads as a European decimal comma.
+      return /^[+-]?\d{1,3}(,\d{3})+$/.test(v) ? Number(v.replace(/,/g, '')) : Number(v.replace(',', '.'));
+    }
+    return Number(v);
+  }
+
   function parseCSV(text, delim = ',') {
     const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
     if (lines.length === 0) return [];
@@ -1042,8 +1125,7 @@ const app = (() => {
       const obj = {};
       for (let i = 0; i < headers.length; i++) {
         let v = parts[i] === undefined ? '' : parts[i];
-        // try number
-        const num = Number(v.replace(/,/g, ''));
+        const num = parseLocaleNumber(v);
         obj[headers[i]] = isFinite(num) && v !== '' ? num : v;
       }
       return obj;
@@ -1077,7 +1159,7 @@ const app = (() => {
           for (let j = 0; j < e.children.length; j++) {
             const c = e.children[j];
             const txt = c.textContent.trim();
-            const num = Number(txt.replace(/,/g, ''));
+            const num = parseLocaleNumber(txt);
             obj[c.nodeName] = isFinite(num) && txt !== '' ? num : txt;
           }
           arr.push(obj);
@@ -1088,7 +1170,7 @@ const app = (() => {
         for (let j = 0; j < root.children.length; j++) {
           const c = root.children[j];
           const txt = c.textContent.trim();
-          const num = Number(txt.replace(/,/g, ''));
+          const num = parseLocaleNumber(txt);
           obj[c.nodeName] = isFinite(num) && txt !== '' ? num : txt;
         }
         return [obj];
@@ -1404,6 +1486,18 @@ const app = (() => {
         }
       }
     }
+    // Recover an autosaved draft if nothing else (a share link, a legacy
+    // hash) already populated the editor — a reload or crash shouldn't lose
+    // work that was never explicitly saved to History.
+    if ((!editor.value || editor.value.trim() === '') && settings.autosaveDraft !== false) {
+      try {
+        const draft = localStorage.getItem('livecalc:draft');
+        if (draft && draft.trim()) {
+          editor.value = draft;
+        }
+      } catch (e) {}
+    }
+
     // Default welcome text (only if editor is still empty after loading)
     if (!editor.value || editor.value.trim() === '') {
       editor.value = `# Welcome to LiveCalc Pro!
@@ -1568,7 +1662,37 @@ sum`;
 
   // -- Core Logic --
 
+  // Converts a bare decimal comma (e.g. "5,5") to a dot before evaluation,
+  // but only outside of parentheses/brackets. A comma inside them is a
+  // function-argument or array-element separator and must survive untouched
+  // — a plain global regex here would silently corrupt "max(3,7)" into
+  // "max(3.7)" and turn "[1,2,3]" into the malformed "[1.2.3]". The
+  // replacement is always exactly one character for one character, so
+  // caret/selection columns in the transparent input layer stay aligned
+  // with the backdrop text rendered from the converted string.
+  function convertDecimalCommas(text) {
+    let depth = 0;
+    let out = '';
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '(' || ch === '[') depth++;
+      else if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+      if (ch === ',' && depth === 0) {
+        const prev = text[i - 1];
+        const next = text[i + 1];
+        if (prev >= '0' && prev <= '9' && next >= '0' && next <= '9') {
+          out += '.';
+          continue;
+        }
+      }
+      out += ch;
+    }
+    return out;
+  }
+
   function handleInput() {
+    scheduleDraftSave();
+
     // The notebook source starts a new revision before any parser, evaluator,
     // renderer, or future asynchronous work can consume it.
     const revision = modelRuntime ? modelRuntime.setNotebook(editor.value) : 0;
@@ -1579,9 +1703,7 @@ sum`;
     // 0b. If comma-as-decimal is configured, pre-substitute before eval
     let editorValue = editor.value;
     if (settings && settings.decimalSeparator === ',') {
-      // Replace decimal commas (e.g. 1,23) with dots, but leave function-arg commas alone.
-      // Strategy: only replace comma that is surrounded by digits on both sides.
-      editorValue = editorValue.replace(/(\d),(\d)/g, '$1.$2');
+      editorValue = convertDecimalCommas(editorValue);
     }
 
     // 1. Evaluate Math
@@ -1609,6 +1731,35 @@ sum`;
 
     // 6. Update URL State
     updateHash(editor.value);
+  }
+
+  // Appends a short hint to a parser error when the failing line contains a
+  // bare digit-comma-digit pair outside of any parentheses/brackets — the
+  // single most common mistake for users used to a comma decimal separator,
+  // since math.js reserves top-level ',' for separating function arguments
+  // and list items and will otherwise throw a fairly cryptic syntax error.
+  function describeEvalError(message, sourceLine) {
+    try {
+      let depth = 0;
+      let sawBareDecimalComma = false;
+      for (let i = 0; i < sourceLine.length; i++) {
+        const ch = sourceLine[i];
+        if (ch === '(' || ch === '[') depth++;
+        else if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+        else if (ch === ',' && depth === 0) {
+          const prev = sourceLine[i - 1];
+          const next = sourceLine[i + 1];
+          if (prev >= '0' && prev <= '9' && next >= '0' && next <= '9') {
+            sawBareDecimalComma = true;
+            break;
+          }
+        }
+      }
+      if (sawBareDecimalComma) {
+        return message + ' — ' + t('error.decimalCommaHint', 'Tip: use "." for decimals — "," separates function arguments and list items.');
+      }
+    } catch (e) {}
+    return message;
   }
 
   function evalMath(code) {
@@ -1674,7 +1825,7 @@ sum`;
           parser.evaluate(trimmed); // register function in scope
           outputLines.push(null);
         } catch (e) {
-          outputLines.push({ value: e.message, type: 'error' });
+          outputLines.push({ value: describeEvalError(e.message, trimmed), type: 'error' });
         }
         continue;
       }
@@ -1930,7 +2081,7 @@ sum`;
           outputLines.push(null); // Valid execution but no output (e.g. assignment)
         }
       } catch (err) {
-        outputLines.push({ value: err.message, type: 'error' });
+        outputLines.push({ value: describeEvalError(err.message, trimmed), type: 'error' });
       }
     }
 
@@ -2473,7 +2624,14 @@ sum`;
     if (typeof res === 'object') {
       try {
         const fmt = rd !== null ? math.format(res, { precision: rd }) : math.format(res);
-        return toPrettyUnits(applySeparators(String(fmt)));
+        // math.format always separates list/matrix elements with ", " using
+        // '.' for decimals. If the user's decimal separator is also a comma,
+        // localizing the numbers in place would make "[1.5, 2.5]" collapse
+        // into the ambiguous "[1,5, 2,5]". Disambiguate first, while the
+        // element separator is still unambiguous (comma = math.format's own).
+        const decSep = settings && settings.decimalSeparator === ',' ? ',' : '.';
+        const fmtStr = decSep === ',' ? String(fmt).replace(/,\s*/g, '; ') : String(fmt);
+        return toPrettyUnits(applySeparators(fmtStr));
       } catch (e) {
         try {
           return JSON.stringify(res).replace(/"/g, '');
@@ -2523,7 +2681,10 @@ sum`;
 
   function restoreSidebarState() {
     if (gridLayout) {
-      const desktopCollapsed = localStorage.getItem('livecalc:sidebarCollapsed') === 'true';
+      let desktopCollapsed = false;
+      try {
+        desktopCollapsed = localStorage.getItem('livecalc:sidebarCollapsed') === 'true';
+      } catch (e) {}
       gridLayout.classList.toggle('sidebar-collapsed', desktopCollapsed);
       applySidebarWidth(getStoredSidebarWidth(), false);
     }
@@ -2580,10 +2741,12 @@ sum`;
 
     // Filter valid plot targets (prefer RHS expression strings)
     const targets = [];
+    let plotIndex = 0;
     for (const [name, fn] of Object.entries(currentFunctions)) {
       // fn may be a string expression (preferred) or a function object (fallback)
       const expr = typeof fn === 'string' ? derivePlotExpression(fn, currentScope) : `${name}(x)`;
-      targets.push({ fn: expr, color: getRandomColor(name) });
+      targets.push({ fn: expr, color: getFunctionColor(name, plotIndex) });
+      plotIndex++;
     }
 
     if (targets.length === 0) {
@@ -2694,8 +2857,11 @@ sum`;
       '<option value="">Select dataset</option>' +
       keys.map((k) => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
     // restore previous selection if possible
-    let chosen =
-      cur && keys.includes(cur) ? cur : localStorage.getItem('livecalc:lastDataset') || (keys.length ? keys[0] : '');
+    let lastDataset = '';
+    try {
+      lastDataset = localStorage.getItem('livecalc:lastDataset') || '';
+    } catch (e) {}
+    let chosen = cur && keys.includes(cur) ? cur : lastDataset || (keys.length ? keys[0] : '');
     if (chosen && keys.includes(chosen)) {
       sel.value = chosen;
       // render preview for chosen
@@ -2733,16 +2899,24 @@ sum`;
     }
   }
 
-  // Deterministic color picker for plotting based on function name
-  function getRandomColor(name) {
+  // Deterministic color picker for plotting, using the active theme's
+  // palette so graph line colors match the rest of the app instead of an
+  // arbitrary hash-derived hue. The first N functions (N = palette size)
+  // each get a guaranteed-distinct color in plotting order; any further
+  // functions fall back to hashing the name into the same palette (colors
+  // can repeat past that point, same tradeoff the old pure-hash approach had).
+  function getFunctionColor(name, index) {
     try {
+      const palette = activeThemePalette && activeThemePalette.length ? activeThemePalette : THEME_PALETTES.default;
+      if (typeof index === 'number' && index < palette.length) {
+        return palette[index];
+      }
       let h = 0;
       for (let i = 0; i < name.length; i++) {
         h = (h << 5) - h + name.charCodeAt(i);
         h |= 0;
       }
-      const hue = Math.abs(h) % 360;
-      return `hsl(${hue} 65% 45%)`;
+      return palette[Math.abs(h) % palette.length];
     } catch (e) {
       return '#4f46e5';
     }
@@ -2769,7 +2943,9 @@ sum`;
   function toggleTheme() {
     isDark = !isDark;
     applyTheme();
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    try {
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    } catch (e) {}
   }
 
   function applyTheme() {
@@ -2821,7 +2997,9 @@ sum`;
     if (isDesktopViewport()) {
       if (gridLayout) {
         const collapsed = gridLayout.classList.toggle('sidebar-collapsed');
-        localStorage.setItem('livecalc:sidebarCollapsed', collapsed ? 'true' : 'false');
+        try {
+          localStorage.setItem('livecalc:sidebarCollapsed', collapsed ? 'true' : 'false');
+        } catch (e) {}
         open = !collapsed;
       }
     } else {
@@ -2833,6 +3011,14 @@ sum`;
     if (open) {
       const first = sidebar.querySelector('button, [tabindex]');
       if (first) first.focus();
+      // The graph panel was width:0 (or off-screen) while the sidebar was
+      // hidden, so any replot during that time bailed out early — catch up
+      // once the panel has actually become visible.
+      setTimeout(() => {
+        try {
+          plotFunctions();
+        } catch (e) {}
+      }, 300);
     }
   }
 
@@ -2930,6 +3116,21 @@ f(x) = x^2 - 5*x`;
     // Settings API
     setSettings: (s) => setSettings(s),
     getSettings: () => getSettings(),
+    getThemePalettes: () => THEME_PALETTES,
+    // Re-renders the pieces of the UI whose text/formatting depends on
+    // settings that just changed (language, separators, unit system) so
+    // they update immediately instead of waiting for the next edit.
+    refreshLocaleDependentUI: () => {
+      try {
+        renderExamples();
+      } catch (e) {}
+      try {
+        renderHistory();
+      } catch (e) {}
+      try {
+        handleInput();
+      } catch (e) {}
+    },
     openSettings: () => {
       const modal = document.getElementById('settingsModal');
       if (!modal) return;
@@ -2993,6 +3194,12 @@ f(x) = x^2 - 5*x`;
       const csvDelimSel = document.getElementById('settingsCsvDelimiter');
       if (decSepSel) decSepSel.value = (settings && settings.decimalSeparator) || '.';
       if (csvDelimSel) csvDelimSel.value = (settings && settings.csvDelimiter) || 'auto';
+      const graphHeightSel = document.getElementById('settingsGraphHeight');
+      const densityChk = document.getElementById('settingsDensity');
+      const autosaveChk = document.getElementById('settingsAutosave');
+      if (graphHeightSel) graphHeightSel.value = (settings && settings.graphHeight) || 'medium';
+      if (densityChk) densityChk.checked = settings && settings.density === 'compact';
+      if (autosaveChk) autosaveChk.checked = !settings || settings.autosaveDraft !== false;
       modal.classList.remove('hidden');
       try {
         document.dispatchEvent(
@@ -3100,6 +3307,14 @@ f(x) = x^2 - 5*x`;
           if (!content.classList.contains('collapsed')) {
             content.style.maxHeight = 'none';
           }
+          // The graph section starts at 0 height while collapsed, so any
+          // plotFunctions() call made during that time bailed out on the
+          // "containerWidth === 0" guard — replot now that it's settled.
+          if (sectionName === 'graph') {
+            try {
+              plotFunctions();
+            } catch (e) {}
+          }
         }, 300);
         // Store state
         try {
@@ -3133,6 +3348,12 @@ f(x) = x^2 - 5*x`;
       }
 
       const history = getHistory();
+      // Skip if identical to the most recent entry — repeated manual saves
+      // of unchanged content used to just pile up duplicates.
+      if (history.length && history[0].content === editorContent) {
+        showToast(t('toast.nothingToSave', 'Nothing to save'));
+        return;
+      }
       const timestamp = new Date().toLocaleString();
       const entry = {
         id: Date.now(),
@@ -3165,6 +3386,17 @@ f(x) = x^2 - 5*x`;
       const history = getHistory();
       const filtered = history.filter((e) => e.id !== id);
       saveHistory(filtered);
+      renderHistory();
+      showToast(t('toast.deletedFromHistory', 'Deleted from history'));
+    },
+
+    clearHistory: () => {
+      const history = getHistory();
+      if (!history.length) return;
+      if (!confirm(t('history.clearAllConfirm', 'Delete all {count} saved history entries?', { count: history.length }))) {
+        return;
+      }
+      saveHistory([]);
       renderHistory();
       showToast(t('toast.deletedFromHistory', 'Deleted from history'));
     },
@@ -3225,8 +3457,8 @@ f(x) = x^2 - 5*x`;
         (entry) => `
       <div class="group flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded shadow-sm border border-gray-200 dark:border-gray-700">
         <div class="flex-1 overflow-hidden mr-2">
-          <div class="text-[10px] text-gray-400 mb-1">${entry.timestamp}</div>
-          <div class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">${entry.content.split('\n')[0]}</div>
+          <div class="text-[10px] text-gray-400 mb-1">${escapeHtml(entry.timestamp)}</div>
+          <div class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">${escapeHtml(entry.content.split('\n')[0])}</div>
         </div>
         <div class="flex gap-1 flex-shrink-0">
           <button onclick="app.loadFromHistory(${entry.id})" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300">${loadLabel}</button>

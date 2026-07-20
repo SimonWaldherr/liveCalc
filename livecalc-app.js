@@ -2332,6 +2332,49 @@ sum`;
     return `<button class="font-mono text-blue-600 dark:text-blue-400 hover:underline" onclick="app.selectVariable('${safeName}')">${safeName}</button>`;
   }
 
+  function getInternalTable(value, name) {
+    if (!window.LiveCalcModel || typeof window.LiveCalcModel.normalizeTable !== 'function') return null;
+    if (modelRuntime && name) {
+      const evaluation = modelRuntime.getState().evaluation;
+      if (evaluation && evaluation.tables && evaluation.tables[name]) return evaluation.tables[name];
+    }
+    return window.LiveCalcModel.normalizeTable(value, name);
+  }
+
+  function compactTableMarkup(table) {
+    if (!table || !table.columns || !table.columns.length) return '<div class="text-gray-400">Empty table</div>';
+    const rows = window.LiveCalcModel.tableToRows(table).slice(0, 5);
+    const columns = table.columns;
+    const displayUnit = function (column) {
+      if (column.type !== 'quantity' || !column.unit || typeof math === 'undefined') return column.unit || '';
+      try {
+        return getDisplayUnitForSystem(math.unit(1, column.unit)) || column.unit;
+      } catch (error) {
+        return column.unit;
+      }
+    };
+    const displayCell = function (column, value) {
+      if (value === null || value === undefined) return '—';
+      if (column.type === 'quantity' && column.unit && typeof math !== 'undefined') {
+        try {
+          return formatResult(math.unit(value, column.unit));
+        } catch (error) {}
+      }
+      return String(value);
+    };
+    const head = columns.map(function (column) {
+      const unit = displayUnit(column);
+      return `<th class="px-1 py-1 text-left font-medium">${escapeHtml(column.name)}${unit ? ` <span class="text-gray-400">${escapeHtml(unit)}</span>` : ''}</th>`;
+    }).join('');
+    const body = rows.map(function (row) {
+      return `<tr>${columns.map(function (column) {
+        const value = row[column.name];
+        return `<td class="max-w-[7rem] truncate px-1 py-1 font-mono">${escapeHtml(displayCell(column, value))}</td>`;
+      }).join('')}</tr>`;
+    }).join('');
+    return `<div class="overflow-x-auto rounded border border-gray-200 dark:border-gray-800"><table class="min-w-full text-[10px]"><thead class="bg-gray-50 text-gray-500 dark:bg-gray-900">${head}</thead><tbody class="divide-y divide-gray-100 dark:divide-gray-800">${body}</tbody></table></div>`;
+  }
+
   function renderInspector() {
     const content = document.getElementById('inspectorContent');
     const revisionLabel = document.getElementById('modelRevision');
@@ -2371,6 +2414,9 @@ sum`;
       const invalidControls = state.controls.specs.filter(function (specification) {
         return !specification.valid;
       });
+      const invalidVisualizations = state.visualization.specs.filter(function (specification) {
+        return !specification.valid;
+      });
       content.innerHTML = `
         <div class="space-y-2">
           <div class="font-medium ${statusClass}">${statusText}</div>
@@ -2390,6 +2436,16 @@ sum`;
               ? `<div class="rounded border border-amber-200 bg-amber-50 p-2 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">${invalidControls.length} control reference${invalidControls.length === 1 ? '' : 's'} need attention.</div>`
               : ''
           }
+          ${
+            state.visualization.specs.length
+              ? `<div class="rounded bg-gray-50 p-2 text-slate-600 dark:bg-gray-900 dark:text-gray-300">${state.visualization.specs.length} model visualization${state.visualization.specs.length === 1 ? '' : 's'} · data derives from revision ${evaluation.revision}</div>`
+              : ''
+          }
+          ${
+            invalidVisualizations.length
+              ? `<div class="rounded border border-amber-200 bg-amber-50 p-2 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">${invalidVisualizations.length} visualization reference${invalidVisualizations.length === 1 ? '' : 's'} need attention.</div>`
+              : ''
+          }
         </div>`;
       return;
     }
@@ -2403,6 +2459,15 @@ sum`;
     const literalValue = getLiteralNumber(definition.expression);
     const matchingControls = state.controls.specs.filter(function (specification) {
       return specification.variable === selectedName;
+    });
+    const internalTable = getInternalTable(rawValue, selectedName);
+    const isVector = internalTable && internalTable.columns.length === 1 && internalTable.rowCount > 1;
+    const matchingVisualizations = state.visualization.specs.filter(function (specification) {
+      const refs = [];
+      if (typeof specification.x === 'string') refs.push(specification.x);
+      if (typeof specification.y === 'string') refs.push(specification.y);
+      if (Array.isArray(specification.y)) refs.push.apply(refs, specification.y);
+      return refs.includes(selectedName);
     });
     const dependencyList = context.directDependencies.length
       ? context.directDependencies.map(inspectorReferenceButton).join(', ')
@@ -2450,6 +2515,12 @@ sum`;
             : ''
         }
         ${controlMarkup ? `<div class="space-y-2"><div class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Controls</div>${controlMarkup}</div>` : ''}
+        ${
+          internalTable
+            ? `<div class="space-y-2"><div class="flex items-center justify-between gap-2"><div class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">${isVector ? 'Vector' : 'Table'} · ${internalTable.rowCount} rows</div><div class="flex gap-2"><button class="text-[10px] text-blue-600 hover:underline" onclick="app.exportModelData('${escapeHtml(selectedName)}', 'csv')">CSV</button><button class="text-[10px] text-blue-600 hover:underline" onclick="app.exportModelData('${escapeHtml(selectedName)}', 'json')">JSON</button></div></div>${compactTableMarkup(internalTable)}</div>`
+            : ''
+        }
+        <div class="space-y-2"><div class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Visualize</div><div class="flex flex-wrap gap-1"><button class="rounded border border-blue-200 px-2 py-1 text-[10px] text-blue-700 hover:bg-blue-50 dark:border-blue-900/70 dark:text-blue-300" onclick="app.addVisualization('${escapeHtml(selectedName)}', 'line')" ${isVector ? '' : 'disabled'}>Line</button><button class="rounded border border-blue-200 px-2 py-1 text-[10px] text-blue-700 hover:bg-blue-50 dark:border-blue-900/70 dark:text-blue-300" onclick="app.addVisualization('${escapeHtml(selectedName)}', 'bar')">Bar</button><button class="rounded border border-blue-200 px-2 py-1 text-[10px] text-blue-700 hover:bg-blue-50 dark:border-blue-900/70 dark:text-blue-300" onclick="app.addVisualization('${escapeHtml(selectedName)}', 'waterfall')" ${isVector ? '' : 'disabled'}>Waterfall</button></div>${matchingVisualizations.length ? `<div class="text-[10px] text-gray-400">${matchingVisualizations.length} active reference${matchingVisualizations.length === 1 ? '' : 's'} · <button class="text-blue-600 hover:underline" onclick="app.removeVisualizationsForVariable('${escapeHtml(selectedName)}')">remove</button></div>` : ''}</div>
       </div>`;
   }
 
@@ -2512,6 +2583,55 @@ sum`;
     }
     editor.value = replacement.source;
     handleInput();
+  }
+
+  function addVisualization(name, type) {
+    if (!modelRuntime || !window.LiveCalcModel) return;
+    const state = modelRuntime.getState();
+    const rawValue = state.evaluation.values[name];
+    const table = getInternalTable(rawValue, name);
+    if ((type === 'line' || type === 'waterfall') && (!table || table.rowCount < 2 || table.columns.length !== 1)) {
+      showToast('Line and waterfall charts need a numeric vector.');
+      return;
+    }
+    const id = 'visualization-' + type + '-' + name;
+    const next = state.visualization.specs.filter(function (specification) { return specification.id !== id; });
+    next.push({ id: id, type: type, title: name, y: name });
+    modelRuntime.setVisualizationSpecs(next);
+    renderInspector();
+    plotFunctions();
+    updateHash(editor.value);
+  }
+
+  function removeVisualizationsForVariable(name) {
+    if (!modelRuntime) return;
+    const next = modelRuntime.getState().visualization.specs.filter(function (specification) {
+      const refs = [specification.x, specification.y].flatMap(function (reference) { return Array.isArray(reference) ? reference : [reference]; });
+      return !refs.includes(name);
+    });
+    modelRuntime.setVisualizationSpecs(next);
+    renderInspector();
+    plotFunctions();
+    updateHash(editor.value);
+  }
+
+  function exportModelData(name, format) {
+    if (!modelRuntime || !window.LiveCalcModel) return;
+    const value = modelRuntime.getState().evaluation.values[name];
+    const table = getInternalTable(value, name);
+    if (!table) {
+      showToast('This value cannot be exported as tabular data.');
+      return;
+    }
+    const json = format === 'json';
+    const text = json ? window.LiveCalcModel.tableToJson(table) : window.LiveCalcModel.tableToCsv(table);
+    const blob = new Blob([text], { type: json ? 'application/json;charset=utf-8' : 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name + (json ? '.json' : '.csv');
+    link.click();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
   }
 
   // ------------------------------------------------------------
@@ -2722,6 +2842,105 @@ sum`;
     return derived;
   }
 
+  function chartEscape(value) {
+    return escapeHtml(value === undefined || value === null ? '' : String(value));
+  }
+
+  function chartNumber(value) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  // Structured charts only receive a specification. Their points are derived
+  // on every render from EvaluationState, so a chart never retains a second
+  // copy of notebook values between edits.
+  function renderModelVisualizations(specifications, evaluation) {
+    if (!window.LiveCalcModel || !plotContainer) return false;
+    const specs = Array.isArray(specifications) ? specifications.filter(function (specification) { return specification.valid; }) : [];
+    if (!specs.length) return false;
+
+    const width = Math.max(260, plotContainer.offsetWidth || 320);
+    const height = Math.max(190, plotContainer.offsetHeight || 240);
+    const margin = { top: 30, right: 18, bottom: 36, left: 44 };
+    const chartWidth = Math.max(10, width - margin.left - margin.right);
+    const chartHeight = Math.max(10, height - margin.top - margin.bottom);
+    const palette = activeThemePalette && activeThemePalette.length ? activeThemePalette : THEME_PALETTES.default;
+    const derived = specs.map(function (specification) {
+      return window.LiveCalcModel.deriveVisualizationData(specification, evaluation);
+    });
+    const selected = derived.find(function (chart) { return chart.valid; }) || derived[0];
+    if (!selected || !selected.valid) {
+      plotContainer.innerHTML = `<div class="px-4 text-center text-sm text-amber-700 dark:text-amber-300">${chartEscape(selected && selected.error ? selected.error : 'Visualization is unavailable.')}</div>`;
+      return true;
+    }
+
+    const values = selected.spec.type === 'waterfall'
+      ? selected.points.reduce(function (all, point) { return all.concat([point.start, point.end]); }, [])
+      : selected.series.reduce(function (all, series) { return all.concat(series.values); }, []);
+    const numericValues = values.map(chartNumber).filter(function (value) { return value !== null; });
+    if (!numericValues.length) {
+      plotContainer.innerHTML = '<div class="px-4 text-center text-sm text-amber-700 dark:text-amber-300">Visualization contains no numeric values.</div>';
+      return true;
+    }
+    let minY = Math.min.apply(null, numericValues);
+    let maxY = Math.max.apply(null, numericValues);
+    if (selected.spec.type !== 'line') minY = Math.min(0, minY);
+    if (minY === maxY) {
+      const delta = Math.abs(minY || 1) * 0.15;
+      minY -= delta;
+      maxY += delta;
+    }
+    const yPadding = (maxY - minY) * 0.08;
+    minY -= yPadding;
+    maxY += yPadding;
+    const scaleX = function (index) {
+      return margin.left + (selected.points.length <= 1 ? chartWidth / 2 : (index / (selected.points.length - 1)) * chartWidth);
+    };
+    const scaleY = function (value) { return margin.top + ((maxY - value) / (maxY - minY)) * chartHeight; };
+    const ticks = 4;
+    const yGrid = Array.from({ length: ticks + 1 }, function (_, index) {
+      const ratio = index / ticks;
+      const value = maxY - ratio * (maxY - minY);
+      const y = margin.top + ratio * chartHeight;
+      return `<g><line x1="${margin.left}" x2="${width - margin.right}" y1="${y}" y2="${y}" stroke="currentColor" opacity="0.12"/><text x="${margin.left - 7}" y="${y + 3}" text-anchor="end" fill="currentColor" opacity="0.65" font-size="10">${chartEscape(smartFormat(value, null))}</text></g>`;
+    }).join('');
+    const xLabels = selected.points.map(function (point, index) {
+      if (selected.points.length > 8 && index % Math.ceil(selected.points.length / 8) !== 0) return '';
+      return `<text x="${scaleX(index)}" y="${height - 13}" text-anchor="middle" fill="currentColor" opacity="0.65" font-size="10">${chartEscape(point.label)}</text>`;
+    }).join('');
+    let marks = '';
+    if (selected.spec.type === 'line') {
+      marks = selected.series.map(function (series, seriesIndex) {
+        const points = series.values.map(function (value, index) { return `${scaleX(index)},${scaleY(value)}`; }).join(' ');
+        return `<polyline points="${points}" fill="none" stroke="${palette[seriesIndex % palette.length]}" stroke-width="2.25" vector-effect="non-scaling-stroke"/><text x="${width - margin.right}" y="${margin.top + 12 + seriesIndex * 14}" text-anchor="end" fill="${palette[seriesIndex % palette.length]}" font-size="10">${chartEscape(series.label)}${series.unit ? ' · ' + chartEscape(series.unit) : ''}</text>`;
+      }).join('');
+    } else if (selected.spec.type === 'bar') {
+      const groupWidth = chartWidth / Math.max(1, selected.points.length);
+      const barWidth = Math.max(2, (groupWidth * 0.72) / selected.series.length);
+      marks = selected.series.map(function (series, seriesIndex) {
+        return series.values.map(function (value, index) {
+          const x = margin.left + index * groupWidth + groupWidth * 0.14 + seriesIndex * barWidth;
+          const y = scaleY(Math.max(value, 0));
+          const zero = scaleY(0);
+          return `<rect x="${x}" y="${Math.min(y, zero)}" width="${barWidth - 1}" height="${Math.max(1, Math.abs(zero - y))}" rx="1" fill="${palette[seriesIndex % palette.length]}" opacity="0.9"><title>${chartEscape(series.label + ': ' + value)}</title></rect>`;
+        }).join('');
+      }).join('');
+    } else {
+      const barWidth = Math.max(3, (chartWidth / Math.max(1, selected.points.length)) * 0.68);
+      marks = selected.points.map(function (point, index) {
+        const yA = scaleY(point.start);
+        const yB = scaleY(point.end);
+        const x = scaleX(index) - barWidth / 2;
+        const color = point.end >= point.start ? palette[1] : '#dc2626';
+        return `<rect x="${x}" y="${Math.min(yA, yB)}" width="${barWidth}" height="${Math.max(1, Math.abs(yB - yA))}" rx="1" fill="${color}"><title>${chartEscape(point.label + ': ' + (point.end - point.start))}</title></rect>`;
+      }).join('');
+    }
+    const title = selected.spec.title || (selected.spec.type[0].toUpperCase() + selected.spec.type.slice(1) + ' chart');
+    const summary = `${title}. Derived from revision ${selected.revision}; ${selected.points.length} values from ${selected.series.map(function (series) { return series.label; }).join(', ')}.`;
+    plotContainer.innerHTML = `<svg class="livecalc-model-chart" role="img" aria-label="${chartEscape(summary)}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><title>${chartEscape(title)}</title><desc>${chartEscape(summary)}</desc>${yGrid}<line x1="${margin.left}" x2="${margin.left}" y1="${margin.top}" y2="${height - margin.bottom}" stroke="currentColor" opacity="0.45"/><line x1="${margin.left}" x2="${width - margin.right}" y1="${height - margin.bottom}" y2="${height - margin.bottom}" stroke="currentColor" opacity="0.45"/>${marks}${xLabels}<text x="${margin.left}" y="16" fill="currentColor" font-size="12" font-weight="600">${chartEscape(title)}</text></svg>`;
+    return true;
+  }
+
   function plotFunctions(funcs, scope) {
     // Detect functions named f, g, h or anything that takes 1 argument and plot them
     // For simplicity, we auto-plot f(x) and g(x) if they exist, or just everything.
@@ -2733,6 +2952,9 @@ sum`;
     const evaluation = modelRuntime ? modelRuntime.getState().evaluation : null;
     const currentFunctions = funcs || (evaluation && evaluation.functions) || {};
     const currentScope = scope || (evaluation && evaluation.values) || {};
+
+    const visualizationSpecs = modelRuntime ? modelRuntime.getState().visualization.specs : [];
+    if (renderModelVisualizations(visualizationSpecs, evaluation || { values: currentScope, revision: 0, status: 'valid' })) return;
 
     const containerWidth = plotContainer.offsetWidth;
     const containerHeight = plotContainer.offsetHeight;
@@ -3078,6 +3300,9 @@ f(x) = x^2 - 5*x`;
     addControl,
     removeControl,
     setControlValue,
+    addVisualization,
+    removeVisualizationsForVariable,
+    exportModelData,
     getModelState: () => (modelRuntime ? modelRuntime.getState() : null),
     clear,
     insertExample,

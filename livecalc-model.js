@@ -38,6 +38,7 @@
     'true',
     'false',
   ]);
+  const VISUALIZATION_TYPES = new Set(['line', 'bar', 'waterfall']);
 
   function safeString(value) {
     return value === undefined || value === null ? '' : String(value);
@@ -49,6 +50,168 @@
 
   function unique(values) {
     return Array.from(new Set(values));
+  }
+
+  function isPlainObject(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function valueToArray(value) {
+    if (Array.isArray(value)) return value.slice();
+    if (ArrayBuffer.isView(value)) return Array.prototype.slice.call(value);
+    if (value && typeof value.toArray === 'function') {
+      try {
+        const arrayValue = value.toArray();
+        return Array.isArray(arrayValue) ? arrayValue : null;
+      } catch (error) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function isQuantity(value) {
+    return !!value && typeof value === 'object' && value.isUnit === true;
+  }
+
+  function getQuantityUnit(value) {
+    try {
+      const first = value && value.units && value.units[0];
+      return first && first.unit && first.unit.name ? String(first.unit.name) : '';
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function getQuantityNumber(value, unit) {
+    try {
+      if (value && typeof value.toNumber === 'function') return value.toNumber(unit || undefined);
+    } catch (error) {
+      return null;
+    }
+    return null;
+  }
+
+  function plainValue(value) {
+    if (value === undefined || value === null) return null;
+    if (isQuantity(value)) {
+      const unit = getQuantityUnit(value);
+      const numeric = getQuantityNumber(value, unit);
+      return Number.isFinite(numeric) ? numeric : String(value);
+    }
+    if (value instanceof Date) return value.toISOString();
+    if (value && value.isBigNumber && typeof value.toNumber === 'function') return value.toNumber();
+    if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') return value;
+    if (value && typeof value.valueOf === 'function') {
+      const primitive = value.valueOf();
+      if (typeof primitive === 'number' || typeof primitive === 'string' || typeof primitive === 'boolean') return primitive;
+    }
+    return String(value);
+  }
+
+  function inferColumnType(values) {
+    const present = values.filter(function (value) {
+      return value !== null && value !== undefined;
+    });
+    if (!present.length) return 'unknown';
+    if (present.every(function (value) { return isQuantity(value); })) return 'quantity';
+    if (present.every(function (value) { return typeof value === 'number' || (value && value.isBigNumber); })) return 'number';
+    if (present.every(function (value) { return typeof value === 'boolean'; })) return 'boolean';
+    if (present.every(function (value) { return value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(?:T|$)/.test(value)); })) return 'date';
+    return 'string';
+  }
+
+  function normalizeColumn(name, values, requestedType, requestedUnit) {
+    const rawValues = Array.isArray(values) ? values : [];
+    const type = requestedType || inferColumnType(rawValues);
+    const unit = requestedUnit || (type === 'quantity' ? getQuantityUnit(rawValues.find(isQuantity)) : '');
+    return {
+      name: safeString(name) || 'value',
+      type: type,
+      unit: unit || undefined,
+      values: rawValues.map(function (value) {
+        if (value === undefined) return null;
+        if (type === 'quantity' && isQuantity(value)) return plainValue(value);
+        return plainValue(value);
+      }),
+    };
+  }
+
+  // Tables are a shared internal value type. The evaluator, table renderer,
+  // visualization derivation, and exporters all consume this shape instead
+  // of maintaining their own copies of a dataset.
+  function normalizeTable(value, defaultColumnName) {
+    const name = safeString(defaultColumnName) || 'value';
+    if (value && value.type === 'table' && Array.isArray(value.columns)) {
+      const columns = value.columns.map(function (column, index) {
+        const source = column && typeof column === 'object' ? column : {};
+        return normalizeColumn(source.name || 'column_' + (index + 1), source.values, source.type, source.unit);
+      });
+      const rowCount = columns.length ? Math.min.apply(null, columns.map(function (column) { return column.values.length; })) : 0;
+      columns.forEach(function (column) { column.values = column.values.slice(0, rowCount); });
+      return { type: 'table', columns: columns, rowCount: rowCount };
+    }
+
+    const arrayValue = valueToArray(value);
+    if (!arrayValue) return null;
+    if (!arrayValue.length) return { type: 'table', columns: [], rowCount: 0 };
+
+    if (arrayValue.every(function (row) { return isPlainObject(row) && !isQuantity(row); })) {
+      const keys = [];
+      arrayValue.forEach(function (row) {
+        Object.keys(row).forEach(function (key) {
+          if (!keys.includes(key)) keys.push(key);
+        });
+      });
+      return {
+        type: 'table',
+        columns: keys.map(function (key) {
+          return normalizeColumn(key, arrayValue.map(function (row) { return row[key]; }));
+        }),
+        rowCount: arrayValue.length,
+      };
+    }
+
+    if (arrayValue.every(Array.isArray)) {
+      const width = arrayValue.reduce(function (max, row) { return Math.max(max, row.length); }, 0);
+      return {
+        type: 'table',
+        columns: Array.from({ length: width }, function (_, index) {
+          return normalizeColumn('column_' + (index + 1), arrayValue.map(function (row) { return row[index]; }));
+        }),
+        rowCount: arrayValue.length,
+      };
+    }
+
+    return { type: 'table', columns: [normalizeColumn(name, arrayValue)], rowCount: arrayValue.length };
+  }
+
+  function tableToRows(table) {
+    const normalized = normalizeTable(table);
+    if (!normalized) return [];
+    return Array.from({ length: normalized.rowCount }, function (_, rowIndex) {
+      const row = {};
+      normalized.columns.forEach(function (column) { row[column.name] = column.values[rowIndex]; });
+      return row;
+    });
+  }
+
+  function tableToCsv(table) {
+    const normalized = normalizeTable(table);
+    if (!normalized) return '';
+    const escapeCell = function (value) {
+      const source = value === null || value === undefined ? '' : String(value);
+      return /[",\n\r]/.test(source) ? '"' + source.replace(/"/g, '""') + '"' : source;
+    };
+    const rows = [normalized.columns.map(function (column) { return escapeCell(column.name); }).join(',')];
+    tableToRows(normalized).forEach(function (row) {
+      rows.push(normalized.columns.map(function (column) { return escapeCell(row[column.name]); }).join(','));
+    });
+    return rows.join('\r\n');
+  }
+
+  function tableToJson(table) {
+    return JSON.stringify(tableToRows(table), null, 2);
   }
 
   function hashSource(source) {
@@ -240,10 +403,38 @@
     return { spec: normalized, errors: errors, valid: errors.length === 0 };
   }
 
-  function validateVisualizationSpec(specification, parsedModel) {
+  function normalizeVisualizationSpec(specification) {
+    const spec = specification && typeof specification === 'object' ? specification : {};
+    const type = VISUALIZATION_TYPES.has(spec.type) ? spec.type : 'line';
+    const y = Array.isArray(spec.y)
+      ? spec.y.filter(function (item) { return typeof item === 'string' && item.trim(); })
+      : typeof spec.y === 'string' && spec.y.trim()
+        ? spec.y.trim()
+        : typeof spec.variable === 'string' && spec.variable.trim()
+          ? spec.variable.trim()
+          : [];
+    const id = safeString(spec.id)
+      .trim()
+      .replace(/[^A-Za-z0-9_-]/g, '');
+    const normalized = {
+      id: id || 'visualization-' + type + '-' + (Array.isArray(y) ? y.join('-') : y || 'model'),
+      type: type,
+      title: safeString(spec.title).trim(),
+      x: typeof spec.x === 'string' && spec.x.trim() ? spec.x.trim() : undefined,
+      y: y,
+      labels: spec.labels && typeof spec.labels === 'object' ? Object.assign({}, spec.labels) : undefined,
+      options: spec.options && typeof spec.options === 'object' ? Object.assign({}, spec.options) : undefined,
+    };
+    Object.keys(normalized).forEach(function (key) {
+      if (normalized[key] === undefined || (key === 'title' && !normalized[key])) delete normalized[key];
+    });
+    return normalized;
+  }
+
+  function visualizationReferences(specification) {
     const spec = specification && typeof specification === 'object' ? specification : {};
     const references = [];
-    ['x', 'y', 'series', 'variable', 'table'].forEach(function (key) {
+    ['x', 'y'].forEach(function (key) {
       const value = spec[key];
       if (typeof value === 'string') references.push(value);
       if (Array.isArray(value))
@@ -254,14 +445,106 @@
           })
         );
     });
+    return unique(references);
+  }
+
+  function validateVisualizationSpec(specification, parsedModel) {
+    const spec = normalizeVisualizationSpec(specification);
+    const references = visualizationReferences(spec);
     const missing = unique(references).filter(function (reference) {
       return parsedModel && !parsedModel.definitions[reference];
     });
+    const errors = [];
+    if (!references.length) errors.push('A visualization must reference at least one model variable.');
+    if (specification && (Object.hasOwn(specification, 'data') || Object.hasOwn(specification, 'values'))) {
+      errors.push('Visualization data is derived from the current evaluation and cannot be stored in a specification.');
+    }
+    if (missing.length) errors.push('Missing model reference: ' + missing.join(', '));
     return {
-      valid: missing.length === 0,
+      spec: spec,
+      valid: errors.length === 0,
       missing: missing,
-      message: missing.length ? 'Missing model reference: ' + missing.join(', ') : '',
+      message: errors.join(' '),
     };
+  }
+
+  function getSeriesValues(value) {
+    const table = normalizeTable(value);
+    if (!table) {
+      const scalar = plainValue(value);
+      const numeric = typeof scalar === 'number' ? scalar : Number(scalar);
+      return Number.isFinite(numeric) ? { values: [numeric], unit: isQuantity(value) ? getQuantityUnit(value) : '', type: 'number' } : null;
+    }
+    if (table.columns.length !== 1) return null;
+    const column = table.columns[0];
+    const values = column.values.map(function (item) {
+      const numeric = typeof item === 'number' ? item : Number(item);
+      return Number.isFinite(numeric) ? numeric : null;
+    });
+    return { values: values, unit: column.unit || '', type: column.type };
+  }
+
+  // This is intentionally pure: chart data is created from the current
+  // EvaluationState at render/export time, never written back into the chart
+  // specification. A chart therefore cannot become stale independently of
+  // the notebook revision that produced it.
+  function deriveVisualizationData(specification, evaluationState) {
+    const checked = validateVisualizationSpec(specification, null);
+    const evaluation = evaluationState && typeof evaluationState === 'object' ? evaluationState : {};
+    const values = evaluation.values && typeof evaluation.values === 'object' ? evaluation.values : {};
+    const spec = checked.spec;
+    const yReferences = Array.isArray(spec.y) ? spec.y : [spec.y];
+    const missing = visualizationReferences(spec).filter(function (name) {
+      return !Object.prototype.hasOwnProperty.call(values, name);
+    });
+    if (!checked.valid || missing.length || evaluation.status === 'invalid') {
+      const problems = [];
+      if (checked.message) problems.push(checked.message);
+      if (missing.length) problems.push('Missing evaluated value: ' + missing.join(', '));
+      if (evaluation.status === 'invalid') problems.push('The current model is invalid.');
+      return { revision: evaluation.revision || 0, spec: spec, valid: false, error: problems.join(' ') };
+    }
+
+    const series = yReferences.map(function (name) {
+      const value = getSeriesValues(values[name]);
+      return value ? { id: name, label: name, values: value.values, unit: value.unit } : null;
+    });
+    if (series.some(function (item) { return !item; })) {
+      return { revision: evaluation.revision || 0, spec: spec, valid: false, error: 'Visualization values must be numeric vectors or numbers.' };
+    }
+
+    let xValues = null;
+    if (spec.x) {
+      const x = getSeriesValues(values[spec.x]);
+      if (!x) return { revision: evaluation.revision || 0, spec: spec, valid: false, error: 'The x reference must be a vector or number.' };
+      xValues = x.values;
+    }
+    const pointCount = series.reduce(function (count, item) { return Math.max(count, item.values.length); }, 0);
+    if (!pointCount) return { revision: evaluation.revision || 0, spec: spec, valid: false, error: 'The visualization has no values to display.' };
+    if (xValues && xValues.length !== pointCount) {
+      return { revision: evaluation.revision || 0, spec: spec, valid: false, error: 'The x and y vectors must have the same length.' };
+    }
+    if (series.some(function (item) { return item.values.length !== pointCount; })) {
+      return { revision: evaluation.revision || 0, spec: spec, valid: false, error: 'All plotted vectors must have the same length.' };
+    }
+
+    const labels = spec.labels && Array.isArray(spec.labels.x) ? spec.labels.x.slice(0, pointCount) : null;
+    const x = xValues || Array.from({ length: pointCount }, function (_, index) { return index + 1; });
+    const points = Array.from({ length: pointCount }, function (_, index) {
+      const point = { x: x[index], label: labels ? labels[index] : String(x[index]) };
+      series.forEach(function (item) { point[item.id] = item.values[index]; });
+      return point;
+    });
+    if (spec.type === 'waterfall') {
+      let total = 0;
+      points.forEach(function (point) {
+        const delta = point[series[0].id];
+        point.start = total;
+        total += delta;
+        point.end = total;
+      });
+    }
+    return { revision: evaluation.revision || 0, spec: spec, valid: true, x: x, series: series, points: points };
   }
 
   function encodeUtf8(value) {
@@ -300,7 +583,9 @@
     const payload = {
       version: SHARE_VERSION,
       notebook: { source: safeString(state.notebook && state.notebook.source) },
-      visualizations: Array.isArray(state.visualizations) ? state.visualizations : [],
+      visualizations: Array.isArray(state.visualizations)
+        ? state.visualizations.map(function (specification) { return normalizeVisualizationSpec(specification); })
+        : [],
       controls: Array.isArray(state.controls) ? state.controls : [],
       layout: state.layout && typeof state.layout === 'object' ? state.layout : {},
       locale: state.locale && typeof state.locale === 'object' ? state.locale : {},
@@ -361,7 +646,7 @@
     let state = {
       notebook: { source: '', revision: 0 },
       parsedModel: parseNotebook('', 0, mathInstance),
-      evaluation: { revision: 0, status: 'idle', values: {}, functions: {}, output: [], errors: [], warnings: [] },
+      evaluation: { revision: 0, status: 'idle', values: {}, tables: {}, functions: {}, output: [], errors: [], warnings: [] },
       visualization: { specs: [], selectedId: null },
       controls: { specs: [], selectedId: null },
       share: { layout: {}, locale: {}, metadata: {} },
@@ -379,7 +664,7 @@
       });
       state.visualization.specs = state.visualization.specs.map(function (specification) {
         const checked = validateVisualizationSpec(specification, state.parsedModel);
-        return Object.assign({}, specification, {
+        return Object.assign({}, checked.spec, {
           valid: checked.valid,
           missing: checked.missing,
           error: checked.message,
@@ -396,6 +681,7 @@
         revision: revision,
         status: 'pending',
         values: {},
+        tables: {},
         functions: {},
         output: [],
         errors: [],
@@ -413,10 +699,17 @@
           return entry && entry.type === 'error' ? { line: index + 1, message: safeString(entry.value) } : null;
         })
         .filter(Boolean);
+      const values = result.scope || {};
+      const tables = {};
+      Object.keys(values).forEach(function (name) {
+        const table = normalizeTable(values[name], name);
+        if (table) tables[name] = table;
+      });
       state.evaluation = {
         revision: revision,
         status: errors.length ? 'invalid' : 'valid',
-        values: result.scope || {},
+        values: values,
+        tables: tables,
         functions: result.functions || {},
         output: result.output || [],
         errors: errors,
@@ -452,7 +745,9 @@
     }
 
     function setVisualizationSpecs(specifications) {
-      state.visualization.specs = Array.isArray(specifications) ? specifications.slice() : [];
+      state.visualization.specs = Array.isArray(specifications)
+        ? specifications.map(function (specification) { return normalizeVisualizationSpec(specification); })
+        : [];
       validateSpecs();
     }
 
@@ -521,8 +816,14 @@
     createRuntime: createRuntime,
     parseNotebook: parseNotebook,
     getDependencyContext: getDependencyContext,
+    normalizeTable: normalizeTable,
+    tableToRows: tableToRows,
+    tableToCsv: tableToCsv,
+    tableToJson: tableToJson,
     normalizeControlSpec: normalizeControlSpec,
+    normalizeVisualizationSpec: normalizeVisualizationSpec,
     validateVisualizationSpec: validateVisualizationSpec,
+    deriveVisualizationData: deriveVisualizationData,
     replaceAssignmentValue: replaceAssignmentValue,
     serializeShareState: serializeShareState,
     deserializeShareState: deserializeShareState,

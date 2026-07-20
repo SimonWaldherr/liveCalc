@@ -205,6 +205,20 @@
   color: transparent !important;
 }
 
+/* Structured model charts are rendered from the current EvaluationState.
+   Scope these styles so they do not affect function-plot or icon SVGs. */
+.livecalc-model-chart {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: #475569;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.dark .livecalc-model-chart {
+  color: #cbd5e1;
+}
+
 /* Collapsible sections - optimized for performance */
 #graphContent,
 #variablesContent,

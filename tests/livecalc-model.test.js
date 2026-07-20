@@ -75,3 +75,72 @@ test('share payload contains editable model state but no evaluation cache', () =
   assert.deepEqual(decoded.controls, [{ id: 'control-price', variable: 'price', type: 'range', min: 0, max: 50, step: 1 }]);
   assert.equal(Object.hasOwn(decoded, 'evaluation'), false);
 });
+
+test('normalizes vectors and record arrays into one table type for renderers and exports', () => {
+  const vector = model.normalizeTable([1, 2, 3], 'year');
+  assert.deepEqual(vector, {
+    type: 'table',
+    columns: [{ name: 'year', type: 'number', unit: undefined, values: [1, 2, 3] }],
+    rowCount: 3,
+  });
+  assert.equal(model.tableToCsv(vector), 'year\r\n1\r\n2\r\n3');
+
+  const records = model.normalizeTable([
+    { month: 'Jan', revenue: 12 },
+    { month: 'Feb', revenue: 15 },
+  ]);
+  assert.deepEqual(model.tableToRows(records), [
+    { month: 'Jan', revenue: 12 },
+    { month: 'Feb', revenue: 15 },
+  ]);
+  assert.match(model.tableToJson(records), /"revenue": 15/);
+});
+
+test('visualizations store references only and derive fresh points from the evaluation revision', () => {
+  const runtime = model.createRuntime();
+  runtime.setNotebook('months = [1, 2, 3]\nprofit = [3, 5, 4]');
+  runtime.setVisualizationSpecs([
+    { id: 'profit-line', type: 'line', title: 'Profit over time', x: 'months', y: 'profit', data: [999] },
+  ]);
+
+  const stored = runtime.getState().visualization.specs[0];
+  assert.equal(Object.hasOwn(stored, 'data'), false);
+  assert.equal(stored.valid, true);
+
+  const first = model.deriveVisualizationData(stored, {
+    revision: 3,
+    status: 'valid',
+    values: { months: [1, 2, 3], profit: [3, 5, 4] },
+  });
+  const second = model.deriveVisualizationData(stored, {
+    revision: 4,
+    status: 'valid',
+    values: { months: [1, 2, 3], profit: [7, 1, 8] },
+  });
+  assert.equal(first.valid, true);
+  assert.deepEqual(first.points.map((point) => point.profit), [3, 5, 4]);
+  assert.equal(second.revision, 4);
+  assert.deepEqual(second.points.map((point) => point.profit), [7, 1, 8]);
+});
+
+test('share serialization removes any supplied visualization data', () => {
+  const encoded = model.serializeShareState({
+    notebook: { source: 'profit = [3, 5, 4]' },
+    visualizations: [{ id: 'profit-bars', type: 'bar', y: 'profit', values: [3, 5, 4] }],
+  });
+  const decoded = model.deserializeShareState(encoded);
+
+  assert.deepEqual(decoded.visualizations, [{ id: 'profit-bars', type: 'bar', y: 'profit' }]);
+});
+
+test('an invalid visualization reference is reported without blocking model evaluation', () => {
+  const runtime = model.createRuntime();
+  runtime.setNotebook('profit = [3, 5, 4]');
+  runtime.setVisualizationSpecs([{ id: 'missing-series', type: 'bar', y: 'revenue' }]);
+
+  const specification = runtime.getState().visualization.specs[0];
+  assert.equal(specification.valid, false);
+  assert.match(specification.error, /Missing model reference: revenue/);
+  assert.equal(runtime.commitEvaluation(1, { scope: { profit: [3, 5, 4] }, output: [] }), true);
+  assert.equal(runtime.getState().evaluation.status, 'valid');
+});
